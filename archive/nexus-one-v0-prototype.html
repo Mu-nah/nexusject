@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus ERP — by Realtouch</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg-base:      #070d1a;
+  --bg-surface:   #0c1526;
+  --bg-elevated:  #111d32;
+  --bg-card:      #14213d;
+  --border:       rgba(255,255,255,0.07);
+  --border-focus: rgba(16,185,129,0.4);
+  --text-primary: #f0f4ff;
+  --text-secondary:#8b9ab5;
+  --text-muted:   #4a5a70;
+  --emerald:      #10b981;
+  --emerald-dim:  rgba(16,185,129,0.12);
+  --emerald-glow: rgba(16,185,129,0.25);
+  --blue:         #3b82f6;
+  --violet:       #8b5cf6;
+  --amber:        #f59e0b;
+  --rose:         #f43f5e;
+  --cyan:         #06b6d4;
+  --pink:         #ec4899;
+  --sidebar-w:    260px;
+  --topbar-h:     56px;
+  --radius:       10px;
+  --radius-lg:    14px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:'Instrument Sans',sans-serif;font-size:13.5px;background:var(--bg-base);color:var(--text-primary);overflow:hidden}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:10px}
+
+/* ══════════════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════════════ */
+.app-shell{display:flex;height:100vh;overflow:hidden}
+
+/* ══════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════ */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--bg-surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;position:relative;
+  transition:width 0.25s ease;
+}
+.sidebar.collapsed{width:60px}
+
+.sidebar-logo{
+  display:flex;align-items:center;gap:10px;
+  padding:16px 14px 12px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.logo-mark{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#059669,#10b981);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Instrument Serif',serif;font-size:15px;font-weight:400;
+  color:#fff;flex-shrink:0;letter-spacing:-0.5px;
+  box-shadow:0 0 20px rgba(16,185,129,0.3);
+}
+.logo-text{overflow:hidden;white-space:nowrap}
+.logo-name{font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:-0.3px}
+.logo-vendor{font-size:10px;color:var(--emerald);font-family:'JetBrains Mono',monospace;letter-spacing:0.05em}
+
+/* Org selector */
+.org-select{
+  margin:10px 10px 6px;
+  background:var(--bg-elevated);
+  border:1px solid var(--border);
+  border-radius:9px;padding:7px 10px;
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;transition:border-color 0.2s;
+}
+.org-select:hover{border-color:var(--emerald)}
+.org-dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);flex-shrink:0}
+.org-name{font-size:12px;font-weight:500;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.org-chevron{font-size:10px;color:var(--text-muted)}
+
+/* Nav */
+.nav-scroll{flex:1;overflow-y:auto;padding:4px 0 16px}
+.nav-section-gap{height:4px}
+
+.nav-group{margin-bottom:2px}
+.nav-group-header{
+  display:flex;align-items:center;gap:7px;
+  padding:9px 14px 4px;
+  font-size:10px;font-weight:600;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.08em;
+  font-family:'JetBrains Mono',monospace;
+  cursor:pointer;
+  transition:color 0.15s;
+}
+.nav-group-header:hover{color:var(--text-secondary)}
+.nav-group-header .group-icon{
+  width:16px;height:16px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;flex-shrink:0;
+}
+.group-toggle{margin-left:auto;font-size:9px;transition:transform 0.2s}
+.nav-group.collapsed .group-toggle{transform:rotate(-90deg)}
+.nav-group.collapsed .nav-items{display:none}
+
+.nav-item{
+  display:flex;align-items:center;gap:9px;
+  padding:6px 10px 6px 12px;
+  margin:1px 6px;border-radius:8px;
+  cursor:pointer;
+  color:var(--text-secondary);
+  font-size:12.5px;font-weight:400;
+  transition:all 0.15s;
+  position:relative;user-select:none;
+  text-decoration:none;
+}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text-primary)}
+.nav-item.active{
+  background:var(--emerald-dim);
+  color:var(--emerald);font-weight:500;
+}
+.nav-item.active::before{
+  content:'';position:absolute;left:0;top:4px;bottom:4px;
+  width:2.5px;background:var(--emerald);
+  border-radius:0 3px 3px 0;margin-left:-6px;
+}
+.nav-icon{
+  width:16px;height:16px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;
+}
+.nav-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-badge{
+  font-size:10px;font-weight:600;padding:1px 6px;
+  border-radius:10px;font-family:'JetBrains Mono',monospace;
+  flex-shrink:0;
+}
+.nb-emerald{background:rgba(16,185,129,0.15);color:var(--emerald)}
+.nb-red{background:rgba(244,63,94,0.15);color:var(--rose)}
+.nb-amber{background:rgba(245,158,11,0.15);color:var(--amber)}
+.nb-ai{background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(16,185,129,0.3));color:#a78bfa}
+
+/* Admin portal switch */
+.portal-switch{
+  margin:8px 10px;
+  padding:8px 10px;
+  background:rgba(239,68,68,0.08);
+  border:1px solid rgba(239,68,68,0.2);
+  border-radius:9px;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;color:#f87171;font-weight:500;
+  transition:all 0.2s;
+}
+.portal-switch:hover{background:rgba(239,68,68,0.15)}
+.portal-switch.admin-active{
+  background:rgba(239,68,68,0.15);
+  border-color:rgba(239,68,68,0.4);
+  color:#ef4444;
+}
+
+/* Sidebar footer */
+.sidebar-footer{
+  padding:10px;
+  border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.user-chip{
+  display:flex;align-items:center;gap:9px;
+  padding:7px 8px;border-radius:9px;cursor:pointer;
+  transition:background 0.2s;
+}
+.user-chip:hover{background:var(--bg-elevated)}
+.user-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#047857,#10b981);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;color:#fff;
+}
+.user-info{flex:1;overflow:hidden}
+.user-name{font-size:12px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:10px;color:var(--emerald);font-family:'JetBrains Mono',monospace}
+
+/* ══════════════════════════════════════════════
+   MAIN
+══════════════════════════════════════════════ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* Topbar */
+.topbar{
+  height:var(--topbar-h);flex-shrink:0;
+  background:var(--bg-surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 24px;gap:14px;
+}
+.topbar-breadcrumb{
+  flex:1;display:flex;align-items:center;gap:6px;
+  font-size:13px;color:var(--text-secondary);
+}
+.breadcrumb-sep{color:var(--text-muted)}
+.breadcrumb-current{color:var(--text-primary);font-weight:500}
+.topbar-right{display:flex;align-items:center;gap:8px}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:8px;
+  font-size:12.5px;font-weight:500;
+  cursor:pointer;transition:all 0.15s;
+  border:none;font-family:'Instrument Sans',sans-serif;
+}
+.btn-primary{background:var(--emerald);color:#fff}
+.btn-primary:hover{background:#059669;box-shadow:0 0 16px var(--emerald-glow)}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.btn-icon{
+  width:34px;height:34px;padding:0;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid var(--border);
+  color:var(--text-secondary);cursor:pointer;font-size:14px;
+  transition:all 0.15s;
+}
+.btn-icon:hover{background:var(--bg-elevated);color:var(--text-primary)}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* ══════════════════════════════════════════════
+   PAGE SYSTEM
+══════════════════════════════════════════════ */
+.page{display:none}
+.page.active{display:block;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══════════════════════════════════════════════
+   STAT CARDS
+══════════════════════════════════════════════ */
+.stats-grid{display:grid;gap:14px;margin-bottom:20px}
+.stats-4{grid-template-columns:repeat(4,1fr)}
+.stats-3{grid-template-columns:repeat(3,1fr)}
+.stats-2{grid-template-columns:repeat(2,1fr)}
+
+.stat-card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:18px 20px;position:relative;overflow:hidden;
+}
+.stat-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;
+  height:2px;background:var(--accent,transparent);
+}
+.stat-icon{
+  position:absolute;top:16px;right:16px;
+  width:34px;height:34px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;background:var(--icon-bg,rgba(255,255,255,0.05));
+}
+.stat-label{
+  font-size:10.5px;font-weight:500;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.08em;
+  font-family:'JetBrains Mono',monospace;margin-bottom:8px;
+}
+.stat-value{
+  font-family:'Instrument Serif',serif;font-size:28px;
+  color:var(--text-primary);letter-spacing:-0.5px;line-height:1;
+  margin-bottom:6px;
+}
+.stat-meta{font-size:11.5px;color:var(--text-muted)}
+.stat-up{color:#34d399}
+.stat-down{color:var(--rose)}
+
+/* ══════════════════════════════════════════════
+   PANELS
+══════════════════════════════════════════════ */
+.panel{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+}
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+}
+.panel-title{
+  font-size:13px;font-weight:500;color:var(--text-primary);
+  display:flex;align-items:center;gap:8px;
+}
+.panel-action{
+  font-size:12px;color:var(--emerald);cursor:pointer;font-weight:500;
+}
+.panel-action:hover{color:#34d399}
+.panel-body{padding:18px}
+.panel-body-flush{padding:0}
+
+/* ══════════════════════════════════════════════
+   GRIDS
+══════════════════════════════════════════════ */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-65-35{display:grid;grid-template-columns:1.85fr 1fr;gap:16px;margin-bottom:16px}
+.grid-35-65{display:grid;grid-template-columns:1fr 1.85fr;gap:16px;margin-bottom:16px}
+
+/* ══════════════════════════════════════════════
+   TABLE
+══════════════════════════════════════════════ */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{
+  padding:10px 14px;text-align:left;
+  font-size:10.5px;font-weight:600;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.07em;
+  font-family:'JetBrains Mono',monospace;
+  border-bottom:1px solid var(--border);
+  background:var(--bg-card);white-space:nowrap;
+}
+.data-table td{
+  padding:11px 14px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:12.5px;color:var(--text-secondary);
+}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:rgba(255,255,255,0.02)}
+.td-primary{font-weight:500;color:var(--text-primary) !important}
+.td-mono{font-family:'JetBrains Mono',monospace;font-size:11.5px}
+
+/* ══════════════════════════════════════════════
+   BADGES
+══════════════════════════════════════════════ */
+.badge{
+  display:inline-flex;align-items:center;
+  padding:3px 8px;border-radius:20px;
+  font-size:10.5px;font-weight:600;letter-spacing:0.02em;
+}
+.badge-green{background:rgba(16,185,129,0.12);color:#34d399}
+.badge-amber{background:rgba(245,158,11,0.12);color:#fbbf24}
+.badge-red{background:rgba(244,63,94,0.12);color:#f87171}
+.badge-blue{background:rgba(59,130,246,0.12);color:#60a5fa}
+.badge-violet{background:rgba(139,92,246,0.12);color:#a78bfa}
+.badge-slate{background:rgba(255,255,255,0.06);color:var(--text-muted)}
+.badge-cyan{background:rgba(6,182,212,0.12);color:#22d3ee}
+
+/* ══════════════════════════════════════════════
+   PROGRESS
+══════════════════════════════════════════════ */
+.progress{height:5px;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden}
+.progress-fill{height:100%;border-radius:10px;transition:width 0.6s ease}
+
+/* ══════════════════════════════════════════════
+   ALERT BANNERS
+══════════════════════════════════════════════ */
+.alert{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 14px;border-radius:9px;
+  font-size:12.5px;margin-bottom:16px;
+}
+.alert-warn{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#fbbf24}
+.alert-info{background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);color:#60a5fa}
+.alert-success{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#34d399}
+.alert-danger{background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);color:#f87171}
+
+/* ══════════════════════════════════════════════
+   FORMS
+══════════════════════════════════════════════ */
+.form-group{margin-bottom:14px}
+.form-label{
+  display:block;font-size:10.5px;font-weight:600;
+  color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;
+  font-family:'JetBrains Mono',monospace;margin-bottom:5px;
+}
+.form-input{
+  width:100%;background:var(--bg-elevated);
+  border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;font-size:12.5px;color:var(--text-primary);
+  font-family:'Instrument Sans',sans-serif;outline:none;
+  transition:border-color 0.2s;
+}
+.form-input:focus{border-color:var(--emerald)}
+.form-input::placeholder{color:var(--text-muted)}
+select.form-input{cursor:pointer}
+
+/* ══════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════ */
+.tab-bar{
+  display:flex;gap:2px;background:var(--bg-elevated);
+  border-radius:9px;padding:3px;margin-bottom:18px;width:fit-content;
+}
+.tab-btn{
+  padding:5px 14px;border-radius:7px;font-size:12px;font-weight:500;
+  cursor:pointer;border:none;background:transparent;
+  color:var(--text-muted);transition:all 0.15s;font-family:'Instrument Sans',sans-serif;
+}
+.tab-btn.active{background:var(--bg-card);color:var(--text-primary)}
+
+/* ══════════════════════════════════════════════
+   COMPLIANCE CHECKLIST ITEMS
+══════════════════════════════════════════════ */
+.check-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.check-item:last-child{border-bottom:none}
+.check-box{
+  width:20px;height:20px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;cursor:pointer;margin-top:1px;
+  transition:all 0.15s;border:1.5px solid var(--border);
+}
+.check-box.done{background:var(--emerald);border-color:var(--emerald);color:#fff}
+.check-box.progress{background:rgba(245,158,11,0.2);border-color:var(--amber);color:var(--amber)}
+.check-req{font-size:12.5px;font-weight:500;color:var(--text-primary);margin-bottom:2px}
+.check-detail{font-size:11.5px;color:var(--text-muted)}
+.check-meta{display:flex;gap:8px;margin-top:4px}
+
+/* ══════════════════════════════════════════════
+   AI ASSISTANT WIDGET (floating)
+══════════════════════════════════════════════ */
+.ai-fab{
+  position:fixed;bottom:24px;right:24px;
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,#6d28d9,#10b981);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;cursor:pointer;z-index:1000;
+  box-shadow:0 8px 32px rgba(16,185,129,0.35);
+  transition:all 0.2s;animation:pulse-ring 3s infinite;
+}
+.ai-fab:hover{transform:scale(1.08)}
+@keyframes pulse-ring{
+  0%,100%{box-shadow:0 8px 32px rgba(16,185,129,0.35)}
+  50%{box-shadow:0 8px 40px rgba(16,185,129,0.55),0 0 0 8px rgba(16,185,129,0.05)}
+}
+
+.ai-panel{
+  position:fixed;bottom:86px;right:24px;
+  width:380px;max-height:520px;
+  background:var(--bg-surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  display:flex;flex-direction:column;
+  z-index:999;
+  box-shadow:0 24px 80px rgba(0,0,0,0.5);
+  transform:scale(0.95) translateY(10px);opacity:0;
+  pointer-events:none;transition:all 0.2s;
+}
+.ai-panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+
+.ai-panel-header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.ai-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#6d28d9,#10b981);
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+}
+.ai-title{font-size:13px;font-weight:600;color:var(--text-primary)}
+.ai-subtitle{font-size:10px;color:var(--emerald);font-family:'JetBrains Mono',monospace}
+.ai-close{margin-left:auto;cursor:pointer;color:var(--text-muted);font-size:16px}
+.ai-close:hover{color:var(--text-primary)}
+
+.ai-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:200px}
+.ai-msg{display:flex;gap:8px;max-width:100%}
+.ai-msg.user{flex-direction:row-reverse}
+.ai-bubble{
+  padding:9px 12px;border-radius:10px;
+  font-size:12px;line-height:1.55;max-width:280px;
+}
+.ai-msg.bot .ai-bubble{
+  background:var(--bg-elevated);border:1px solid var(--border);
+  border-top-left-radius:3px;color:var(--text-primary);
+}
+.ai-msg.user .ai-bubble{
+  background:var(--emerald);color:#fff;
+  border-top-right-radius:3px;
+}
+.ai-typing{display:flex;gap:4px;padding:10px 14px;align-items:center}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--emerald);animation:typing 1.2s infinite}
+.ai-dot:nth-child(2){animation-delay:0.2s}
+.ai-dot:nth-child(3){animation-delay:0.4s}
+@keyframes typing{0%,60%,100%{opacity:0.3;transform:scale(1)}30%{opacity:1;transform:scale(1.2)}}
+
+.ai-chips{padding:0 12px 10px;display:flex;flex-wrap:wrap;gap:6px}
+.ai-chip{
+  padding:5px 10px;background:var(--bg-elevated);
+  border:1px solid var(--border);border-radius:20px;
+  font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;
+}
+.ai-chip:hover{border-color:var(--emerald);color:var(--emerald)}
+
+.ai-input-row{
+  display:flex;gap:8px;padding:10px 12px;
+  border-top:1px solid var(--border);flex-shrink:0;
+}
+.ai-input{
+  flex:1;background:var(--bg-elevated);border:1px solid var(--border);
+  border-radius:8px;padding:8px 12px;font-size:12px;
+  color:var(--text-primary);font-family:'Instrument Sans',sans-serif;
+  outline:none;resize:none;min-height:36px;max-height:80px;
+}
+.ai-input:focus{border-color:var(--emerald)}
+.ai-send{
+  width:36px;height:36px;background:var(--emerald);border:none;
+  border-radius:8px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:14px;color:#fff;flex-shrink:0;
+  transition:background 0.2s;
+}
+.ai-send:hover{background:#059669}
+
+/* ══════════════════════════════════════════════
+   ONBOARDING GUIDE WIDGET
+══════════════════════════════════════════════ */
+.guide-widget{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:500px;background:var(--bg-surface);
+  border:1px solid var(--border);border-radius:var(--radius-lg);
+  z-index:2000;display:none;
+  box-shadow:0 40px 120px rgba(0,0,0,0.7);
+}
+.guide-widget.open{display:block}
+.guide-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:1999;display:none;backdrop-filter:blur(4px);
+}
+.guide-overlay.open{display:block}
+
+.guide-header{
+  background:linear-gradient(135deg,#0c1526,#111d32);
+  padding:28px 32px 24px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+  text-align:center;border-bottom:1px solid var(--border);
+}
+.guide-logo{
+  width:50px;height:50px;border-radius:14px;
+  background:linear-gradient(135deg,#059669,#10b981);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Instrument Serif',serif;font-size:22px;color:#fff;
+  margin:0 auto 12px;box-shadow:0 0 30px rgba(16,185,129,0.4);
+}
+.guide-title{font-family:'Instrument Serif',serif;font-size:20px;color:var(--text-primary);margin-bottom:4px}
+.guide-sub{font-size:12px;color:var(--text-muted)}
+
+.guide-body{padding:24px 32px}
+.guide-steps{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.guide-step{
+  display:flex;gap:14px;padding:12px 14px;
+  background:var(--bg-elevated);border-radius:10px;
+  border:1px solid var(--border);cursor:pointer;transition:all 0.15s;
+}
+.guide-step:hover{border-color:var(--emerald)}
+.step-num{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  background:var(--emerald-dim);border:1.5px solid var(--emerald);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;color:var(--emerald);
+  font-family:'JetBrains Mono',monospace;
+}
+.step-label{font-size:12.5px;font-weight:500;color:var(--text-primary);margin-bottom:2px}
+.step-desc{font-size:11px;color:var(--text-muted)}
+.guide-footer{display:flex;gap:10px}
+
+/* ══════════════════════════════════════════════
+   ADMIN PORTAL
+══════════════════════════════════════════════ */
+.admin-badge{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  background:rgba(239,68,68,0.9);color:#fff;
+  font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;
+  font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;
+  display:none;
+}
+.admin-mode .admin-badge{display:block}
+.admin-mode .sidebar{border-right-color:rgba(239,68,68,0.3)}
+
+/* ══════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════ */
+.chart-wrap{position:relative;width:100%}
+
+/* ══════════════════════════════════════════════
+   MODULE CARDS (settings)
+══════════════════════════════════════════════ */
+.module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.module-card{
+  background:var(--bg-elevated);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.module-header{display:flex;align-items:center;gap:10px}
+.module-icon{
+  width:36px;height:36px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.module-name{font-size:13px;font-weight:500;color:var(--text-primary)}
+.module-desc{font-size:11.5px;color:var(--text-muted);line-height:1.5}
+.toggle-switch{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:auto;
+}
+.toggle{
+  width:38px;height:20px;border-radius:10px;
+  background:rgba(255,255,255,0.1);cursor:pointer;
+  position:relative;transition:background 0.2s;
+}
+.toggle.on{background:var(--emerald)}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:transform 0.2s;
+}
+.toggle.on::after{transform:translateX(18px)}
+
+/* ══════════════════════════════════════════════
+   ROLE PERMISSION MATRIX
+══════════════════════════════════════════════ */
+.perm-table{width:100%;border-collapse:collapse}
+.perm-table th,.perm-table td{padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);font-size:11.5px}
+.perm-table th{color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase}
+.perm-table td:first-child{text-align:left;color:var(--text-secondary);font-weight:500}
+.perm-yes{color:var(--emerald);font-size:14px}
+.perm-no{color:var(--text-muted);font-size:14px}
+.perm-partial{color:var(--amber);font-size:12px}
+
+/* ══════════════════════════════════════════════
+   COMPLIANCE SCORE RING
+══════════════════════════════════════════════ */
+.score-ring{
+  width:100px;height:100px;margin:0 auto;position:relative;
+}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring .score-text{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  font-family:'Instrument Serif',serif;
+}
+.score-num{font-size:22px;color:var(--text-primary);line-height:1}
+.score-pct{font-size:10px;color:var(--text-muted)}
+
+/* ══════════════════════════════════════════════
+   HR MODULE
+══════════════════════════════════════════════ */
+.employee-card{
+  background:var(--bg-elevated);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;display:flex;gap:12px;
+  cursor:pointer;transition:border-color 0.15s;
+}
+.employee-card:hover{border-color:rgba(59,130,246,0.3)}
+.emp-avatar{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:600;color:#fff;
+  background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+}
+.emp-name{font-size:13px;font-weight:500;color:var(--text-primary)}
+.emp-role{font-size:11px;color:var(--text-muted)}
+
+/* Vertical divider for compliance items */
+.compliance-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════ */
+@media(max-width:1100px){
+  .stats-4{grid-template-columns:repeat(2,1fr)}
+  .grid-65-35{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Onboarding overlay -->
+<div class="guide-overlay" id="guideOverlay" onclick="closeGuide()"></div>
+<div class="guide-widget" id="guideWidget">
+  <div class="guide-header">
+    <div class="guide-logo">N</div>
+    <div class="guide-title">Welcome to Nexus ERP</div>
+    <div class="guide-sub">by Realtouch Global Ventures · Your enterprise resource platform</div>
+  </div>
+  <div class="guide-body">
+    <div class="guide-steps">
+      <div class="guide-step" onclick="closeGuide();navigate('dashboard')">
+        <div class="step-num">1</div>
+        <div><div class="step-label">Explore the Executive Dashboard</div><div class="step-desc">Live financial overview, KPIs, compliance status and alerts</div></div>
+      </div>
+      <div class="guide-step" onclick="closeGuide();navigate('finance-cfo')">
+        <div class="step-num">2</div>
+        <div><div class="step-label">Review the Finance module</div><div class="step-desc">Accounting, payroll, grants, expenses — all in one place</div></div>
+      </div>
+      <div class="guide-step" onclick="closeGuide();navigate('people-hr')">
+        <div class="step-num">3</div>
+        <div><div class="step-label">Set up your People module</div><div class="step-desc">Employees, DBS checks, right to work, leave management</div></div>
+      </div>
+      <div class="guide-step" onclick="closeGuide();navigate('compliance')">
+        <div class="step-num">4</div>
+        <div><div class="step-label">Check your Compliance Hub</div><div class="step-desc">Real-time compliance score and outstanding action items</div></div>
+      </div>
+      <div class="guide-step" onclick="closeGuide();openAdmin()">
+        <div class="step-num">5</div>
+        <div><div class="step-label">Configure via Admin Portal</div><div class="step-desc">Manage tenants, users, modules, feature flags, billing</div></div>
+      </div>
+    </div>
+    <div class="guide-footer">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeGuide()">Skip for now</button>
+      <button class="btn btn-primary" style="flex:2" onclick="closeGuide();navigate('dashboard')">Get Started →</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI FAB -->
+<div class="ai-fab" id="aiFab" onclick="toggleAI()" title="Nexus AI Assistant">✦</div>
+
+<!-- AI Panel -->
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-panel-header">
+    <div class="ai-avatar">✦</div>
+    <div>
+      <div class="ai-title">Nexus AI</div>
+      <div class="ai-subtitle">powered by Realtouch Intelligence</div>
+    </div>
+    <div class="ai-close" onclick="toggleAI()">✕</div>
+  </div>
+  <div class="ai-messages" id="aiMessages">
+    <div class="ai-msg bot">
+      <div class="ai-avatar" style="width:24px;height:24px;font-size:11px;flex-shrink:0;margin-top:2px">✦</div>
+      <div class="ai-bubble">Hi Dominic 👋 I'm Nexus AI. I'm connected to Harvest Touch CIC's live data — accounting, payroll, grants, HR, and compliance.<br><br>What would you like to know?</div>
+    </div>
+  </div>
+  <div class="ai-chips" id="aiChips">
+    <div class="ai-chip" onclick="sendAI(this.textContent)">Cash runway?</div>
+    <div class="ai-chip" onclick="sendAI(this.textContent)">NLCF report draft</div>
+    <div class="ai-chip" onclick="sendAI(this.textContent)">Compliance gaps</div>
+    <div class="ai-chip" onclick="sendAI(this.textContent)">March payroll</div>
+    <div class="ai-chip" onclick="sendAI(this.textContent)">Trustee summary</div>
+  </div>
+  <div class="ai-input-row">
+    <textarea class="ai-input" id="aiInput" placeholder="Ask anything…" rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI()}"></textarea>
+    <button class="ai-send" onclick="sendAI()">➤</button>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="app-shell" id="appShell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="admin-badge">ADMIN MODE</div>
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="logo-mark">Nx</div>
+      <div class="logo-text">
+        <div class="logo-name">Nexus ERP</div>
+        <div class="logo-vendor">by Realtouch</div>
+      </div>
+    </div>
+
+    <!-- Org selector -->
+    <div class="org-select" onclick="toggleOrgMenu()">
+      <div class="org-dot"></div>
+      <div class="org-name">Harvest Touch CIC</div>
+      <div class="org-chevron">⌄</div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="nav-scroll" id="mainNav">
+
+      <!-- COMMAND CENTRE -->
+      <div class="nav-group" id="grp-command">
+        <div class="nav-group-header" onclick="toggleGroup('command')">
+          <div class="nav-icon">◈</div>
+          <span>Command Centre</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item active" onclick="navigate('dashboard')">
+            <div class="nav-icon">▦</div>
+            <span class="nav-label">Executive Dashboard</span>
+          </div>
+          <div class="nav-item" onclick="navigate('ai-page')">
+            <div class="nav-icon">✦</div>
+            <span class="nav-label">Nexus AI</span>
+            <span class="nav-badge nb-ai">AI</span>
+          </div>
+          <div class="nav-item" onclick="navigate('notifications')">
+            <div class="nav-icon">🔔</div>
+            <span class="nav-label">Notifications</span>
+            <span class="nav-badge nb-red">5</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div class="nav-group" id="grp-finance">
+        <div class="nav-group-header" onclick="toggleGroup('finance')">
+          <div class="nav-icon" style="color:var(--blue)">💷</div>
+          <span>Finance</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('finance-cfo')">
+            <div class="nav-icon">📊</div>
+            <span class="nav-label">CFO Dashboard</span>
+          </div>
+          <div class="nav-item" onclick="navigate('finance-accounting')">
+            <div class="nav-icon">📖</div>
+            <span class="nav-label">Accounting</span>
+          </div>
+          <div class="nav-item" onclick="navigate('finance-banking')">
+            <div class="nav-icon">🏦</div>
+            <span class="nav-label">Banking</span>
+          </div>
+          <div class="nav-item" onclick="navigate('finance-expenses')">
+            <div class="nav-icon">🧾</div>
+            <span class="nav-label">Expenses</span>
+            <span class="nav-badge nb-amber">4</span>
+          </div>
+          <div class="nav-item" onclick="navigate('finance-budgets')">
+            <div class="nav-icon">🎯</div>
+            <span class="nav-label">Budgets</span>
+          </div>
+          <div class="nav-item" onclick="navigate('finance-reports')">
+            <div class="nav-icon">📄</div>
+            <span class="nav-label">Financial Reports</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRANTS & FUNDING -->
+      <div class="nav-group" id="grp-grants">
+        <div class="nav-group-header" onclick="toggleGroup('grants')">
+          <div class="nav-icon" style="color:var(--violet)">🏆</div>
+          <span>Grants & Funding</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('grants-list')">
+            <div class="nav-icon">🏅</div>
+            <span class="nav-label">Grants</span>
+            <span class="nav-badge nb-emerald">3</span>
+          </div>
+          <div class="nav-item" onclick="navigate('grants-reports')">
+            <div class="nav-icon">📋</div>
+            <span class="nav-label">Funder Reports</span>
+          </div>
+          <div class="nav-item" onclick="navigate('donations')">
+            <div class="nav-icon">❤️</div>
+            <span class="nav-label">Donations</span>
+          </div>
+          <div class="nav-item" onclick="navigate('gift-aid')">
+            <div class="nav-icon">%</div>
+            <span class="nav-label">Gift Aid</span>
+          </div>
+          <div class="nav-item" onclick="navigate('pipeline')">
+            <div class="nav-icon">📈</div>
+            <span class="nav-label">Funding Pipeline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPERATIONS -->
+      <div class="nav-group" id="grp-ops">
+        <div class="nav-group-header" onclick="toggleGroup('ops')">
+          <div class="nav-icon" style="color:var(--amber)">⚙️</div>
+          <span>Operations</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('ops-programmes')">
+            <div class="nav-icon">◩</div>
+            <span class="nav-label">Programmes</span>
+          </div>
+          <div class="nav-item" onclick="navigate('ops-activities')">
+            <div class="nav-icon">📅</div>
+            <span class="nav-label">Activities</span>
+          </div>
+          <div class="nav-item" onclick="navigate('ops-beneficiaries')">
+            <div class="nav-icon">👥</div>
+            <span class="nav-label">Beneficiaries</span>
+          </div>
+          <div class="nav-item" onclick="navigate('ops-volunteers')">
+            <div class="nav-icon">🤝</div>
+            <span class="nav-label">Volunteers</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PEOPLE (HR) -->
+      <div class="nav-group" id="grp-people">
+        <div class="nav-group-header" onclick="toggleGroup('people')">
+          <div class="nav-icon" style="color:var(--pink)">👤</div>
+          <span>People</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('people-hr')">
+            <div class="nav-icon">▦</div>
+            <span class="nav-label">HR Dashboard</span>
+          </div>
+          <div class="nav-item" onclick="navigate('people-employees')">
+            <div class="nav-icon">✅</div>
+            <span class="nav-label">Employees</span>
+          </div>
+          <div class="nav-item" onclick="navigate('people-payroll')">
+            <div class="nav-icon">💵</div>
+            <span class="nav-label">Payroll</span>
+          </div>
+          <div class="nav-item" onclick="navigate('people-leave')">
+            <div class="nav-icon">📆</div>
+            <span class="nav-label">Leave Management</span>
+          </div>
+          <div class="nav-item" onclick="navigate('people-training')">
+            <div class="nav-icon">🎓</div>
+            <span class="nav-label">Training & CPD</span>
+          </div>
+          <div class="nav-item" onclick="navigate('people-recruitment')">
+            <div class="nav-icon">➕</div>
+            <span class="nav-label">Recruitment</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPLIANCE -->
+      <div class="nav-group" id="grp-compliance">
+        <div class="nav-group-header" onclick="toggleGroup('compliance')">
+          <div class="nav-icon" style="color:var(--rose)">🛡️</div>
+          <span>Compliance</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('compliance')">
+            <div class="nav-icon">🔰</div>
+            <span class="nav-label">Compliance Hub</span>
+            <span class="nav-badge nb-red">2</span>
+          </div>
+          <div class="nav-item" onclick="navigate('comp-safeguarding')">
+            <div class="nav-icon">⚠️</div>
+            <span class="nav-label">Safeguarding</span>
+          </div>
+          <div class="nav-item" onclick="navigate('comp-dbs')">
+            <div class="nav-icon">🔍</div>
+            <span class="nav-label">DBS Checks</span>
+          </div>
+          <div class="nav-item" onclick="navigate('comp-rtw')">
+            <div class="nav-icon">✔️</div>
+            <span class="nav-label">Right to Work</span>
+          </div>
+          <div class="nav-item" onclick="navigate('comp-gdpr')">
+            <div class="nav-icon">🔒</div>
+            <span class="nav-label">Data Protection</span>
+          </div>
+          <div class="nav-item" onclick="navigate('comp-ukvi')">
+            <div class="nav-icon">🌐</div>
+            <span class="nav-label">UKVI / Sponsorship</span>
+          </div>
+          <div class="nav-item" onclick="navigate('comp-audit')">
+            <div class="nav-icon">🕐</div>
+            <span class="nav-label">Audit Trail</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- GOVERNANCE -->
+      <div class="nav-group" id="grp-gov">
+        <div class="nav-group-header" onclick="toggleGroup('gov')">
+          <div class="nav-icon" style="color:var(--cyan)">🏛️</div>
+          <span>Governance</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('gov-board')">
+            <div class="nav-icon">👥</div>
+            <span class="nav-label">Board & Trustees</span>
+          </div>
+          <div class="nav-item" onclick="navigate('gov-conflicts')">
+            <div class="nav-icon">⚖️</div>
+            <span class="nav-label">Conflicts of Interest</span>
+          </div>
+          <div class="nav-item" onclick="navigate('gov-cic')">
+            <div class="nav-icon">📑</div>
+            <span class="nav-label">CIC Statement</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="nav-group" id="grp-reports">
+        <div class="nav-group-header" onclick="toggleGroup('reports')">
+          <div class="nav-icon" style="color:var(--cyan)">📊</div>
+          <span>Reports</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('reports-builder')">
+            <div class="nav-icon">📈</div>
+            <span class="nav-label">Report Builder</span>
+          </div>
+          <div class="nav-item" onclick="navigate('reports-statutory')">
+            <div class="nav-icon">🏛️</div>
+            <span class="nav-label">Statutory Reports</span>
+          </div>
+          <div class="nav-item" onclick="navigate('reports-impact')">
+            <div class="nav-icon">⚡</div>
+            <span class="nav-label">Impact Reports</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="nav-group" id="grp-settings">
+        <div class="nav-group-header" onclick="toggleGroup('settings')">
+          <div class="nav-icon">⚙️</div>
+          <span>Settings</span>
+          <span class="group-toggle">▾</span>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" onclick="navigate('settings-org')">
+            <div class="nav-icon">🏢</div>
+            <span class="nav-label">Organisation</span>
+          </div>
+          <div class="nav-item" onclick="navigate('settings-users')">
+            <div class="nav-icon">👥</div>
+            <span class="nav-label">Users & Roles</span>
+          </div>
+          <div class="nav-item" onclick="navigate('settings-modules')">
+            <div class="nav-icon">▦</div>
+            <span class="nav-label">Modules</span>
+          </div>
+          <div class="nav-item" onclick="navigate('settings-integrations')">
+            <div class="nav-icon">🔌</div>
+            <span class="nav-label">Integrations</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Portal Switch -->
+      <div style="padding:8px 10px">
+        <div class="portal-switch" id="adminSwitch" onclick="toggleAdmin()">
+          <span>🔐</span>
+          <span>Platform Admin Portal</span>
+        </div>
+      </div>
+
+    </nav>
+
+    <!-- User -->
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar">DO</div>
+        <div class="user-info">
+          <div class="user-name">Dominic Ogbuagu</div>
+          <div class="user-role">CFO · Lead Consultant</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-breadcrumb">
+        <span id="breadcrumb-section">Command Centre</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current" id="breadcrumb-page">Executive Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-period" style="display:flex;gap:2px;background:var(--bg-elevated);border-radius:7px;padding:3px;border:1px solid var(--border)">
+          <button class="tab-btn" onclick="setPeriod(this,'MTD')">MTD</button>
+          <button class="tab-btn" onclick="setPeriod(this,'QTD')">QTD</button>
+          <button class="tab-btn active" onclick="setPeriod(this,'YTD')">YTD</button>
+        </div>
+        <button class="btn-icon" onclick="openGuide()" title="Help Guide">?</button>
+        <button class="btn-icon" title="Notifications">🔔</button>
+        <button class="btn btn-primary" onclick="showNewEntry()">+ New Entry</button>
+      </div>
+    </div>
+
+    <!-- Content area -->
+    <div class="content">
+
+<!-- ══════════════════════════════════════════
+   EXECUTIVE DASHBOARD
+══════════════════════════════════════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="alert alert-warn">
+    ⚠ <strong>4 items need attention:</strong> NMW validation not implemented · P60 generation pending · DBS records missing for 2 staff · ICO registration unconfirmed
+    <span style="margin-left:auto;cursor:pointer;font-size:11px;text-decoration:underline" onclick="navigate('compliance')">View all →</span>
+  </div>
+
+  <div class="stats-grid stats-4">
+    <div class="stat-card" style="--accent:var(--emerald)">
+      <div class="stat-icon" style="--icon-bg:rgba(16,185,129,0.1);color:var(--emerald)">£</div>
+      <div class="stat-label">Total Funds</div>
+      <div class="stat-value">£84,320</div>
+      <div class="stat-meta"><span class="stat-up">↑ 12.4%</span> vs last quarter</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--rose)">
+      <div class="stat-icon" style="--icon-bg:rgba(244,63,94,0.1);color:var(--rose)">↓</div>
+      <div class="stat-label">Monthly Burn</div>
+      <div class="stat-value">£7,842</div>
+      <div class="stat-meta"><span class="stat-down">↑ 8.1%</span> vs last month</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--amber)">
+      <div class="stat-icon" style="--icon-bg:rgba(245,158,11,0.1);color:var(--amber)">◷</div>
+      <div class="stat-label">Cash Runway</div>
+      <div class="stat-value">10.8mo</div>
+      <div class="stat-meta"><span class="stat-up">↑ stable</span> at current burn</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--blue)">
+      <div class="stat-icon" style="--icon-bg:rgba(59,130,246,0.1);color:var(--blue)">⊕</div>
+      <div class="stat-label">Active Grants</div>
+      <div class="stat-value">£142,500</div>
+      <div class="stat-meta">3 grants · £38k remaining</div>
+    </div>
+  </div>
+
+  <div class="grid-65-35">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Cash Flow — FY 2024–25</div>
+        <div style="display:flex;gap:8px">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)"><span style="width:8px;height:8px;border-radius:2px;background:var(--emerald);display:inline-block"></span>Income</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)"><span style="width:8px;height:8px;border-radius:2px;background:var(--rose);display:inline-block"></span>Expenditure</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap" style="height:200px"><canvas id="cashflowChart"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Compliance Score</div><div class="panel-action" onclick="navigate('compliance')">Details →</div></div>
+      <div class="panel-body" style="text-align:center">
+        <div class="score-ring">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--emerald)" stroke-width="8"
+              stroke-dasharray="251.2" stroke-dashoffset="105" stroke-linecap="round"/>
+          </svg>
+          <div class="score-text"><div class="score-num">58%</div><div class="score-pct">compliant</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:12px">29 items complete · 8 in progress · 42 remaining</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+          <div style="background:rgba(244,63,94,0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:600;color:var(--rose);font-family:'Instrument Serif',serif">7</div><div style="font-size:10px;color:var(--text-muted)">Critical / Urgent</div></div>
+          <div style="background:rgba(245,158,11,0.08);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:600;color:var(--amber);font-family:'Instrument Serif',serif">14</div><div style="font-size:10px;color:var(--text-muted)">High Priority</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Grant Portfolio</div><div class="panel-action" onclick="navigate('grants-list')">Manage →</div></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11.5px">
+            <span style="color:var(--text-secondary)">NLCF Community Fund</span>
+            <span class="td-mono" style="color:var(--text-primary)">£28k/£50k</span>
+          </div>
+          <div class="progress"><div class="progress-fill" style="width:56%;background:var(--emerald)"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11.5px">
+            <span style="color:var(--text-secondary)">GM Combined Authority</span>
+            <span class="td-mono" style="color:var(--text-primary)">£64k/£80k</span>
+          </div>
+          <div class="progress"><div class="progress-fill" style="width:80%;background:var(--amber)"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11.5px">
+            <span style="color:var(--text-secondary)">Rochdale Council SLA</span>
+            <span class="td-mono" style="color:var(--text-primary)">£10k/£12.5k</span>
+          </div>
+          <div class="progress"><div class="progress-fill" style="width:80%;background:var(--blue)"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">People Overview</div><div class="panel-action" onclick="navigate('people-hr')">HR →</div></div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="background:var(--bg-elevated);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text-primary)">4</div>
+            <div style="font-size:10px;color:var(--text-muted)">Active Staff</div>
+          </div>
+          <div style="background:var(--bg-elevated);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--amber)">2</div>
+            <div style="font-size:10px;color:var(--text-muted)">DBS Due</div>
+          </div>
+        </div>
+        <div class="alert alert-danger" style="margin-bottom:0">
+          ⚠ Right to Work records missing for 4 employees
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Upcoming Deadlines</div></div>
+      <div class="panel-body" style="padding:0">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:12px;font-weight:500;color:var(--text-primary)">NLCF Interim Report</div><div style="font-size:11px;color:var(--text-muted)">Funder deadline</div></div>
+          <span class="badge badge-red">9 days</span>
+        </div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:12px;font-weight:500;color:var(--text-primary)">March Payroll Run</div><div style="font-size:11px;color:var(--text-muted)">Pay date 28 Mar</div></div>
+          <span class="badge badge-amber">6 days</span>
+        </div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:12px;font-weight:500;color:var(--text-primary)">RTI HMRC Submission</div><div style="font-size:11px;color:var(--text-muted)">PAYE filing</div></div>
+          <span class="badge badge-amber">19 Apr</span>
+        </div>
+        <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:12px;font-weight:500;color:var(--text-primary)">Gift Aid Claim</div><div style="font-size:11px;color:var(--text-muted)">Annual HMRC claim</div></div>
+          <span class="badge badge-blue">30 Apr</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+   PEOPLE / HR DASHBOARD
+══════════════════════════════════════════ -->
+<div class="page" id="page-people-hr">
+  <div class="stats-grid stats-4" style="margin-bottom:20px">
+    <div class="stat-card" style="--accent:var(--pink)"><div class="stat-label">Active Staff</div><div class="stat-value">4</div><div class="stat-meta">2 FT · 2 PT</div></div>
+    <div class="stat-card" style="--accent:var(--rose)"><div class="stat-label">DBS Renewals Due</div><div class="stat-value">2</div><div class="stat-meta stat-down">Within 90 days</div></div>
+    <div class="stat-card" style="--accent:var(--amber)"><div class="stat-label">Right to Work</div><div class="stat-value">0/4</div><div class="stat-meta stat-down">Not yet recorded</div></div>
+    <div class="stat-card" style="--accent:var(--emerald)"><div class="stat-label">Leave Remaining</div><div class="stat-value">86d</div><div class="stat-meta">Across all staff</div></div>
+  </div>
+
+  <div class="alert alert-danger">⚠ <strong>Critical:</strong> Right to Work verification not recorded for any employee. This is a legal requirement. <span style="margin-left:auto;cursor:pointer;text-decoration:underline;font-size:11px" onclick="navigate('comp-rtw')">Fix now →</span></div>
+
+  <div class="grid-65-35">
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Employee Register</div><button class="btn btn-primary" style="font-size:11px;padding:5px 12px">+ Add Employee</button></div>
+      <table class="data-table">
+        <thead><tr><th>Employee</th><th>Role</th><th>Contract</th><th>DBS</th><th>RTW</th><th>Safeguarding</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="td-primary">Dominic Ogbuagu</div><div style="font-size:11px;color:var(--text-muted)">EMP-0001</div></td>
+            <td>Lead Consultant</td>
+            <td><span class="badge badge-blue">FT</span></td>
+            <td><span class="badge badge-amber">⚠ Required</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-amber">Due</span></td>
+            <td><span class="badge badge-green">Active</span></td>
+          </tr>
+          <tr>
+            <td><div class="td-primary">Amina Ibrahim</div><div style="font-size:11px;color:var(--text-muted)">EMP-0002</div></td>
+            <td>Youth Worker</td>
+            <td><span class="badge badge-slate">PT</span></td>
+            <td><span class="badge badge-amber">⚠ Required</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-red">Expired</span></td>
+            <td><span class="badge badge-green">Active</span></td>
+          </tr>
+          <tr>
+            <td><div class="td-primary">James Musa</div><div style="font-size:11px;color:var(--text-muted)">EMP-0003</div></td>
+            <td>Skills Trainer</td>
+            <td><span class="badge badge-slate">PT</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">Active</span></td>
+          </tr>
+          <tr>
+            <td><div class="td-primary">Kemi Okafor</div><div style="font-size:11px;color:var(--text-muted)">EMP-0004</div></td>
+            <td>Admin Coordinator</td>
+            <td><span class="badge badge-blue">FT</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">Active</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-header"><div class="panel-title">Leave Balances</div></div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px">
+            <span style="color:var(--text-secondary)">Annual Leave (FT)</span><span class="td-mono" style="color:var(--text-primary)">28 days</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px">
+            <span style="color:var(--text-secondary)">Annual Leave (PT — pro rata)</span><span class="td-mono" style="color:var(--text-primary)">16.8 days</span>
+          </div>
+          <div class="alert alert-warn" style="margin:0">Leave module not yet active — build required (HR-08)</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Compliance Status</div></div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:8px">
+          <div class="check-item">
+            <div class="check-box">⬜</div>
+            <div><div class="check-req">Right to Work Checks</div><div class="check-detail">Required before employment begins</div></div>
+          </div>
+          <div class="check-item">
+            <div class="check-box">⬜</div>
+            <div><div class="check-req">DBS Checks (Enhanced)</div><div class="check-detail">Mandatory — youth organisation</div></div>
+          </div>
+          <div class="check-item">
+            <div class="check-box">⬜</div>
+            <div><div class="check-req">Safeguarding Training</div><div class="check-detail">All staff due renewal</div></div>
+          </div>
+          <div class="check-item">
+            <div class="check-box done">✓</div>
+            <div><div class="check-req">Employment Contracts</div><div class="check-detail">On file for all staff</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+   COMPLIANCE HUB
+══════════════════════════════════════════ -->
+<div class="page" id="page-compliance">
+  <div class="stats-grid stats-4" style="margin-bottom:20px">
+    <div class="stat-card" style="--accent:var(--emerald)"><div class="stat-label">Compliance Score</div><div class="stat-value">58%</div><div class="stat-meta">29/79 items complete</div></div>
+    <div class="stat-card" style="--accent:var(--rose)"><div class="stat-label">Critical Items</div><div class="stat-value">7</div><div class="stat-meta stat-down">Legal / criminal liability</div></div>
+    <div class="stat-card" style="--accent:var(--amber)"><div class="stat-label">High Priority</div><div class="stat-value">14</div><div class="stat-meta">Build within 30 days</div></div>
+    <div class="stat-card" style="--accent:var(--blue)"><div class="stat-label">In Progress</div><div class="stat-value">8</div><div class="stat-meta stat-up">Being developed</div></div>
+  </div>
+
+  <div class="compliance-grid" style="margin-bottom:16px">
+    <!-- Priority 1: Critical -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span style="color:var(--rose)">🔴</span> Priority 1 — Critical (Legal Liability)</div>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">NMW Validation on Payroll</div><div class="check-detail">PR-08 · Criminal liability risk</div><div class="check-meta"><span class="badge badge-red">URGENT</span><span class="badge badge-violet">Payroll</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">Right to Work Records</div><div class="check-detail">HR-01 · Required per employee</div><div class="check-meta"><span class="badge badge-red">URGENT</span><span class="badge badge-pink">HR</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">DBS Check Records</div><div class="check-detail">HR-03 · Youth organisation safeguarding</div><div class="check-meta"><span class="badge badge-red">URGENT</span><span class="badge badge-pink">HR</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">P60 Generation</div><div class="check-detail">PR-11 · Legal by 31 May each year</div><div class="check-meta"><span class="badge badge-red">Week 2</span><span class="badge badge-violet">Payroll</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">P45 on Employee Leaving</div><div class="check-detail">PR-12 · Legal requirement on departure</div><div class="check-meta"><span class="badge badge-amber">Week 2</span><span class="badge badge-violet">Payroll</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">JWT Session Revocation</div><div class="check-detail">SEC-04 · Terminated employee access</div><div class="check-meta"><span class="badge badge-amber">Week 1</span><span class="badge badge-slate">Security</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">ICO Registration</div><div class="check-detail">DP-11 · Required for data processing</div><div class="check-meta"><span class="badge badge-red">URGENT</span><span class="badge badge-cyan">GDPR</span></div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Priority 2 -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span style="color:var(--amber)">🟡</span> Priority 2 — High (Build Within 30 Days)</div>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box progress">~</div>
+          <div><div class="check-req">Gift Aid Declaration Audit Trail</div><div class="check-detail">DP-03 · In progress</div><div class="check-meta"><span class="badge badge-amber">In Progress</span><span class="badge badge-emerald">Donations</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">GDPR Consent Management</div><div class="check-detail">DP-02 · Donor marketing consent</div><div class="check-meta"><span class="badge badge-amber">Month 1</span><span class="badge badge-cyan">GDPR</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">DSAR Workflow</div><div class="check-detail">DP-04 · 30-day legal deadline</div><div class="check-meta"><span class="badge badge-amber">Month 1</span><span class="badge badge-cyan">GDPR</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">Field-Level PII Encryption</div><div class="check-detail">DP-08 · NI numbers, bank details</div><div class="check-meta"><span class="badge badge-amber">Month 1</span><span class="badge badge-cyan">GDPR</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">2FA for Finance Roles</div><div class="check-detail">SEC-06 · CFO + Finance Manager</div><div class="check-meta"><span class="badge badge-amber">Month 1</span><span class="badge badge-slate">Security</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">Immutable Audit Log</div><div class="check-detail">SEC-07 · All state changes logged</div><div class="check-meta"><span class="badge badge-amber">Month 2</span><span class="badge badge-slate">Security</span></div></div>
+        </div>
+        <div class="check-item" style="padding:10px 14px">
+          <div class="check-box">⬜</div>
+          <div><div class="check-req">Restricted Fund Accounting</div><div class="check-detail">FA-08 · SORP compliance — highest impact</div><div class="check-meta"><span class="badge badge-amber">Month 3</span><span class="badge badge-blue">Finance</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What's complete -->
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title"><span style="color:var(--emerald)">✅</span> Already Implemented (Core Foundation)</div></div>
+    <div class="panel-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>Double-entry Accounting</strong>
+          <span style="font-size:11px">FA-01 to FA-06</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>UK Payroll (PAYE/NI/Pension)</strong>
+          <span style="font-size:11px">PR-01 to PR-07</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>Grant Management</strong>
+          <span style="font-size:11px">GR-01 to GR-05, GR-11, GR-12</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>Stripe Donations + Gift Aid</strong>
+          <span style="font-size:11px">DON-01, DON-02, DON-05, DON-07</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>RBAC (5 roles)</strong>
+          <span style="font-size:11px">SEC-01 to SEC-03</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>OCR Receipt Extraction</strong>
+          <span style="font-size:11px">Expense automation</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>AI Report Generation</strong>
+          <span style="font-size:11px">Grant + trustee reports</span>
+        </div>
+        <div class="alert alert-success" style="margin:0;flex-direction:column;align-items:flex-start;gap:4px">
+          <strong>52/52 Tests Passing</strong>
+          <span style="font-size:11px">Core API tested</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+   ADMIN PORTAL
+══════════════════════════════════════════ -->
+<div class="page" id="page-admin">
+  <div class="alert alert-danger" style="border-color:rgba(239,68,68,0.4)">
+    🔐 You are in <strong>Platform Admin Portal</strong> — Nexus ERP by Realtouch. Changes here affect all tenant organisations.
+  </div>
+
+  <div class="stats-grid stats-4" style="margin-bottom:20px">
+    <div class="stat-card" style="--accent:var(--blue)"><div class="stat-label">Active Organisations</div><div class="stat-value">1</div><div class="stat-meta stat-up">Harvest Touch CIC</div></div>
+    <div class="stat-card" style="--accent:var(--emerald)"><div class="stat-label">Total Users</div><div class="stat-value">4</div><div class="stat-meta">Across all tenants</div></div>
+    <div class="stat-card" style="--accent:var(--violet)"><div class="stat-label">Active Modules</div><div class="stat-value">8/11</div><div class="stat-meta">3 not yet activated</div></div>
+    <div class="stat-card" style="--accent:var(--amber)"><div class="stat-label">System Health</div><div class="stat-value">99.8%</div><div class="stat-meta stat-up">All services operational</div></div>
+  </div>
+
+  <div class="grid-65-35" style="margin-bottom:16px">
+    <!-- Module Control -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Module Control — All Tenants</div><button class="btn btn-ghost" style="font-size:11px">Save Changes</button></div>
+      <div class="panel-body">
+        <div class="module-grid">
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(59,130,246,0.1);color:var(--blue)">💷</div>
+              <div class="module-name">Finance</div>
+            </div>
+            <div class="module-desc">Accounting, banking, expenses, budgets, financial reports</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(139,92,246,0.1);color:var(--violet)">🏆</div>
+              <div class="module-name">Grants</div>
+            </div>
+            <div class="module-desc">Grant portfolio, allocations, funder reports, pipeline</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(245,158,11,0.1);color:var(--amber)">⚙️</div>
+              <div class="module-name">Operations</div>
+            </div>
+            <div class="module-desc">Programmes, projects, activities, beneficiaries</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(236,72,153,0.1);color:var(--pink)">👤</div>
+              <div class="module-name">People / HR</div>
+            </div>
+            <div class="module-desc">Employees, payroll, leave, training, DBS, RTW</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(244,63,94,0.1);color:var(--rose)">🛡️</div>
+              <div class="module-name">Compliance</div>
+            </div>
+            <div class="module-desc">Safeguarding, DBS, GDPR, UKVI, audit trail</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(6,182,212,0.1);color:var(--cyan)">🌐</div>
+              <div class="module-name">UKVI Module</div>
+            </div>
+            <div class="module-desc">Sponsorship licence, CoS tracking, reporting duties</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Disabled</span><div class="toggle" onclick="this.classList.toggle('on');this.previousElementSibling.textContent=this.classList.contains('on')?'Enabled':'Disabled'"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(139,92,246,0.1);color:var(--violet)">✦</div>
+              <div class="module-name">Nexus AI</div>
+            </div>
+            <div class="module-desc">AI assistant, report generation, financial analysis</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(16,185,129,0.1);color:var(--emerald)">❤️</div>
+              <div class="module-name">Donations</div>
+            </div>
+            <div class="module-desc">Donor CRM, Stripe/PayPal, campaigns, Gift Aid</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Enabled</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-icon" style="background:rgba(14,165,233,0.1);color:#38bdf8">🏛️</div>
+              <div class="module-name">Governance</div>
+            </div>
+            <div class="module-desc">Board, trustees, conflicts of interest, CIC statement</div>
+            <div class="toggle-switch"><span style="font-size:11px;color:var(--text-muted)">Disabled</span><div class="toggle" onclick="this.classList.toggle('on');this.previousElementSibling.textContent=this.classList.contains('on')?'Enabled':'Disabled'"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Org Management + Role Matrix -->
+    <div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-header"><div class="panel-title">Organisations</div><button class="btn btn-primary" style="font-size:11px;padding:5px 12px">+ Add Tenant</button></div>
+        <table class="data-table">
+          <thead><tr><th>Organisation</th><th>Type</th><th>Users</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-primary">Harvest Touch CIC</td>
+              <td>CIC</td>
+              <td class="td-mono">4</td>
+              <td><span class="badge badge-green">Active</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Roles & Permissions</div></div>
+        <div class="panel-body" style="overflow-x:auto">
+          <table class="perm-table">
+            <thead><tr><th>Module</th><th style="font-size:9px">SUPER<br>ADMIN</th><th style="font-size:9px">ORG<br>ADMIN</th><th style="font-size:9px">CFO</th><th style="font-size:9px">HR<br>MGR</th><th style="font-size:9px">PROG<br>MGR</th><th style="font-size:9px">STAFF</th></tr></thead>
+            <tbody>
+              <tr><td>Finance</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-no">○</td><td class="perm-partial">◑</td><td class="perm-no">○</td></tr>
+              <tr><td>Payroll</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-no">○</td><td class="perm-no">○</td></tr>
+              <tr><td>HR / People</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-partial">◑</td><td class="perm-yes">●</td><td class="perm-no">○</td><td class="perm-partial">◑</td></tr>
+              <tr><td>Grants</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-no">○</td><td class="perm-yes">●</td><td class="perm-no">○</td></tr>
+              <tr><td>Compliance</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-yes">●</td><td class="perm-no">○</td><td class="perm-no">○</td></tr>
+              <tr><td>Admin Portal</td><td class="perm-yes">●</td><td class="perm-partial">◑</td><td class="perm-no">○</td><td class="perm-no">○</td><td class="perm-no">○</td><td class="perm-no">○</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:8px">● Full access  ◑ Partial  ○ No access</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+   AI PAGE (full screen)
+══════════════════════════════════════════ -->
+<div class="page" id="page-ai-page">
+  <div style="max-width:740px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6d28d9,#10b981);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px;box-shadow:0 0 30px rgba(16,185,129,0.3)">✦</div>
+      <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text-primary);margin-bottom:4px">Nexus AI</div>
+      <div style="font-size:12px;color:var(--text-muted)">Connected to Harvest Touch CIC · Live financial and compliance data</div>
+    </div>
+
+    <div id="fullAiMessages" style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;min-height:300px">
+      <div class="ai-msg bot" style="max-width:100%">
+        <div class="ai-avatar" style="width:30px;height:30px;font-size:13px;flex-shrink:0;margin-top:3px">✦</div>
+        <div class="ai-bubble" style="max-width:600px;font-size:13px">
+          Good morning, Dominic. I'm your Nexus AI — fully connected to Harvest Touch CIC's live data across all modules.<br><br>
+          <strong>Current priorities I'm monitoring:</strong><br>
+          · NLCF grant report due in <strong>9 days</strong> — 4 activities need cost coding<br>
+          · March payroll run due in <strong>6 days</strong><br>
+          · <span style="color:#f87171">7 critical compliance items</span> require immediate action<br>
+          · Cash runway is <strong>10.8 months</strong> at current burn rate<br><br>
+          What would you like to explore?
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div class="ai-chip" style="font-size:12px;padding:7px 14px" onclick="fullSendAI(this.textContent)">📊 Cash runway analysis</div>
+      <div class="ai-chip" style="font-size:12px;padding:7px 14px" onclick="fullSendAI(this.textContent)">📋 Draft NLCF report</div>
+      <div class="ai-chip" style="font-size:12px;padding:7px 14px" onclick="fullSendAI(this.textContent)">⚠ Top compliance gaps</div>
+      <div class="ai-chip" style="font-size:12px;padding:7px 14px" onclick="fullSendAI(this.textContent)">💷 Trustee financial summary</div>
+      <div class="ai-chip" style="font-size:12px;padding:7px 14px" onclick="fullSendAI(this.textContent)">📈 Forecast next quarter</div>
+    </div>
+
+    <div style="display:flex;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <textarea id="fullAiInput" placeholder="Ask anything about Harvest Touch CIC finances, HR, compliance, grants…"
+        style="flex:1;background:none;border:none;outline:none;resize:none;font-size:13px;color:var(--text-primary);font-family:'Instrument Sans',sans-serif;min-height:44px;max-height:120px"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();fullSendAI()}"
+      ></textarea>
+      <button onclick="fullSendAI()" style="align-self:flex-end;width:40px;height:40px;background:var(--emerald);border:none;border-radius:9px;cursor:pointer;font-size:16px;color:#fff;flex-shrink:0">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+   FINANCE CFO DASHBOARD
+══════════════════════════════════════════ -->
+<div class="page" id="page-finance-cfo">
+  <div class="stats-grid stats-4">
+    <div class="stat-card" style="--accent:var(--emerald)"><div class="stat-label">Total Assets</div><div class="stat-value">£94,820</div><div class="stat-meta stat-up">↑ 8.2% this quarter</div></div>
+    <div class="stat-card" style="--accent:var(--blue)"><div class="stat-label">Income YTD</div><div class="stat-value">£156,200</div><div class="stat-meta stat-up">↑ 22.8% vs prior year</div></div>
+    <div class="stat-card" style="--accent:var(--rose)"><div class="stat-label">Expenditure YTD</div><div class="stat-value">£71,880</div><div class="stat-meta">Within budget</div></div>
+    <div class="stat-card" style="--accent:var(--amber)"><div class="stat-label">Net Surplus</div><div class="stat-value">£84,320</div><div class="stat-meta stat-up">Healthy reserves</div></div>
+  </div>
+  <div class="grid-65-35">
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">12-Month Cash Flow</div></div>
+      <div class="panel-body"><div class="chart-wrap" style="height:220px"><canvas id="cfoCashflow"></canvas></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Expenditure Breakdown</div></div>
+      <div class="panel-body"><div class="chart-wrap" style="height:180px"><canvas id="cfoDonut"></canvas></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted)"><span style="width:8px;height:8px;border-radius:2px;background:#10b981;display:inline-block"></span>Staffing</span><span class="td-mono" style="color:var(--text-primary)">54%</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted)"><span style="width:8px;height:8px;border-radius:2px;background:#3b82f6;display:inline-block"></span>Programmes</span><span class="td-mono" style="color:var(--text-primary)">22%</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span style="display:flex;align-items:center;gap:6px;color:var(--text-muted)"><span style="width:8px;height:8px;border-radius:2px;background:#f59e0b;display:inline-block"></span>Overheads</span><span class="td-mono" style="color:var(--text-primary)">14%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="alert alert-warn">⚠ Fund accounting (restricted vs unrestricted) is not yet implemented. This is required for SORP compliance and Charity Commission reporting. Priority: FA-08.</div>
+</div>
+
+<!-- More pages (Settings, etc.) are navigable via the menu -->
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app-shell -->
+
+<script>
+// ── Navigation ────────────────────────────────────────────────────────────────
+const pages = {
+  'dashboard':          {section:'Command Centre',   page:'Executive Dashboard'},
+  'ai-page':            {section:'Command Centre',   page:'Nexus AI'},
+  'notifications':      {section:'Command Centre',   page:'Notifications'},
+  'finance-cfo':        {section:'Finance',          page:'CFO Dashboard'},
+  'finance-accounting': {section:'Finance',          page:'Accounting'},
+  'finance-banking':    {section:'Finance',          page:'Banking'},
+  'finance-expenses':   {section:'Finance',          page:'Expenses'},
+  'finance-budgets':    {section:'Finance',          page:'Budgets'},
+  'finance-reports':    {section:'Finance',          page:'Financial Reports'},
+  'grants-list':        {section:'Grants & Funding', page:'Grants'},
+  'grants-reports':     {section:'Grants & Funding', page:'Funder Reports'},
+  'donations':          {section:'Grants & Funding', page:'Donations'},
+  'gift-aid':           {section:'Grants & Funding', page:'Gift Aid'},
+  'pipeline':           {section:'Grants & Funding', page:'Funding Pipeline'},
+  'ops-programmes':     {section:'Operations',       page:'Programmes'},
+  'ops-activities':     {section:'Operations',       page:'Activities'},
+  'ops-beneficiaries':  {section:'Operations',       page:'Beneficiaries'},
+  'ops-volunteers':     {section:'Operations',       page:'Volunteers'},
+  'people-hr':          {section:'People',           page:'HR Dashboard'},
+  'people-employees':   {section:'People',           page:'Employees'},
+  'people-payroll':     {section:'People',           page:'Payroll'},
+  'people-leave':       {section:'People',           page:'Leave Management'},
+  'people-training':    {section:'People',           page:'Training & CPD'},
+  'people-recruitment': {section:'People',           page:'Recruitment'},
+  'compliance':         {section:'Compliance',       page:'Compliance Hub'},
+  'comp-safeguarding':  {section:'Compliance',       page:'Safeguarding'},
+  'comp-dbs':           {section:'Compliance',       page:'DBS Checks'},
+  'comp-rtw':           {section:'Compliance',       page:'Right to Work'},
+  'comp-gdpr':          {section:'Compliance',       page:'Data Protection'},
+  'comp-ukvi':          {section:'Compliance',       page:'UKVI / Sponsorship'},
+  'comp-audit':         {section:'Compliance',       page:'Audit Trail'},
+  'gov-board':          {section:'Governance',       page:'Board & Trustees'},
+  'gov-conflicts':      {section:'Governance',       page:'Conflicts of Interest'},
+  'gov-cic':            {section:'Governance',       page:'CIC Statement'},
+  'reports-builder':    {section:'Reports',          page:'Report Builder'},
+  'reports-statutory':  {section:'Reports',          page:'Statutory Reports'},
+  'reports-impact':     {section:'Reports',          page:'Impact Reports'},
+  'settings-org':       {section:'Settings',         page:'Organisation'},
+  'settings-users':     {section:'Settings',         page:'Users & Roles'},
+  'settings-modules':   {section:'Settings',         page:'Modules'},
+  'settings-integrations':{section:'Settings',       page:'Integrations'},
+  'admin':              {section:'Platform Admin',   page:'Platform Dashboard'},
+};
+
+const PAGE_MAP = {
+  'dashboard':'dashboard','ai-page':'ai-page','finance-cfo':'finance-cfo',
+  'people-hr':'people-hr','compliance':'compliance','admin':'admin',
+};
+
+function navigate(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const pageId = PAGE_MAP[id] || id;
+  const el = document.getElementById('page-' + pageId);
+  if(el) {
+    el.classList.add('active');
+  } else {
+    // Show a generic "coming soon" — all other pages
+    const dash = document.getElementById('page-dashboard');
+    if(dash) dash.classList.add('active');
+  }
+
+  // Highlight nav item
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+id+"'"))
+      n.classList.add('active');
+  });
+
+  const info = pages[id] || {section:'Nexus ERP', page:id};
+  document.getElementById('breadcrumb-section').textContent = info.section;
+  document.getElementById('breadcrumb-page').textContent   = info.page;
+}
+
+function toggleGroup(id) {
+  const grp = document.getElementById('grp-' + id);
+  if(grp) grp.classList.toggle('collapsed');
+}
+
+function setPeriod(btn, p) {
+  document.querySelectorAll('.topbar .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Admin toggle ──────────────────────────────────────────────────────────────
+let adminMode = false;
+function toggleAdmin() {
+  adminMode = !adminMode;
+  document.getElementById('appShell').classList.toggle('admin-mode', adminMode);
+  document.getElementById('adminSwitch').classList.toggle('admin-active', adminMode);
+  if(adminMode) navigate('admin');
+  else navigate('dashboard');
+}
+function openAdmin() { if(!adminMode) toggleAdmin(); }
+
+// ── Guide ─────────────────────────────────────────────────────────────────────
+function openGuide() {
+  document.getElementById('guideWidget').classList.add('open');
+  document.getElementById('guideOverlay').classList.add('open');
+}
+function closeGuide() {
+  document.getElementById('guideWidget').classList.remove('open');
+  document.getElementById('guideOverlay').classList.remove('open');
+}
+
+// ── AI Panel ──────────────────────────────────────────────────────────────────
+let aiOpen = false;
+function toggleAI() {
+  aiOpen = !aiOpen;
+  document.getElementById('aiPanel').classList.toggle('open', aiOpen);
+}
+
+const AI_RESPONSES = {
+  'cash runway': '💰 **Cash Runway Analysis**\n\nCurrent balance: £84,320\nMonthly burn: £7,842\n**Runway: 10.8 months** (approx. Jan 2026)\n\nWith the GMCA disbursement of £16k expected in April, this extends to ~13.2 months.\n\nRecommendation: Prioritise Rochdale SLA renewal and the Lloyds Bank Foundation EOI.',
+  'nlcf report': '📋 **NLCF Interim Report — Draft Ready**\n\nPeriod: Jan 2024 – Mar 2025\nGrant: £50,000 · Spent: £28,000 (56%)\n\n**Activities Delivered:**\n· 86 young people — Youth Connect\n· 42 participants — Mentoring Network\n· 1,240 volunteer hours (£19,344 in-kind value)\n\nThe narrative is ready for review. Shall I generate the full PDF?',
+  'compliance gaps': '⚠️ **Top 7 Compliance Gaps**\n\n🔴 NMW validation — CRIMINAL LIABILITY\n🔴 Right to Work records — missing for 4 staff\n🔴 DBS checks — mandatory for youth org\n🔴 ICO registration — unconfirmed\n🟡 2FA for finance roles\n🟡 GDPR consent on donor records\n🟡 Immutable audit log\n\nWant me to create an action plan with code specifications?',
+  'trustee': '📊 **Trustee Financial Summary — Q4 2024-25**\n\nFinancial Health: ✅ Good\n\nIncome: £156,200 (↑22.8%)\nExpenditure: £71,880\nNet Surplus: £84,320\n\nReserves represent 10.8 months operating costs — exceeds our 3-6 month policy.\n\nKey risk: NLCF report deadline in 9 days.',
+  'quarter': '📈 **Q1 2025-26 Income Forecast**\n\nConservative: £28,200\nOptimistic: £103,200 (with Lloyds grant)\n\nPlanned expenditure: £27,150\nProjected end position: £57,370 – £132,370',
+};
+
+function sendAI(preset) {
+  const input = document.getElementById('aiInput');
+  const msg = preset || (input ? input.value.trim() : '');
+  if(!msg) return;
+  if(input) input.value = '';
+
+  const container = document.getElementById('aiMessages');
+  container.innerHTML += `<div class="ai-msg user"><div class="ai-avatar" style="width:24px;height:24px;font-size:10px;flex-shrink:0;margin-top:2px;background:#334155">DO</div><div class="ai-bubble">${msg}</div></div>`;
+
+  const typingId = 'typing-' + Date.now();
+  container.innerHTML += `<div id="${typingId}" class="ai-msg bot"><div class="ai-avatar" style="width:24px;height:24px;font-size:11px;flex-shrink:0;margin-top:2px">✦</div><div class="ai-bubble"><div class="ai-typing"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div></div></div>`;
+  container.scrollTop = container.scrollHeight;
+
+  const lower = msg.toLowerCase();
+  let resp = `I'm analysing the Harvest Touch CIC data for: "${msg}".\n\nAll figures are drawn from live records. Would you like a detailed breakdown?`;
+  Object.entries(AI_RESPONSES).forEach(([k,v]) => { if(lower.includes(k)) resp = v; });
+
+  setTimeout(() => {
+    const typing = document.getElementById(typingId);
+    if(typing) typing.querySelector('.ai-bubble').innerHTML = resp.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    container.scrollTop = container.scrollHeight;
+  }, 1400);
+}
+
+function fullSendAI(preset) {
+  const input = document.getElementById('fullAiInput');
+  const msg = preset || (input ? input.value.trim() : '');
+  if(!msg) return;
+  if(input) input.value = '';
+
+  const container = document.getElementById('fullAiMessages');
+  container.innerHTML += `<div class="ai-msg user" style="justify-content:flex-end"><div class="ai-bubble" style="background:var(--emerald);color:#fff;font-size:13px">${msg}</div></div>`;
+
+  const typingId = 'ftyping-' + Date.now();
+  container.innerHTML += `<div id="${typingId}" class="ai-msg bot"><div class="ai-avatar" style="width:30px;height:30px;font-size:13px;flex-shrink:0;margin-top:3px">✦</div><div class="ai-bubble" style="font-size:13px"><div class="ai-typing"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div></div></div>`;
+  container.scrollTop = container.scrollHeight;
+
+  const lower = msg.toLowerCase();
+  let resp = `I'm analysing Harvest Touch CIC data for: "${msg}".\n\nAll figures are drawn from live system records across Finance, HR, Grants, and Compliance modules. Would you like me to generate a formal report?`;
+  Object.entries(AI_RESPONSES).forEach(([k,v]) => { if(lower.includes(k)) resp = v; });
+
+  setTimeout(() => {
+    const typing = document.getElementById(typingId);
+    if(typing) typing.querySelector('.ai-bubble').innerHTML = resp.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    container.scrollTop = container.scrollHeight;
+  }, 1600);
+}
+
+function showNewEntry() { navigate('finance-accounting'); }
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+const tooltipStyle = { backgroundColor:'#1e293b', borderColor:'#334155', borderWidth:1, titleColor:'#94a3b8', bodyColor:'#e2e8f0', cornerRadius:8, padding:10 };
+
+window.addEventListener('load', () => {
+  // Open guide on first load
+  setTimeout(() => openGuide(), 600);
+
+  const months = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+  const income   = [22,8,15,18,6,12,28,9,15,20,12,18].map(v=>v*1000);
+  const expenses = [7.2,6.8,7.4,7.1,6.6,7.8,8.2,7.4,7.6,7.9,7.6,7.8].map(v=>v*1000);
+
+  new Chart(document.getElementById('cashflowChart'), {
+    type:'bar', data:{ labels:months,
+      datasets:[
+        {label:'Income', data:income, backgroundColor:'rgba(16,185,129,0.45)', borderColor:'#10b981', borderWidth:1, borderRadius:3},
+        {label:'Expenses', data:expenses, backgroundColor:'rgba(244,63,94,0.3)', borderColor:'#f43f5e', borderWidth:1, borderRadius:3},
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...tooltipStyle}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:10}}},
+              y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:10},callback:v=>`£${v/1000}k`}}}}
+  });
+
+  new Chart(document.getElementById('cfoCashflow'), {
+    type:'bar', data:{ labels:months,
+      datasets:[
+        {label:'Income', data:income, backgroundColor:'rgba(16,185,129,0.45)', borderColor:'#10b981', borderWidth:1, borderRadius:3},
+        {label:'Expenses', data:expenses, backgroundColor:'rgba(244,63,94,0.3)', borderColor:'#f43f5e', borderWidth:1, borderRadius:3},
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...tooltipStyle}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:10}}},
+              y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:10},callback:v=>`£${v/1000}k`}}}}
+  });
+
+  new Chart(document.getElementById('cfoDonut'), {
+    type:'doughnut',
+    data:{labels:['Staffing','Programmes','Overheads','Other'],
+      datasets:[{data:[54,22,14,10],backgroundColor:['#10b981','#3b82f6','#f59e0b','#8b5cf6'],borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{...tooltipStyle}}}
+  });
+});
+</script>
+</body>
+</html>
