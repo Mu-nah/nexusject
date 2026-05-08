@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
+    # CORS
+    BACKEND_CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
+    CORS_ALLOW_ORIGIN_REGEX: str = r"https://.*\.(onrender\.com|vercel\.app)"
+
     # Storage (Supabase / S3)
     SUPABASE_URL: Optional[str] = None
     SUPABASE_KEY: Optional[str] = None

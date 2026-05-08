@@ -43,11 +43,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://realtouch-erp.vercel.app",
-        "https://*.vercel.app",
+        origin.strip()
+        for origin in settings.BACKEND_CORS_ORIGINS.split(",")
+        if origin.strip()
     ],
+    allow_origin_regex=settings.CORS_ALLOW_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
