@@ -23,6 +23,7 @@ class Organisation(Base):
     address = Column(String(500), nullable=True)
     email = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
+    country = Column(String(100), nullable=True)
     currency = Column(String(3), default="GBP")
     fiscal_year_start = Column(String(5), default="04-06")  # MM-DD
     is_active = Column(Boolean, default=True)

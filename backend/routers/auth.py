@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+import re
 
 from backend.core.database import get_db
 from backend.core.security import (
@@ -18,8 +19,10 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     full_name: str
     password: str
-    role: str = "viewer"
-    organisation_slug: str = "harvest-touch"
+    organisation_name: str
+    organisation_type: str = "Company"
+    country: str = "United Kingdom"
+    currency: str = "GBP"
 
 
 class LoginResponse(BaseModel):
@@ -30,6 +33,12 @@ class LoginResponse(BaseModel):
     email: str
     role: str
     organisation: str
+    organisation_slug: str
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:60] or "workspace"
 
 
 @router.post("/register", status_code=201)
@@ -39,23 +48,29 @@ async def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Get or create organisation
-    org = db.query(Organisation).filter(Organisation.slug == data.organisation_slug).first()
-    if not org:
-        org = Organisation(
-            slug=data.organisation_slug,
-            name="Harvest Touch Youth & Skills Community Hub CIC",
-            legal_type="CIC",
-        )
-        db.add(org)
-        db.flush()
+    base_slug = _slugify(data.organisation_name)
+    org_slug = base_slug
+    suffix = 2
+    while db.query(Organisation).filter(Organisation.slug == org_slug).first():
+        org_slug = f"{base_slug}-{suffix}"
+        suffix += 1
+
+    org = Organisation(
+        slug=org_slug,
+        name=data.organisation_name.strip(),
+        legal_type=data.organisation_type.strip(),
+        country=data.country.strip(),
+        currency=data.currency.strip().upper(),
+    )
+    db.add(org)
+    db.flush()
 
     user = User(
         organisation_id=org.id,
         email=data.email,
         full_name=data.full_name,
         hashed_password=hash_password(data.password),
-        role=data.role,
+        role="admin",
     )
     db.add(user)
     db.commit()
@@ -69,6 +84,7 @@ async def register(data: RegisterRequest, db: Session = Depends(get_db)):
         email=user.email,
         role=user.role,
         organisation=org.name,
+        organisation_slug=org.slug,
     )
 
 
@@ -95,6 +111,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depen
         email=user.email,
         role=user.role,
         organisation=org.name if org else "",
+        organisation_slug=org.slug if org else "",
     )
 
 
@@ -108,5 +125,8 @@ async def get_me(current_user: User = Depends(get_current_user), db: Session = D
         "role": current_user.role,
         "organisation": org.name if org else None,
         "organisation_slug": org.slug if org else None,
+        "organisation_type": org.legal_type if org else None,
+        "country": org.country if org else None,
+        "currency": org.currency if org else None,
         "last_login": current_user.last_login,
     }

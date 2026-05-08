@@ -13,6 +13,7 @@ from backend.services.ai_service import (
     generate_grant_report,
     generate_cashflow_forecast,
 )
+from backend.services.report_service import save_workspace_report, serialize_report
 
 router = APIRouter(prefix="/ai", tags=["AI Financial Intelligence"])
 
@@ -106,10 +107,29 @@ async def financial_analysis(
         financial_context=context,
     )
 
+    report_title = {
+        "general": "Management Accounts Overview",
+        "cash_flow": "Cash Flow Analysis",
+        "grants": "Grant Portfolio Analysis",
+        "payroll": "Payroll Sustainability Review",
+        "donations": "Fundraising Performance Review",
+    }.get(data.focus, "Financial Analysis")
+
+    saved_report = save_workspace_report(
+        db,
+        organisation_id=current_user.organisation_id,
+        created_by=current_user.id,
+        title=report_title,
+        report_type="management_accounts" if data.focus == "general" else data.focus,
+        period_label=data.period,
+        narrative=response,
+    )
+
     return {
         "focus": data.focus,
         "analysis": response,
         "generated_at": datetime.utcnow().isoformat(),
+        "report": serialize_report(saved_report),
     }
 
 
@@ -158,6 +178,17 @@ async def grant_report(
         db=db,
         org_name=org.name if org else "Harvest Touch CIC",
     )
+    if "narrative" in result:
+        saved_report = save_workspace_report(
+            db,
+            organisation_id=current_user.organisation_id,
+            created_by=current_user.id,
+            title=f"{grant.name} Grant Report",
+            report_type="grant",
+            period_label=result.get("period"),
+            narrative=result["narrative"],
+        )
+        result["report"] = serialize_report(saved_report)
     return result
 
 
@@ -244,10 +275,21 @@ Use formal charity sector language. Suitable for a board meeting agenda pack."""
         financial_context=context,
     )
 
+    saved_report = save_workspace_report(
+        db,
+        organisation_id=current_user.organisation_id,
+        created_by=current_user.id,
+        title="Trustee Financial Report",
+        report_type="trustee",
+        period_label=period,
+        narrative=response,
+    )
+
     return {
         "report_type": "trustee_financial_report",
         "period": period,
         "narrative": response,
         "generated_at": datetime.utcnow().isoformat(),
         "ai_generated": True,
+        "report": serialize_report(saved_report),
     }

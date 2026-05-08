@@ -1,4 +1,4 @@
-import { ReactNode, CSSProperties } from 'react'
+import { ReactNode, CSSProperties, MouseEventHandler } from 'react'
 
 // ── StatCard ──────────────────────────────────────────────────────────────────
 interface StatCardProps {
@@ -111,7 +111,7 @@ export function Badge({ children, variant = 'slate' }: { children: ReactNode; va
 // ── Button ────────────────────────────────────────────────────────────────────
 interface ButtonProps {
   children: ReactNode
-  onClick?: () => void
+  onClick?: MouseEventHandler<HTMLButtonElement>
   variant?: 'primary' | 'default' | 'ghost' | 'success' | 'danger'
   disabled?: boolean
   fullWidth?: boolean

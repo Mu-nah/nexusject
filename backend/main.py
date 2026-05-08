@@ -4,12 +4,13 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import time
+from sqlalchemy import text
 
 from backend.core.settings import settings
 from backend.core.database import init_db
 
 # Routers
-from backend.routers import auth, accounting, expenses, payroll, grants, donations, dashboard, ai, admin
+from backend.routers import auth, accounting, expenses, payroll, grants, donations, dashboard, ai, admin, reports
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ app.include_router(donations.router)
 app.include_router(dashboard.router)
 app.include_router(ai.router)
 app.include_router(admin.router)
+app.include_router(reports.router)
 
 
 # ── Health & Info ─────────────────────────────────────────────────────────────
@@ -131,7 +133,7 @@ async def health_check():
     db_status = "ok"
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
     except Exception as e:
         db_status = f"error: {str(e)}"

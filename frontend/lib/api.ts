@@ -42,8 +42,18 @@ class ApiClient {
     return res.data
   }
 
-  async register(data: { email: string; full_name: string; password: string; role?: string }) {
-    return (await this.client.post('/auth/register', data)).data
+  async register(data: {
+    email: string
+    full_name: string
+    password: string
+    organisation_name: string
+    organisation_type: string
+    country: string
+    currency: string
+  }) {
+    const res = await this.client.post('/auth/register', data)
+    localStorage.setItem('erp_token', res.data.access_token)
+    return res.data
   }
 
   async getMe() {
@@ -256,6 +266,28 @@ class ApiClient {
 
   async aiProgrammeCostAnalysis(programmeId: number) {
     return (await this.client.post('/ai/programme-cost-analysis', { programme_id: programmeId })).data
+  }
+
+  async listReports() {
+    return (await this.client.get('/reports')).data
+  }
+
+  async getReport(reportId: number) {
+    return (await this.client.get(`/reports/${reportId}`)).data
+  }
+
+  async getSharedReport(shareToken: string) {
+    return (await this.client.get(`/reports/shared/${shareToken}`)).data
+  }
+
+  async createShareLink(reportId: number) {
+    return (await this.client.post(`/reports/${reportId}/share`)).data
+  }
+
+  async downloadReportPdf(reportId: number) {
+    return await this.client.get(`/reports/${reportId}/pdf`, {
+      responseType: 'blob',
+    })
   }
 }
 

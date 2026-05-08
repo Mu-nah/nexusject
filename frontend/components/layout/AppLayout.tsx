@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/store'
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useState } from 'react'
 
 const NAV = [
   {
@@ -73,6 +73,16 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   const router = useRouter()
   const { user, logout } = useAuthStore()
   const [period, setPeriod] = useState<'MTD' | 'QTD' | 'YTD'>('YTD')
+  const navHrefs = useMemo(
+    () => Array.from(new Set(NAV.flatMap((section) => section.items.map((item: any) => item.href)))),
+    []
+  )
+
+  useEffect(() => {
+    navHrefs.forEach((href) => {
+      router.prefetch(href).catch(() => undefined)
+    })
+  }, [navHrefs, router])
 
   const initials = user?.full_name
     ?.split(' ')
@@ -117,7 +127,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
         }}>
           <div style={{ width: 7, height: 7, background: '#2DCE89', borderRadius: '50%', boxShadow: '0 0 6px #2DCE89', flexShrink: 0 }} />
           <div style={{ fontSize: 11.5, fontWeight: 500, color: '#E8EDF5', flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-            Harvest Touch CIC
+            {user?.organisation ?? 'Workspace'}
           </div>
           <span style={{ fontSize: 9, color: '#5C6B84' }}>⌄</span>
         </div>

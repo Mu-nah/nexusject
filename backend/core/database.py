@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -42,6 +42,24 @@ def init_db():
         donor,
         employee,
         grant,
+        report,
     )
     Base.metadata.create_all(bind=engine)
+    _ensure_runtime_columns()
     logger.info("Database tables created successfully.")
+
+
+def _ensure_runtime_columns():
+    inspector = inspect(engine)
+    try:
+        if "organisations" in inspector.get_table_names():
+            existing = {column["name"] for column in inspector.get_columns("organisations")}
+            statements = []
+            if "country" not in existing:
+                statements.append("ALTER TABLE organisations ADD COLUMN country VARCHAR(100)")
+
+            for statement in statements:
+                with engine.begin() as conn:
+                    conn.execute(text(statement))
+    except Exception as exc:
+        logger.warning(f"Runtime schema check skipped: {exc}")

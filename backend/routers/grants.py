@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from backend.core.database import get_db
 from backend.core.security import get_current_user, require_finance
+from backend.services.report_service import save_workspace_report, serialize_report
 from backend.models.grant import Grant, GrantAllocation, GrantSpending, GrantReport, Programme
 from backend.models.user import User
 
@@ -273,4 +274,14 @@ async def generate_ai_grant_report(
     db.commit()
     db.refresh(report)
     result["report_id"] = report.id
+    saved_report = save_workspace_report(
+        db,
+        organisation_id=current_user.organisation_id,
+        created_by=current_user.id,
+        title=f"{grant.name} Grant Report",
+        report_type="grant",
+        period_label=result.get("period"),
+        narrative=result.get("narrative", ""),
+    )
+    result["workspace_report"] = serialize_report(saved_report)
     return result
