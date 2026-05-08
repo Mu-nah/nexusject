@@ -120,6 +120,11 @@ async def root():
     }
 
 
+@app.head("/", tags=["Health"])
+async def root_head():
+    return
+
+
 @app.get("/health", tags=["Health"])
 async def health_check():
     from backend.core.database import SessionLocal

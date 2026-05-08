@@ -34,9 +34,14 @@ def get_db():
 def init_db():
     """Create all tables. Called on app startup."""
     from backend.models import (
-        user, organisation, account, transaction,
-        journal, expense, receipt, donor, donation,
-        employee, payroll, grant, programme
+        user,
+        account,
+        transaction,
+        journal,
+        expense,
+        donor,
+        employee,
+        grant,
     )
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully.")
