@@ -170,6 +170,18 @@ export function useRunPayroll() {
   })
 }
 
+export function useCreateEmployeeMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createEmployee,
+    onSuccess: (data) => {
+      toast.success(`Employee ${data.full_name} added`)
+      qc.invalidateQueries({ queryKey: ['employees'] })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Failed to add employee'),
+  })
+}
+
 // ── Grants hooks ──────────────────────────────────────────────────────────────
 
 export function useGrants(status?: string) {

@@ -112,7 +112,7 @@ export function Badge({ children, variant = 'slate' }: { children: ReactNode; va
 interface ButtonProps {
   children: ReactNode
   onClick?: () => void
-  variant?: 'primary' | 'ghost' | 'success' | 'danger'
+  variant?: 'primary' | 'default' | 'ghost' | 'success' | 'danger'
   disabled?: boolean
   fullWidth?: boolean
   small?: boolean
@@ -133,6 +133,7 @@ export function Button({ children, onClick, variant = 'primary', disabled, fullW
   }
   const variants: Record<string, CSSProperties> = {
     primary: { background: '#C9A84C', color: '#0C0F14' },
+    default: { background: '#C9A84C', color: '#0C0F14' },
     ghost:   { background: 'transparent', color: '#7A8BA8', border: '1px solid rgba(255,255,255,0.08)' },
     success: { background: 'rgba(45,206,137,0.12)', color: '#2DCE89', border: '1px solid rgba(45,206,137,0.3)' },
     danger:  { background: 'rgba(245,54,92,0.12)',  color: '#F5365C', border: '1px solid rgba(245,54,92,0.3)' },

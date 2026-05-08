@@ -1,44 +1,23 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import AppLayout from '@/components/layout/AppLayout'
-import { StatCard, Panel, Badge, Button, DataTable, Alert, FormInput } from '@/components/ui'
-import api from '@/lib/api'
-import toast from 'react-hot-toast'
+import { StatCard, Panel, Badge, Button, Alert } from '@/components/ui'
+import { useEmployees, usePayrollRuns, useRunPayroll } from '@/hooks/useFinancial'
 
-const gbp = (n: number) => `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const gbp = (n: number) =>
+  `GBP ${Number(n).toLocaleString('en-GB', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 
 export default function Payroll() {
   const router = useRouter()
-  const qc = useQueryClient()
   const [selectedEmp, setSelectedEmp] = useState<any>(null)
   const [showRunModal, setShowRunModal] = useState(false)
 
-  const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['employees'],
-    queryFn: api.getEmployees,
-  })
-
-  const { data: runs = [] } = useQuery({
-    queryKey: ['payroll-runs'],
-    queryFn: api.getPayrollRuns,
-  })
-
-  const { data: payslips = [] } = useQuery({
-    queryKey: ['payslips', selectedEmp?.id],
-    queryFn: () => api.getPayslips(selectedEmp.id),
-    enabled: !!selectedEmp,
-  })
-
-  const runMutation = useMutation({
-    mutationFn: api.runPayroll,
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['payroll-runs'] })
-      toast.success(`Payroll run ${data.reference} complete — ${data.employee_count} employees, net ${gbp(data.total_net)}`)
-      setShowRunModal(false)
-    },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Payroll run failed'),
-  })
+  const { data: employees = [], isLoading } = useEmployees()
+  const { data: runs = [] } = usePayrollRuns()
+  const runMutation = useRunPayroll()
 
   const totalGross = employees.reduce((s: number, e: any) => s + (e.gross_salary ?? 0), 0)
   const totalNet = employees.reduce((s: number, e: any) => s + (e.calculated?.net_pay ?? 0), 0)
@@ -53,11 +32,11 @@ export default function Payroll() {
       actions={
         <div style={{ display: 'flex', gap: 10 }}>
           <Button variant="ghost">RTI to HMRC</Button>
-          <Button onClick={() => setShowRunModal(true)}>▶ Run Payroll</Button>
+          <Button onClick={() => setShowRunModal(true)}>Run Payroll</Button>
         </div>
       }
     >
-      <Alert variant="info" icon="ℹ">
+      <Alert variant="info" icon="i">
         March payroll run scheduled for <strong>28 March 2025</strong>. PAYE/NI submissions due to HMRC by <strong>19 April</strong>.
       </Alert>
 
@@ -69,18 +48,36 @@ export default function Payroll() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 16 }}>
-        {/* Employee table */}
-        <Panel title="Employee Register" noPadding action={
-          <Button small onClick={() => router.push('/payroll/new-employee')}>+ Add Employee</Button>
-        }>
+        <Panel
+          title="Employee Register"
+          noPadding
+          action={<Button small onClick={() => router.push('/payroll/new-employee')}>+ Add Employee</Button>}
+        >
           {isLoading ? (
-            <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading employees…</div>
+            <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>Loading employees...</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['Employee', 'Role', 'Contract', 'Gross', 'PAYE', 'Emp NI', 'Net Pay', 'Status'].map((h) => (
-                    <th key={h} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 600, color: '#64748b', textAlign: 'left', borderBottom: '1px solid #1e293b', fontFamily: 'DM Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.07em', background: '#0f172a', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th
+                      key={h}
+                      style={{
+                        padding: '10px 14px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#64748b',
+                        textAlign: 'left',
+                        borderBottom: '1px solid #1e293b',
+                        fontFamily: 'DM Mono, monospace',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.07em',
+                        background: '#0f172a',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -94,7 +91,7 @@ export default function Payroll() {
                     <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(51,65,85,0.4)' }}>
                       <div style={{ fontWeight: 500, color: '#e2e8f0', fontSize: 13 }}>{emp.full_name}</div>
                       <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'DM Mono, monospace' }}>
-                        NI: {emp.national_insurance ?? '—'}
+                        NI: {emp.national_insurance ?? '-'}
                       </div>
                     </td>
                     <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(51,65,85,0.4)', fontSize: 12, color: '#94a3b8' }}>{emp.role_title}</td>
@@ -117,7 +114,6 @@ export default function Payroll() {
           )}
         </Panel>
 
-        {/* Payslip preview */}
         <div>
           <Panel title="Payslip Preview" style={{ marginBottom: 16 }}>
             {selectedEmp ? (
@@ -132,7 +128,7 @@ export default function Payroll() {
                         Payslip
                       </div>
                       <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'DM Mono, monospace', marginTop: 2 }}>
-                        March 2025 · {selectedEmp.full_name}
+                        March 2025 - {selectedEmp.full_name}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -158,7 +154,9 @@ export default function Payroll() {
                     </span>
                   </div>
                 </div>
-                <Button variant="ghost" fullWidth style={{ marginTop: 12 }}>↓ Download PDF Payslip</Button>
+                <Button variant="ghost" fullWidth style={{ marginTop: 12 }}>
+                  Download PDF Payslip
+                </Button>
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: 32, color: '#64748b', fontSize: 13 }}>
@@ -167,7 +165,6 @@ export default function Payroll() {
             )}
           </Panel>
 
-          {/* Payroll run history */}
           <Panel title="Run History" noPadding>
             {runs.slice(0, 4).map((run: any) => (
               <div key={run.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid rgba(51,65,85,0.3)', fontSize: 12 }}>
@@ -185,7 +182,6 @@ export default function Payroll() {
         </div>
       </div>
 
-      {/* Run payroll modal */}
       {showRunModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: 440 }}>
@@ -211,19 +207,28 @@ export default function Payroll() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="ghost" onClick={() => setShowRunModal(false)} fullWidth>Cancel</Button>
+              <Button variant="ghost" onClick={() => setShowRunModal(false)} fullWidth>
+                Cancel
+              </Button>
               <Button
-                onClick={() => runMutation.mutate({
-                  period_start: '2025-03-01T00:00:00',
-                  period_end: '2025-03-31T23:59:59',
-                  pay_date: '2025-03-28T00:00:00',
-                  tax_period: 12,
-                  tax_year: '2024-25',
-                })}
                 disabled={runMutation.isPending}
                 fullWidth
+                onClick={() =>
+                  runMutation.mutate(
+                    {
+                      period_start: '2025-03-01T00:00:00',
+                      period_end: '2025-03-31T23:59:59',
+                      pay_date: '2025-03-28T00:00:00',
+                      tax_period: 12,
+                      tax_year: '2024-25',
+                    },
+                    {
+                      onSuccess: () => setShowRunModal(false),
+                    }
+                  )
+                }
               >
-                {runMutation.isPending ? 'Processing…' : '▶ Confirm & Run'}
+                {runMutation.isPending ? 'Processing...' : 'Confirm and Run'}
               </Button>
             </div>
           </div>

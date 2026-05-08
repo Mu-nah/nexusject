@@ -33,7 +33,7 @@ export default function GDPR() {
             statusColor: '#F5365C',
             desc: 'Register at ico.org.uk — annual fee £40–£2,900 based on organisation size.',
             action: 'Register with ICO →',
-            actionVariant: 'default' as const,
+            actionVariant: 'primary' as const,
           },
           {
             title: 'Consent Management',
