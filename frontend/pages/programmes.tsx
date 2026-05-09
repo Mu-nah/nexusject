@@ -25,7 +25,7 @@ const EMPTY_FORM: ProgrammeForm = {
   end_date: '',
 }
 
-const gbp = (n: number) => `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+const gbp = (n: number) => `GBP ${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
 export default function Programmes() {
   const router = useRouter()
@@ -141,7 +141,7 @@ export default function Programmes() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
         <StatCard label="Active Programmes" value={programmes.length} accentColor="#10b981" />
-        <StatCard label="Beneficiaries YTD" value={totalBeneficiaries} change="↑ 18%" changeUp accentColor="#3b82f6" />
+        <StatCard label="Beneficiaries YTD" value={totalBeneficiaries} change="Up 18%" changeUp accentColor="#3b82f6" />
         <StatCard label="Avg Cost / Person" value={gbp(avgCostPerHead)} accentColor="#8b5cf6" />
         <StatCard label="Volunteer Value" value={gbp(totalVolunteerValue)} change={`${totalVolunteerHours.toLocaleString()} hours`} changeUp accentColor="#f59e0b" />
       </div>
@@ -161,29 +161,29 @@ export default function Programmes() {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <Button variant="ghost" onClick={closeCreateForm}>Cancel</Button>
             <Button onClick={saveProgramme} disabled={createProgramme.isPending}>
-              {createProgramme.isPending ? 'Saving…' : 'Save Programme'}
+              {createProgramme.isPending ? 'Saving...' : 'Save Programme'}
             </Button>
           </div>
         </Panel>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(280px, 1fr)', gap: 16, marginBottom: 16 }}>
-        <Panel title="Budget vs Actual" titleIcon="◈">
+        <Panel title="Budget vs Actual" titleIcon="*">
           {isLoading || isFetching ? (
-            <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12.5 }}>
+            <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute)', fontSize: 12.5 }}>
               Loading programme budget data...
             </div>
           ) : chartData.length === 0 ? (
-            <EmptyState icon="◈" title="No programme chart yet" description="Create a programme to see budget versus spend here." />
+            <EmptyState icon="*" title="No programme chart yet" description="Create a programme to see budget versus spend here." />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.5)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.35)" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `£${v / 1000}k`} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${v / 1000}k`} />
                 <Tooltip
-                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', fontSize: 12 }}
-                  formatter={(v: number, name: string) => [`£${v.toLocaleString()}`, name]}
+                  contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--line2)', fontSize: 12, color: 'var(--text)' }}
+                  formatter={(v: number, name: string) => [`GBP ${v.toLocaleString()}`, name]}
                   labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
                 />
                 <Bar dataKey="Budget" fill="rgba(51,65,85,0.6)" radius={[3, 3, 0, 0]} name="Budget" />
@@ -193,14 +193,14 @@ export default function Programmes() {
           )}
         </Panel>
 
-        <Panel title="Cost Per Beneficiary" titleIcon="◉" iconColor="#a78bfa">
+        <Panel title="Cost Per Beneficiary" titleIcon="o" iconColor="#a78bfa">
           {programmes.length === 0 ? (
             <EmptyState title="No cost data yet" description="Programme costing appears here after your first programme is added." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {programmes.map((p: any) => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(51,65,85,0.3)', fontSize: 13 }}>
-                  <span style={{ color: '#94a3b8', fontSize: 12 }}>{p.name.split(' ').slice(0, 3).join(' ')}</span>
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(51,65,85,0.2)', fontSize: 13 }}>
+                  <span style={{ color: 'var(--mute)', fontSize: 12 }}>{p.name.split(' ').slice(0, 3).join(' ')}</span>
                   <span
                     style={{
                       fontFamily: "'JetBrains Mono', monospace",
@@ -208,13 +208,13 @@ export default function Programmes() {
                       color: p.cost_per_beneficiary > 500 ? '#f87171' : p.cost_per_beneficiary > 300 ? '#fbbf24' : '#34d399',
                     }}
                   >
-                    £{Number(p.cost_per_beneficiary).toFixed(0)}
+                    GBP {Number(p.cost_per_beneficiary).toFixed(0)}
                   </span>
                 </div>
               ))}
-              <div style={{ marginTop: 8, padding: '8px 0', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: '#64748b' }}>Portfolio average</span>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#f1f5f9' }}>£{avgCostPerHead.toFixed(0)}</span>
+              <div style={{ marginTop: 8, padding: '8px 0', borderTop: '1px solid var(--line2)', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--mute)' }}>Portfolio average</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: 'var(--heading)' }}>GBP {avgCostPerHead.toFixed(0)}</span>
               </div>
             </div>
           )}
@@ -224,7 +224,7 @@ export default function Programmes() {
       {programmes.length === 0 ? (
         <Panel>
           <EmptyState
-            icon="◎"
+            icon="o"
             title="No active programmes in this workspace"
             description="Use New Programme to create the first one. The page will then calculate beneficiaries, budget usage, and volunteer value automatically."
           />
@@ -237,7 +237,7 @@ export default function Programmes() {
               <div key={p.id} style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 12, padding: '18px 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 4 }}>{p.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--heading)', marginBottom: 4 }}>{p.name}</div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, color: status === 'On track' ? '#34d399' : status === 'Near limit' ? '#fbbf24' : '#f87171' }}>{status}</span>
                       {p.utilisation_pct > 80 && <span style={{ fontSize: 11, color: '#fbbf24' }}>{p.utilisation_pct.toFixed(0)}% used</span>}
@@ -248,12 +248,12 @@ export default function Programmes() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginBottom: 14 }}>
                   {[
-                    ['Budget', gbp(p.total_budget), '#94a3b8'],
-                    ['Spent', gbp(p.spent), '#e2e8f0'],
+                    ['Budget', gbp(p.total_budget), 'var(--mute)'],
+                    ['Spent', gbp(p.spent), 'var(--heading)'],
                     ['Remaining', gbp(p.remaining), p.remaining < p.total_budget * 0.1 ? '#f87171' : '#34d399'],
                   ].map(([label, val, color]) => (
-                    <div key={label} style={{ background: '#1e293b', borderRadius: 8, padding: '10px 12px' }}>
-                      <div style={{ fontSize: 10, color: '#475569', fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
+                    <div key={label} style={{ background: 'var(--surface-muted)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 10, color: 'var(--mute)', fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
                       <div style={{ fontSize: 14, fontWeight: 600, color, fontFamily: "'JetBrains Mono', monospace" }}>{val}</div>
                     </div>
                   ))}
@@ -265,7 +265,7 @@ export default function Programmes() {
                   height={6}
                 />
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: '#64748b', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: 'var(--mute)', gap: 12, flexWrap: 'wrap' }}>
                   <span>{p.participants} / {p.target_participants} participants</span>
                   <span>{p.volunteer_hours.toLocaleString()}h volunteer ({gbp(p.volunteer_value)} value)</span>
                 </div>
