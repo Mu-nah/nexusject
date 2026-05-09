@@ -316,6 +316,10 @@ class ApiClient {
     return (await this.client.get(`/reports/${reportId}`)).data
   }
 
+  async deleteReport(reportId: number) {
+    return (await this.client.delete(`/reports/${reportId}`)).data
+  }
+
   async getSharedReport(shareToken: string) {
     return (await this.client.get(`/reports/shared/${shareToken}`)).data
   }

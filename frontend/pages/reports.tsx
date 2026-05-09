@@ -20,7 +20,7 @@ interface WorkspaceReport {
 const REPORTS = [
   {
     id: 'trustee' as ReportType,
-    icon: '📊',
+    icon: 'CHART',
     title: 'Trustee Financial Report',
     description: 'Quarterly summary for board meeting. Includes income, expenditure, reserves, and risk register.',
     badge: 'Quarterly',
@@ -29,7 +29,7 @@ const REPORTS = [
   },
   {
     id: 'grant' as ReportType,
-    icon: '📋',
+    icon: 'GRANT',
     title: 'Grant Funder Report',
     description: 'Narrative plus financial breakdown for NLCF, GMCA, or Rochdale SLA. Pre-filled from live data.',
     badge: 'Due soon',
@@ -38,7 +38,7 @@ const REPORTS = [
   },
   {
     id: 'charity_commission' as ReportType,
-    icon: '🏛',
+    icon: 'AR',
     title: 'Charity Commission AR',
     description: 'Annual return-style governance and grants review generated from workspace data.',
     badge: 'Annual',
@@ -47,7 +47,7 @@ const REPORTS = [
   },
   {
     id: 'management_accounts' as ReportType,
-    icon: '📈',
+    icon: 'MA',
     title: 'Management Accounts',
     description: 'Monthly financial summary for internal management use, saved to the workspace history.',
     badge: 'Monthly',
@@ -242,6 +242,9 @@ export default function Reports() {
   const [filterType, setFilterType] = useState('all')
   const [shareEmail, setShareEmail] = useState('')
   const [shareName, setShareName] = useState('')
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [loadingReportId, setLoadingReportId] = useState<number | null>(null)
+  const [deletingReportId, setDeletingReportId] = useState<number | null>(null)
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
 
@@ -259,6 +262,19 @@ export default function Reports() {
     }
   }
 
+  const openReport = async (reportId: number) => {
+    setLoadingReportId(reportId)
+    try {
+      const fullReport = await api.getReport(reportId)
+      setReport(fullReport)
+      setViewerOpen(true)
+    } catch {
+      toast.error('Could not open report')
+    } finally {
+      setLoadingReportId(null)
+    }
+  }
+
   useEffect(() => {
     loadHistory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,7 +283,10 @@ export default function Reports() {
   useEffect(() => {
     if (!shareQuery) return
     api.getSharedReport(shareQuery)
-      .then((shared) => setReport(shared))
+      .then((shared) => {
+        setReport(shared)
+        setViewerOpen(true)
+      })
       .catch(() => toast.error('Shared report not found'))
   }, [shareQuery])
 
@@ -290,6 +309,7 @@ export default function Reports() {
 
       if (saved) {
         setReport(saved)
+        setViewerOpen(true)
         toast.success('Report saved to workspace')
         await loadHistory()
       }
@@ -341,6 +361,31 @@ export default function Reports() {
     }
   }
 
+  const handleDeleteReport = async (reportId: number) => {
+    const confirmed = typeof window === 'undefined' ? false : window.confirm('Delete this saved report from workspace history?')
+    if (!confirmed) return
+
+    setDeletingReportId(reportId)
+    try {
+      await api.deleteReport(reportId)
+      const nextHistory = history.filter((item) => item.id !== reportId)
+      setHistory(nextHistory)
+      if (report?.id === reportId) {
+        setReport(null)
+        setViewerOpen(false)
+        if (nextHistory.length > 0) {
+          const fallback = await api.getReport(nextHistory[0].id)
+          setReport(fallback)
+        }
+      }
+      toast.success('Report deleted')
+    } catch {
+      toast.error('Could not delete report')
+    } finally {
+      setDeletingReportId(null)
+    }
+  }
+
   const historyLabel = useMemo(() => {
     if (isLoadingHistory) return 'Loading workspace reports...'
     if (history.length === 0) return 'No saved reports yet'
@@ -362,22 +407,25 @@ export default function Reports() {
 
   return (
     <AppLayout title="Financial Reports" subtitle="Workspace library">
-      <Alert variant="success" icon="✦">
-        AI-generated reports are now saved to the organisation workspace, can be downloaded as formatted PDFs, and can be shared with an internal workspace link.
+      <Alert variant="success" icon="AI">
+        AI-generated reports are saved to the workspace library. Open them in the report viewer, share them, download PDF copies, or remove older versions from history.
       </Alert>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
         {REPORTS.map((r) => (
-          <Panel key={r.id}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-              <div style={{ fontSize: 32, flexShrink: 0 }}>{r.icon}</div>
+          <Panel key={r.id} style={{ position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(201,168,76,0.12), transparent 40%)', pointerEvents: 'none' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, position: 'relative' }}>
+              <div style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 14, background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#E8C56A', fontSize: 12, fontWeight: 700 }}>
+                {r.icon}
+              </div>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div style={{ fontWeight: 500, color: '#e2e8f0', fontSize: 14 }}>{r.title}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 16 }}>{r.title}</div>
                   <Badge variant={r.badgeVariant}>{r.badge}</Badge>
                   {r.aiPowered && <Badge variant="green">Workspace AI</Badge>}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, marginBottom: 16 }}>{r.description}</div>
+                <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>{r.description}</div>
                 <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ minWidth: 180 }}>
                   {generating === r.id ? 'Generating...' : 'Generate and Save'}
                 </Button>
@@ -387,112 +435,182 @@ export default function Reports() {
         ))}
       </div>
 
-      {report && (
-        <Panel
-          title={report.title}
-          titleIcon="✦"
-          iconColor="#34d399"
-          action={
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button small variant="ghost" onClick={() => handleShare(report.id)}>Copy Share Link</Button>
-              <Button small variant="ghost" onClick={() => handleDownloadPdf(report.id)}>Download PDF</Button>
-                <Button small onClick={() => router.push('/ai')}>Refine with AI</Button>
-            </div>
-          }
-        >
-          <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Badge variant="green">Saved to Workspace</Badge>
-            <Badge variant="slate">{report.report_type.replace(/_/g, ' ')}</Badge>
-            {report.period_label && <Badge variant="blue">{report.period_label}</Badge>}
-            <Badge variant="slate">
-              {new Date(report.created_at).toLocaleString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Badge>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.45fr)', gap: 18, alignItems: 'start' }}>
+        <Panel title="Saved History" titleIcon="LIB" iconColor="#E8C56A">
+          <div style={{ fontSize: 12, color: '#7A8BA8', marginBottom: 10 }}>{historyLabel}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr', gap: 10, marginBottom: 14 }}>
             <input
-              value={shareName}
-              onChange={(e) => setShareName(e.target.value)}
-              placeholder="Recipient name"
-              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search reports by title, period, or type..."
+              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
             />
-            <input
-              value={shareEmail}
-              onChange={(e) => setShareEmail(e.target.value)}
-              placeholder="Recipient email"
-              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
-            />
-            <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+            >
+              <option value="all">All report types</option>
+              <option value="trustee">Trustee</option>
+              <option value="grant">Grant</option>
+              <option value="management_accounts">Management accounts</option>
+              <option value="grants">Grant analysis</option>
+            </select>
           </div>
-          <div style={{ background: '#0a0f1a', border: '1px solid #1e293b', borderRadius: 14, padding: '24px 28px', maxHeight: 680, overflowY: 'auto', fontFamily: 'Instrument Sans, sans-serif' }}>
-            {renderMarkdownReport(report.narrative || '')}
-          </div>
-        </Panel>
-      )}
 
-      <Panel title="Workspace Report History" style={{ marginTop: 16 }}>
-        <div style={{ fontSize: 12, color: '#7A8BA8', marginBottom: 10 }}>{historyLabel}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr', gap: 10, marginBottom: 14 }}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search reports by title, period, or type..."
-            style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
-          />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
-          >
-            <option value="all">All report types</option>
-            <option value="trustee">Trustee</option>
-            <option value="grant">Grant</option>
-            <option value="management_accounts">Management accounts</option>
-            <option value="grants">Grant analysis</option>
-          </select>
-        </div>
-        {filteredHistory.length === 0 ? (
-          <div style={{ fontSize: 13, color: '#64748b' }}>Generate your first workspace report to start building the shared library.</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {filteredHistory.map((rep, i) => (
-              <div
-                key={rep.id}
-                onClick={async () => {
-                  const fullReport = await api.getReport(rep.id)
-                  setReport(fullReport)
-                }}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  borderBottom: i < filteredHistory.length - 1 ? '1px solid rgba(51,65,85,0.3)' : 'none',
-                }}
-              >
+          {filteredHistory.length === 0 ? (
+            <div style={{ fontSize: 13, color: '#64748b' }}>Generate your first workspace report to start building the shared library.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {filteredHistory.map((rep) => {
+                const isActive = report?.id === rep.id
+                return (
+                  <button
+                    key={rep.id}
+                    onClick={() => openReport(rep.id)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: 14,
+                      background: isActive ? 'rgba(201,168,76,0.1)' : '#10141d',
+                      border: isActive ? '1px solid rgba(201,168,76,0.38)' : '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                        <div style={{ fontWeight: 600, color: '#e2e8f0' }}>{rep.title}</div>
+                        <Badge variant="slate">{rep.report_type.replace(/_/g, ' ')}</Badge>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#64748b' }}>
+                        {new Date(rep.created_at).toLocaleDateString('en-GB')} | {rep.period_label || rep.report_type}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleDownloadPdf(rep.id) }}>PDF</Button>
+                      <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleShare(rep.id) }}>Share</Button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteReport(rep.id)
+                        }}
+                        disabled={deletingReportId === rep.id}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 10,
+                          border: '1px solid rgba(245,54,92,0.28)',
+                          background: 'rgba(245,54,92,0.1)',
+                          color: '#F5365C',
+                          cursor: 'pointer',
+                          opacity: deletingReportId === rep.id ? 0.5 : 1,
+                        }}
+                        aria-label="Delete report"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Viewer Preview" titleIcon="VIEW" iconColor="#34d399">
+          {report ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontWeight: 500, color: '#e2e8f0' }}>{rep.title}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                    {new Date(rep.created_at).toLocaleDateString('en-GB')} - {rep.period_label || rep.report_type}
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', marginBottom: 8 }}>{report.title}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Badge variant="green">Saved to Workspace</Badge>
+                    <Badge variant="slate">{report.report_type.replace(/_/g, ' ')}</Badge>
+                    {report.period_label && <Badge variant="blue">{report.period_label}</Badge>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <Badge variant="slate">{rep.report_type.replace(/_/g, ' ')}</Badge>
-                  <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleDownloadPdf(rep.id) }}>PDF</Button>
-                  <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleShare(rep.id) }}>Share</Button>
+                <Button onClick={() => setViewerOpen(true)} disabled={loadingReportId === report.id}>
+                  {loadingReportId === report.id ? 'Opening...' : 'Open Viewer'}
+                </Button>
+              </div>
+              <div style={{ background: 'linear-gradient(180deg, rgba(10,15,26,0.9), rgba(10,15,26,0.7))', border: '1px solid rgba(30,41,59,0.9)', borderRadius: 18, padding: '24px 26px', minHeight: 380, maxHeight: 560, overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 60%, rgba(10,15,26,1) 100%)', pointerEvents: 'none' }} />
+                <div style={{ maxHeight: 500, overflow: 'hidden', opacity: 0.95 }}>
+                  {renderMarkdownReport(report.narrative || '')}
                 </div>
               </div>
-            ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: '#64748b' }}>Select a saved report to preview it here or open the full report viewer.</div>
+          )}
+        </Panel>
+      </div>
+
+      {viewerOpen && report && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.78)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'stretch', justifyContent: 'center', zIndex: 220, padding: 18 }}>
+          <div style={{ width: '100%', maxWidth: 1280, background: '#0b1120', border: '1px solid rgba(51,65,85,0.82)', borderRadius: 22, overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto auto 1fr' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(51,65,85,0.5)', background: 'rgba(15,23,42,0.88)', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>{report.title}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge variant="green">Saved to Workspace</Badge>
+                  <Badge variant="slate">{report.report_type.replace(/_/g, ' ')}</Badge>
+                  {report.period_label && <Badge variant="blue">{report.period_label}</Badge>}
+                  <Badge variant="slate">
+                    {new Date(report.created_at).toLocaleString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Badge>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Button small variant="ghost" onClick={() => handleShare(report.id)}>Copy Share Link</Button>
+                <Button small variant="ghost" onClick={() => handleDownloadPdf(report.id)}>Download PDF</Button>
+                <Button small onClick={() => router.push('/ai')}>Refine with AI</Button>
+                <button
+                  type="button"
+                  onClick={() => setViewerOpen(false)}
+                  style={{ width: 38, height: 38, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: '#141820', color: '#cbd5e1', cursor: 'pointer', fontSize: 18 }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, padding: '16px 22px', borderBottom: '1px solid rgba(51,65,85,0.35)', background: '#0f172a' }}>
+              <input
+                value={shareName}
+                onChange={(e) => setShareName(e.target.value)}
+                placeholder="Recipient name"
+                style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+              />
+              <input
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+                placeholder="Recipient email"
+                style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+              />
+              <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
+            </div>
+
+            <div style={{ overflowY: 'auto', padding: '26px 28px 32px', background: 'linear-gradient(180deg, #08101d 0%, #0b1220 100%)', fontFamily: 'Instrument Sans, sans-serif' }}>
+              <div style={{ maxWidth: 980, margin: '0 auto', background: '#0b1322', border: '1px solid rgba(51,65,85,0.55)', borderRadius: 20, padding: '28px 30px', boxShadow: '0 30px 80px rgba(0,0,0,0.35)' }}>
+                {renderMarkdownReport(report.narrative || '')}
+              </div>
+            </div>
           </div>
-        )}
-      </Panel>
+        </div>
+      )}
     </AppLayout>
   )
 }

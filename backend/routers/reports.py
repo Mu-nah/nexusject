@@ -51,6 +51,28 @@ async def get_report(
     return serialize_report(report)
 
 
+@router.delete("/{report_id}")
+async def delete_report(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    report = (
+        db.query(ReportDocument)
+        .filter(
+            ReportDocument.id == report_id,
+            ReportDocument.organisation_id == current_user.organisation_id,
+        )
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    db.delete(report)
+    db.commit()
+    return {"deleted": True, "report_id": report_id}
+
+
 @router.get("/shared/{share_token}")
 async def get_shared_report(
     share_token: str,
