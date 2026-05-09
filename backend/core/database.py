@@ -43,6 +43,7 @@ def init_db():
         employee,
         grant,
         report,
+        invite,
     )
     Base.metadata.create_all(bind=engine)
     _ensure_runtime_columns()

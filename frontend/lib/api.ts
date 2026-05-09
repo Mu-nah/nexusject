@@ -56,8 +56,26 @@ class ApiClient {
     return res.data
   }
 
+  async acceptInvite(data: { token: string; password: string }) {
+    const res = await this.client.post('/auth/accept-invite', data)
+    localStorage.setItem('erp_token', res.data.access_token)
+    return res.data
+  }
+
   async getMe() {
     return (await this.client.get('/auth/me')).data
+  }
+
+  async listAdminUsers() {
+    return (await this.client.get('/admin/users')).data
+  }
+
+  async listWorkspaceInvites() {
+    return (await this.client.get('/admin/invites')).data
+  }
+
+  async inviteWorkspaceUser(data: { email: string; full_name: string; role: string }) {
+    return (await this.client.post('/admin/users/invite', data)).data
   }
 
   logout() {
@@ -282,6 +300,10 @@ class ApiClient {
 
   async createShareLink(reportId: number) {
     return (await this.client.post(`/reports/${reportId}/share`)).data
+  }
+
+  async emailShareReport(reportId: number, data: { email: string; recipient_name?: string }) {
+    return (await this.client.post(`/reports/${reportId}/email-share`, data)).data
   }
 
   async downloadReportPdf(reportId: number) {

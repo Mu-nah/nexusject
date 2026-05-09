@@ -3,7 +3,7 @@ Admin Router — Multi-tenancy management
 Provides organisation administration, user management, and platform oversight.
 Only accessible to users with role='admin'.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
@@ -13,10 +13,12 @@ from pydantic import BaseModel, EmailStr
 from backend.core.database import get_db
 from backend.core.security import get_current_user, require_role
 from backend.models.user import User, Organisation
+from backend.models.invite import WorkspaceInvite
+from backend.services.email_service import send_workspace_invite_email
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-require_admin = require_role("admin")
+require_admin = require_role("owner", "admin")
 
 
 class OrgCreate(BaseModel):
@@ -35,7 +37,6 @@ class UserInvite(BaseModel):
     email: EmailStr
     full_name: str
     role: str = "viewer"
-    organisation_id: int
 
 
 class OrgUpdate(BaseModel):
@@ -137,7 +138,9 @@ async def list_all_users(
     db: Session = Depends(get_db),
 ):
     q = db.query(User)
-    if organisation_id:
+    if current_user.role != "owner":
+        q = q.filter(User.organisation_id == current_user.organisation_id)
+    elif organisation_id:
         q = q.filter(User.organisation_id == organisation_id)
     if role:
         q = q.filter(User.role == role)
@@ -149,6 +152,7 @@ async def list_all_users(
             "full_name": u.full_name,
             "role": u.role,
             "organisation_id": u.organisation_id,
+            "organisation_name": db.query(Organisation.name).filter(Organisation.id == u.organisation_id).scalar(),
             "is_active": u.is_active,
             "last_login": u.last_login.isoformat() if u.last_login else None,
             "created_at": u.created_at.isoformat(),
@@ -160,6 +164,7 @@ async def list_all_users(
 @router.post("/users/invite", status_code=201)
 async def invite_user(
     data: UserInvite,
+    request: Request,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -167,31 +172,66 @@ async def invite_user(
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    org = db.query(Organisation).filter(Organisation.id == data.organisation_id).first()
+    org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organisation not found")
 
-    from backend.core.security import hash_password
     import secrets
-    temp_password = secrets.token_urlsafe(12)
-    user = User(
-        organisation_id=data.organisation_id,
+    invite = WorkspaceInvite(
+        organisation_id=current_user.organisation_id,
         email=data.email,
         full_name=data.full_name,
-        hashed_password=hash_password(temp_password),
         role=data.role,
-        is_active=True,
+        invite_token=secrets.token_urlsafe(24),
+        invited_by=current_user.id,
     )
-    db.add(user)
+    db.add(invite)
     db.commit()
-    db.refresh(user)
+    db.refresh(invite)
+
+    frontend_base = request.headers.get("origin") or "http://localhost:3000"
+    invite_link = f"{frontend_base}/login?invite={invite.invite_token}"
+    send_workspace_invite_email(
+        to_email=invite.email,
+        invitee_name=invite.full_name,
+        inviter_name=current_user.full_name,
+        org_name=org.name,
+        invite_link=invite_link,
+        role=invite.role,
+    )
 
     return {
-        "id": user.id,
-        "email": user.email,
-        "temporary_password": temp_password,
-        "message": "User created. Share the temporary password securely.",
+        "id": invite.id,
+        "email": invite.email,
+        "invite_token": invite.invite_token,
+        "invite_link": invite_link,
+        "message": "Invite created and emailed.",
     }
+
+
+@router.get("/invites")
+async def list_invites(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    invites = (
+        db.query(WorkspaceInvite)
+        .filter(WorkspaceInvite.organisation_id == current_user.organisation_id)
+        .order_by(WorkspaceInvite.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": invite.id,
+            "email": invite.email,
+            "full_name": invite.full_name,
+            "role": invite.role,
+            "accepted": invite.accepted,
+            "created_at": invite.created_at.isoformat(),
+            "accepted_at": invite.accepted_at.isoformat() if invite.accepted_at else None,
+        }
+        for invite in invites
+    ]
 
 
 @router.patch("/users/{user_id}/role")
@@ -201,7 +241,7 @@ async def update_user_role(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    valid_roles = {"cfo", "finance_manager", "programme_manager", "admin", "viewer"}
+    valid_roles = {"owner", "cfo", "finance_manager", "programme_manager", "admin", "viewer"}
     if role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
 

@@ -11,6 +11,7 @@ from backend.core.security import (
     verify_password, hash_password, create_access_token, get_current_user
 )
 from backend.models.user import User, Organisation
+from backend.models.invite import WorkspaceInvite
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -34,6 +35,11 @@ class LoginResponse(BaseModel):
     role: str
     organisation: str
     organisation_slug: str
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    password: str
 
 
 def _slugify(value: str) -> str:
@@ -70,7 +76,7 @@ async def register(data: RegisterRequest, db: Session = Depends(get_db)):
         email=data.email,
         full_name=data.full_name,
         hashed_password=hash_password(data.password),
-        role="admin",
+        role="owner",
     )
     db.add(user)
     db.commit()
@@ -130,3 +136,46 @@ async def get_me(current_user: User = Depends(get_current_user), db: Session = D
         "currency": org.currency if org else None,
         "last_login": current_user.last_login,
     }
+
+
+@router.post("/accept-invite", response_model=LoginResponse)
+async def accept_invite(data: AcceptInviteRequest, db: Session = Depends(get_db)):
+    invite = (
+        db.query(WorkspaceInvite)
+        .filter(WorkspaceInvite.invite_token == data.token, WorkspaceInvite.accepted == False)
+        .first()
+    )
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found or already accepted")
+
+    existing = db.query(User).filter(User.email == invite.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="This email is already registered")
+
+    org = db.query(Organisation).filter(Organisation.id == invite.organisation_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+
+    user = User(
+        organisation_id=invite.organisation_id,
+        email=invite.email,
+        full_name=invite.full_name,
+        hashed_password=hash_password(data.password),
+        role=invite.role,
+    )
+    db.add(user)
+    invite.accepted = True
+    invite.accepted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token({"sub": str(user.id), "role": user.role, "org": org.slug})
+    return LoginResponse(
+        access_token=token,
+        user_id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        role=user.role,
+        organisation=org.name,
+        organisation_slug=org.slug,
+    )

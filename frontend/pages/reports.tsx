@@ -238,6 +238,10 @@ export default function Reports() {
   const [history, setHistory] = useState<WorkspaceReport[]>([])
   const [report, setReport] = useState<WorkspaceReport | null>(null)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterType, setFilterType] = useState('all')
+  const [shareEmail, setShareEmail] = useState('')
+  const [shareName, setShareName] = useState('')
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
 
@@ -321,11 +325,40 @@ export default function Reports() {
     }
   }
 
+  const handleEmailShare = async (reportId: number) => {
+    if (!shareEmail.trim()) {
+      toast.error('Enter an email address first')
+      return
+    }
+    try {
+      const res = await api.emailShareReport(reportId, {
+        email: shareEmail.trim(),
+        recipient_name: shareName.trim(),
+      })
+      toast.success(res.sent ? 'Report emailed successfully' : 'SMTP not configured - email not sent')
+    } catch {
+      toast.error('Email share failed')
+    }
+  }
+
   const historyLabel = useMemo(() => {
     if (isLoadingHistory) return 'Loading workspace reports...'
     if (history.length === 0) return 'No saved reports yet'
     return `${history.length} saved workspace reports`
   }, [history.length, isLoadingHistory])
+
+  const filteredHistory = useMemo(() => {
+    return history.filter((item) => {
+      const matchesType = filterType === 'all' || item.report_type === filterType
+      const needle = search.trim().toLowerCase()
+      const matchesSearch =
+        !needle ||
+        item.title.toLowerCase().includes(needle) ||
+        (item.period_label || '').toLowerCase().includes(needle) ||
+        item.report_type.toLowerCase().includes(needle)
+      return matchesType && matchesSearch
+    })
+  }, [filterType, history, search])
 
   return (
     <AppLayout title="Financial Reports" subtitle="Workspace library">
@@ -381,6 +414,21 @@ export default function Reports() {
               })}
             </Badge>
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, marginBottom: 14 }}>
+            <input
+              value={shareName}
+              onChange={(e) => setShareName(e.target.value)}
+              placeholder="Recipient name"
+              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
+            />
+            <input
+              value={shareEmail}
+              onChange={(e) => setShareEmail(e.target.value)}
+              placeholder="Recipient email"
+              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
+            />
+            <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
+          </div>
           <div style={{ background: '#0a0f1a', border: '1px solid #1e293b', borderRadius: 14, padding: '24px 28px', maxHeight: 680, overflowY: 'auto', fontFamily: 'Instrument Sans, sans-serif' }}>
             {renderMarkdownReport(report.narrative)}
           </div>
@@ -389,11 +437,30 @@ export default function Reports() {
 
       <Panel title="Workspace Report History" style={{ marginTop: 16 }}>
         <div style={{ fontSize: 12, color: '#7A8BA8', marginBottom: 10 }}>{historyLabel}</div>
-        {history.length === 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr', gap: 10, marginBottom: 14 }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search reports by title, period, or type..."
+            style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
+          />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#E8EDF5' }}
+          >
+            <option value="all">All report types</option>
+            <option value="trustee">Trustee</option>
+            <option value="grant">Grant</option>
+            <option value="management_accounts">Management accounts</option>
+            <option value="grants">Grant analysis</option>
+          </select>
+        </div>
+        {filteredHistory.length === 0 ? (
           <div style={{ fontSize: 13, color: '#64748b' }}>Generate your first workspace report to start building the shared library.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {history.map((rep, i) => (
+            {filteredHistory.map((rep, i) => (
               <div
                 key={rep.id}
                 onClick={() => setReport(rep)}
@@ -404,7 +471,7 @@ export default function Reports() {
                   padding: '12px 0',
                   fontSize: 13,
                   cursor: 'pointer',
-                  borderBottom: i < history.length - 1 ? '1px solid rgba(51,65,85,0.3)' : 'none',
+                  borderBottom: i < filteredHistory.length - 1 ? '1px solid rgba(51,65,85,0.3)' : 'none',
                 }}
               >
                 <div>

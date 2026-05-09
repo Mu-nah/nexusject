@@ -20,6 +20,7 @@ interface AuthState {
   isLoading: boolean
   error: string | null
   login: (email: string, password: string) => Promise<void>
+  acceptInvite: (data: { token: string; password: string }) => Promise<void>
   register: (data: {
     email: string
     full_name: string
@@ -62,6 +63,28 @@ export const useAuthStore = create<AuthState>()(
           })
         } catch (err: any) {
           set({ error: err.response?.data?.detail || 'Login failed', isLoading: false })
+          throw err
+        }
+      },
+
+      acceptInvite: async (payload) => {
+        set({ isLoading: true, error: null })
+        try {
+          const data = await api.acceptInvite(payload)
+          set({
+            token: data.access_token,
+            user: {
+              id: data.user_id,
+              email: data.email,
+              full_name: data.full_name,
+              role: data.role,
+              organisation: data.organisation,
+              organisation_slug: data.organisation_slug,
+            },
+            isLoading: false,
+          })
+        } catch (err: any) {
+          set({ error: err.response?.data?.detail || 'Invite acceptance failed', isLoading: false })
           throw err
         }
       },

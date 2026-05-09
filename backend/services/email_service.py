@@ -98,6 +98,59 @@ def send_email(
         return False
 
 
+def send_workspace_invite_email(
+    to_email: str,
+    invitee_name: str,
+    inviter_name: str,
+    org_name: str,
+    invite_link: str,
+    role: str,
+):
+    body = f"""
+    <p>Dear {invitee_name},</p>
+    <p>{inviter_name} has invited you to join the <strong>{org_name}</strong> workspace on Nexus One.</p>
+    <div class="stat-row"><span class="stat-label">Workspace</span><span class="stat-value">{org_name}</span></div>
+    <div class="stat-row"><span class="stat-label">Assigned Role</span><span class="stat-value">{role.replace('_', ' ').title()}</span></div>
+    <p>Click the button below to create your password and activate your account.</p>
+    <a href="{invite_link}" class="btn">Accept Workspace Invite</a>
+    <p>If the button does not work, copy this link into your browser:</p>
+    <p>{invite_link}</p>
+    """
+    return send_email(
+        to=to_email,
+        subject=f"Workspace Invite - {org_name}",
+        body_html=body,
+        org_name=org_name,
+    )
+
+
+def send_report_share_email(
+    to_email: str,
+    recipient_name: str,
+    sender_name: str,
+    org_name: str,
+    report_title: str,
+    share_link: str,
+    pdf_bytes: bytes | None = None,
+):
+    body = f"""
+    <p>Dear {recipient_name or 'Colleague'},</p>
+    <p>{sender_name} shared the report <strong>{report_title}</strong> from the <strong>{org_name}</strong> workspace.</p>
+    <p>You can open the report using the secure workspace link below:</p>
+    <a href="{share_link}" class="btn">Open Shared Report</a>
+    <p>Link: {share_link}</p>
+    """
+    filename = f"{report_title.lower().replace(' ', '-')}.pdf"
+    return send_email(
+        to=to_email,
+        subject=f"Shared Report - {report_title}",
+        body_html=body,
+        org_name=org_name,
+        attachment_bytes=pdf_bytes,
+        attachment_filename=filename if pdf_bytes else None,
+    )
+
+
 # ── Templated emails ──────────────────────────────────────────────────────────
 
 def send_payslip_email(

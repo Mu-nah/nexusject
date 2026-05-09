@@ -9,7 +9,8 @@ const CURRENCIES = ['GBP', 'NGN', 'USD', 'EUR']
 
 export default function Login() {
   const router = useRouter()
-  const { login, register, isLoading } = useAuthStore()
+  const { login, register, acceptInvite, isLoading } = useAuthStore()
+  const inviteToken = typeof router.query.invite === 'string' ? router.query.invite : ''
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('dominic@harvesttouch.org.uk')
   const [password, setPassword] = useState('Admin1234!')
@@ -22,7 +23,10 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      if (mode === 'login') {
+      if (inviteToken) {
+        await acceptInvite({ token: inviteToken, password })
+        toast.success('Workspace access activated')
+      } else if (mode === 'login') {
         await login(email, password)
         toast.success('Welcome back')
       } else {
@@ -128,6 +132,7 @@ export default function Login() {
                 key={tab}
                 type="button"
                 onClick={() => setMode(tab)}
+                disabled={!!inviteToken}
                 style={{
                   flex: 1,
                   border: 'none',
@@ -144,8 +149,14 @@ export default function Login() {
             ))}
           </div>
 
+          {inviteToken && (
+            <div style={{ marginBottom: 18, padding: 12, background: 'rgba(94,158,255,0.08)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#C8D3E8', fontSize: 12.5 }}>
+              You were invited to join an existing workspace. Set your password below to activate your account.
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
-            {mode === 'signup' && (
+            {mode === 'signup' && !inviteToken && (
               <>
                 <Field label="Full Name">
                   <input value={fullName} onChange={(e) => setFullName(e.target.value)} required={mode === 'signup'} style={inputStyle} />
@@ -201,7 +212,7 @@ export default function Login() {
             </button>
           </form>
 
-          {mode === 'login' && (
+          {mode === 'login' && !inviteToken && (
             <div style={{ marginTop: 18, padding: 14, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8 }}>
               <div style={{ fontSize: 10.5, color: '#5C6B84', marginBottom: 6, fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Demo Credentials
