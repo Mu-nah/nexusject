@@ -92,7 +92,7 @@ export default function Governance() {
       }
     >
       <Alert variant="warning" icon="!">
-        Governance data now loads from the backend workspace register instead of being carried inside the page bundle.
+        Keep the trustee register and conflict disclosures up to date for board and filing readiness.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>

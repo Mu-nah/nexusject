@@ -79,12 +79,12 @@ export default function Cashflow() {
     >
       {isError && (
         <Alert variant="error" icon="!">
-          <strong>Cash flow forecast could not load.</strong> {errorMessage || 'The backend may need a restart so the planning routes are available.'}
+          <strong>Cash flow forecast could not load.</strong> {errorMessage || 'Please refresh the page or try again in a moment.'}
         </Alert>
       )}
 
       <Alert variant="gold" icon="$">
-        <strong>13-week rolling cash forecast:</strong> this view now loads from the backend so the browser only renders the result instead of carrying the forecast logic on every route change.
+        <strong>13-week rolling cash forecast:</strong> Review expected inflows, outflows, and runway over the next quarter.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
@@ -132,7 +132,7 @@ export default function Cashflow() {
                 Loading forecast...
               </div>
             ) : isError ? (
-              <EmptyState title="Forecast unavailable" description="Retry after restarting the backend if the planning route is not yet loaded." />
+              <EmptyState title="Forecast unavailable" description="Please refresh the page or try again shortly." />
             ) : forecastRows.length === 0 ? (
               <EmptyState title="No forecast rows yet" description="Once transactions or seed data are available, the 13-week forecast will appear here." />
             ) : (

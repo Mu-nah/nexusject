@@ -129,7 +129,7 @@ export default function Programmes() {
     >
       {isError && (
         <Alert variant="error" icon="!">
-          <strong>Programme data could not load.</strong> {errorMessage || 'The backend may need a restart so the latest API routes are available.'}
+          <strong>Programme data could not load.</strong> {errorMessage || 'Please refresh the page or try again in a moment.'}
         </Alert>
       )}
 

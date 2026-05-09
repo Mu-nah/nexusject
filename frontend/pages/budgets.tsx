@@ -50,12 +50,12 @@ export default function Budgets() {
 
   const saveBudgetCheckpoint = async () => {
     await refetch()
-    setBudgetNote(`Budget checkpoint refreshed for ${period}. The screen is now reading the latest planning payload from the backend.`)
+    setBudgetNote(`Budget checkpoint refreshed for ${period}. The latest plan and actuals are now in view.`)
     toast.success('Budget checkpoint refreshed')
   }
 
   const analyseVariances = () => {
-    setVarianceNarrative(data?.variance_narrative ?? 'Variance commentary is loading from the backend.')
+    setVarianceNarrative(data?.variance_narrative ?? 'Variance commentary will appear here after the analysis refreshes.')
     toast.success('Variance analysis updated')
   }
 

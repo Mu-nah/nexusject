@@ -177,7 +177,7 @@ export default function UKVI() {
       }
     >
       <Alert variant="error" icon="!">
-        <strong>UKVI sponsor compliance:</strong> this module now reads worker, CoS, and duty data from the backend workspace records instead of shipping those datasets in the page.
+        <strong>UKVI sponsor compliance:</strong> Review sponsored workers, certificate allocations, and reporting duties carefully to stay audit-ready.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>

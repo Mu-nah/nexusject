@@ -161,16 +161,16 @@ export default function HR() {
     >
       {isError && (
         <Alert variant="error" icon="!">
-          <strong>HR records could not load.</strong> {errorMessage || 'The backend may need a restart so the latest HR routes are available.'}
+          <strong>HR records could not load.</strong> {errorMessage || 'Please refresh the page or try again in a moment.'}
         </Alert>
       )}
 
       <Alert variant="warning" icon="!">
-        <strong>RTW Check Required:</strong> HR records now load from backend workspace tables, so renewals, leave approvals, and review scheduling no longer live in the client bundle.
+        <strong>RTW Check Required:</strong> One or more right-to-work records need attention. Review expiring documents and complete renewals promptly.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Total Headcount" value={String(summary?.headcount ?? 0)} change="Backend workforce register" icon="EMP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Total Headcount" value={String(summary?.headcount ?? 0)} change="Current workforce register" icon="EMP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
         <StatCard label="RTW Expired" value={String(summary?.expired_rtw ?? 0)} change="Immediate action required" changeUp={false} icon="!" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
         <StatCard label="DBS Renewals Due" value={String(summary?.dbs_due ?? 0)} change="Within 90 days" icon="DBS" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
         <StatCard label="Open Vacancies" value={String(summary?.open_vacancies ?? 0)} change="Skills Hub + Outreach" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
