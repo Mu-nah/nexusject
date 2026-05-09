@@ -24,7 +24,7 @@ export default function App({ Component, pageProps }: AppProps) {
           content="AI-powered financial operating system for Harvest Touch CIC"
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </Head>
       <Component {...pageProps} />
       <Toaster

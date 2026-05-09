@@ -469,7 +469,7 @@ export default function Reports() {
         AI-generated reports are saved to the workspace library. Open them in the report viewer, share them, download PDF copies, or remove older versions from history.
       </Alert>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
         {REPORTS.map((r) => (
           <Panel key={r.id} style={{ position: 'relative', overflow: 'hidden', minHeight: 184 }}>
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(201,168,76,0.12), transparent 40%)', pointerEvents: 'none' }} />
@@ -484,7 +484,7 @@ export default function Reports() {
                   {r.aiPowered && <Badge variant="green">Workspace AI</Badge>}
                 </div>
                 <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6, marginBottom: 18, flex: 1 }}>{r.description}</div>
-                <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ minWidth: 160, alignSelf: 'flex-start' }}>
+                <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ alignSelf: 'flex-start', paddingInline: 16 }}>
                   {generating === r.id ? 'Generating...' : 'Generate'}
                 </Button>
               </div>
@@ -493,10 +493,10 @@ export default function Reports() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.45fr)', gap: 18, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18, alignItems: 'start' }}>
         <Panel title="Saved History" titleIcon="LIB" iconColor="#E8C56A">
           <div style={{ fontSize: 12, color: '#7A8BA8', marginBottom: 10 }}>{historyLabel}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 14 }}>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -549,7 +549,7 @@ export default function Reports() {
                         {new Date(rep.created_at).toLocaleDateString('en-GB')} | {rep.period_label || rep.report_type}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleDownloadPdf(rep.id) }}>PDF</Button>
                       <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleShare(rep.id) }}>Share</Button>
                       <button
@@ -606,9 +606,9 @@ export default function Reports() {
                   {loadingReportId === report.id ? 'Opening...' : 'Open Viewer'}
                 </Button>
               </div>
-              <div style={{ background: 'linear-gradient(180deg, rgba(10,15,26,0.9), rgba(10,15,26,0.7))', border: '1px solid rgba(30,41,59,0.9)', borderRadius: 18, padding: '24px 26px', minHeight: 380, maxHeight: 560, overflow: 'hidden', position: 'relative' }}>
+              <div style={{ background: 'linear-gradient(180deg, rgba(10,15,26,0.9), rgba(10,15,26,0.7))', border: '1px solid rgba(30,41,59,0.9)', borderRadius: 18, padding: '24px 26px', minHeight: 320, maxHeight: 560, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 60%, rgba(10,15,26,1) 100%)', pointerEvents: 'none' }} />
-                <div style={{ maxHeight: 500, overflow: 'hidden', opacity: 0.95 }}>
+                <div style={{ maxHeight: 500, overflowY: 'auto', overflowX: 'hidden', opacity: 0.95, paddingRight: 4 }}>
                   {renderMarkdownReport(report.narrative || '')}
                 </div>
               </div>
@@ -621,7 +621,7 @@ export default function Reports() {
 
       {viewerOpen && report && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.78)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'stretch', justifyContent: 'center', zIndex: 220, padding: 18 }}>
-          <div style={{ width: '100%', maxWidth: 1280, background: '#0b1120', border: '1px solid rgba(51,65,85,0.82)', borderRadius: 22, overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto auto 1fr' }}>
+          <div style={{ width: '100%', maxWidth: 1280, background: '#0b1120', border: '1px solid rgba(51,65,85,0.82)', borderRadius: 22, overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto auto 1fr', maxHeight: 'calc(100vh - 36px)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(51,65,85,0.5)', background: 'rgba(15,23,42,0.88)', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>{report.title}</div>
@@ -654,7 +654,7 @@ export default function Reports() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, padding: '16px 22px', borderBottom: '1px solid rgba(51,65,85,0.35)', background: '#0f172a' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, padding: '16px 22px', borderBottom: '1px solid rgba(51,65,85,0.35)', background: '#0f172a' }}>
               <input
                 value={shareName}
                 onChange={(e) => setShareName(e.target.value)}
@@ -667,11 +667,13 @@ export default function Reports() {
                 placeholder="Recipient email"
                 style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
               />
-              <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
+              </div>
             </div>
 
             <div style={{ overflowY: 'auto', padding: '26px 28px 32px', background: 'linear-gradient(180deg, #08101d 0%, #0b1220 100%)', fontFamily: 'Instrument Sans, sans-serif' }}>
-              <div style={{ maxWidth: 980, margin: '0 auto', background: '#0b1322', border: '1px solid rgba(51,65,85,0.55)', borderRadius: 20, padding: '28px 30px', boxShadow: '0 30px 80px rgba(0,0,0,0.35)' }}>
+              <div style={{ maxWidth: 980, margin: '0 auto', background: '#0b1322', border: '1px solid rgba(51,65,85,0.55)', borderRadius: 20, padding: 'clamp(18px, 3vw, 30px)', boxShadow: '0 30px 80px rgba(0,0,0,0.35)' }}>
                 {renderMarkdownReport(report.narrative || '')}
               </div>
             </div>
