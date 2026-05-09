@@ -89,13 +89,6 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navItems = useMemo(() => NAV.flatMap((section) => section.items), [])
-  const navHrefs = useMemo(() => Array.from(new Set(navItems.map((item) => item.href))), [navItems])
-
-  useEffect(() => {
-    navHrefs.forEach((href) => {
-      router.prefetch(href).catch(() => undefined)
-    })
-  }, [navHrefs, router])
 
   useEffect(() => {
     const syncViewport = () => {
@@ -259,7 +252,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                   : { background: 'rgba(201,168,76,0.12)', color: '#E8C56A' }
 
                 return (
-                  <Link key={`${item.label}-${item.href}`} href={item.href} style={{ textDecoration: 'none' }} onClick={() => setSidebarOpen(false)}>
+                  <Link key={`${item.label}-${item.href}`} href={item.href} prefetch={false} style={{ textDecoration: 'none' }} onClick={() => setSidebarOpen(false)}>
                     <div
                       style={{
                         display: 'flex',

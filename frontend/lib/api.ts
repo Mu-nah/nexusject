@@ -126,6 +126,14 @@ class ApiClient {
     return (await this.client.get('/dashboard/donations')).data
   }
 
+  async getPlanningCashflow() {
+    return (await this.client.get('/planning/cashflow')).data
+  }
+
+  async getPlanningBudgets() {
+    return (await this.client.get('/planning/budgets')).data
+  }
+
   // ── Accounting ──────────────────────────────────────────────────────────────
   async getAccounts(type?: string) {
     const q = type ? `?account_type=${type}` : ''
