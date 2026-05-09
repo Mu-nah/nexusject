@@ -31,9 +31,9 @@ export default function App({ Component, pageProps }: AppProps) {
         position="top-right"
         toastOptions={{
           style: {
-            background: '#141820',
-            color: '#E8EDF5',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--bg2)',
+            color: 'var(--heading)',
+            border: '1px solid var(--line2)',
             fontFamily: "'Instrument Sans', sans-serif",
             fontSize: '13px',
           },

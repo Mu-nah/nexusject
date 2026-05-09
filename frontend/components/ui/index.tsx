@@ -16,7 +16,7 @@ interface StatCardProps {
 export function StatCard({ label, value, change, changeUp, accentColor = '#C9A84C', icon, iconBg }: StatCardProps) {
   return (
     <div style={{
-      background: '#141820', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12,
+      background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: 12,
       padding: '16px 18px', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -31,19 +31,19 @@ export function StatCard({ label, value, change, changeUp, accentColor = '#C9A84
         }}>{icon}</div>
       )}
       <div style={{
-        fontSize: 10.5, fontWeight: 500, color: '#5C6B84',
+        fontSize: 10.5, fontWeight: 500, color: 'var(--mute)',
         textTransform: 'uppercase', letterSpacing: '0.07em',
         fontFamily: "'JetBrains Mono', monospace", marginBottom: 7,
       }}>{label}</div>
       <div style={{
         fontFamily: "'Instrument Serif', serif", fontSize: 24,
-        fontWeight: 600, color: '#E8EDF5', letterSpacing: '-0.04em',
+        fontWeight: 600, color: 'var(--heading)', letterSpacing: '-0.04em',
       }}>{value}</div>
       {change && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4,
           fontSize: 11.5, marginTop: 5,
-          color: changeUp === undefined ? '#5C6B84' : changeUp ? '#2DCE89' : '#F5365C',
+          color: changeUp === undefined ? 'var(--mute)' : changeUp ? 'var(--green)' : 'var(--red)',
         }}>{change}</div>
       )}
     </div>
@@ -64,15 +64,15 @@ interface PanelProps {
 export function Panel({ title, titleIcon, iconColor = '#C9A84C', action, children, noPadding, style }: PanelProps) {
   return (
     <div style={{
-      background: '#141820', border: '1px solid rgba(255,255,255,0.06)',
+      background: 'var(--bg2)', border: '1px solid var(--line)',
       borderRadius: 12, overflow: 'hidden', ...style,
     }}>
       {title && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '12px 18px', borderBottom: '1px solid var(--line)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 500, color: '#E8EDF5' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 500, color: 'var(--heading)' }}>
             {titleIcon && <span style={{ color: iconColor }}>{titleIcon}</span>}
             {title}
           </div>
@@ -90,13 +90,13 @@ export function Panel({ title, titleIcon, iconColor = '#C9A84C', action, childre
 type BadgeVariant = 'gold' | 'green' | 'amber' | 'red' | 'blue' | 'violet' | 'slate'
 
 const BADGE_STYLES: Record<BadgeVariant, CSSProperties> = {
-  gold:   { background: 'rgba(201,168,76,0.12)',  color: '#E8C56A' },
-  green:  { background: 'rgba(45,206,137,0.12)',  color: '#2DCE89' },
-  amber:  { background: 'rgba(251,140,0,0.12)',   color: '#FB8C00' },
-  red:    { background: 'rgba(245,54,92,0.12)',   color: '#F5365C' },
-  blue:   { background: 'rgba(94,158,255,0.12)',  color: '#5E9EFF' },
-  violet: { background: 'rgba(179,136,255,0.12)', color: '#B388FF' },
-  slate:  { background: '#232C3E',                color: '#7A8BA8' },
+  gold:   { background: 'var(--gold-bg)',  color: 'var(--gold2)' },
+  green:  { background: 'var(--green-bg)',  color: 'var(--green)' },
+  amber:  { background: 'var(--amber-bg)',   color: 'var(--amber)' },
+  red:    { background: 'var(--red-bg)',   color: 'var(--red)' },
+  blue:   { background: 'var(--blue-bg)',  color: 'var(--blue)' },
+  violet: { background: 'var(--violet-bg)', color: 'var(--violet)' },
+  slate:  { background: 'var(--bg4)',                color: 'var(--mute2)' },
 }
 
 export function Badge({ children, variant = 'slate' }: { children: ReactNode; variant?: BadgeVariant }) {
@@ -176,9 +176,9 @@ export function Button({ children, onClick, variant = 'primary', disabled, fullW
   const variants: Record<string, CSSProperties> = {
     primary: { background: '#C9A84C', color: '#0C0F14' },
     default: { background: '#C9A84C', color: '#0C0F14' },
-    ghost:   { background: 'transparent', color: '#7A8BA8', border: '1px solid rgba(255,255,255,0.08)' },
-    success: { background: 'rgba(45,206,137,0.12)', color: '#2DCE89', border: '1px solid rgba(45,206,137,0.3)' },
-    danger:  { background: 'rgba(245,54,92,0.12)',  color: '#F5365C', border: '1px solid rgba(245,54,92,0.3)' },
+    ghost:   { background: 'transparent', color: 'var(--mute2)', border: '1px solid var(--line2)' },
+    success: { background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid rgba(45,206,137,0.3)' },
+    danger:  { background: 'var(--red-bg)',  color: 'var(--red)', border: '1px solid rgba(245,54,92,0.3)' },
   }
   return (
     <button type={type} onClick={handleClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>
@@ -211,10 +211,10 @@ export function DataTable<T extends Record<string, any>>({ columns, data, emptyM
             {columns.map((col) => (
               <th key={col.key} style={{
                 textAlign: (col.align ?? 'left') as any,
-                fontSize: 10.5, fontWeight: 600, color: '#5C6B84',
+                fontSize: 10.5, fontWeight: 600, color: 'var(--mute)',
                 textTransform: 'uppercase', letterSpacing: '0.08em',
-                padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-                fontFamily: "'JetBrains Mono', monospace", background: '#141820',
+                padding: '9px 14px', borderBottom: '1px solid var(--line)',
+                fontFamily: "'JetBrains Mono', monospace", background: 'var(--bg2)',
                 whiteSpace: 'nowrap',
               }}>{col.header}</th>
             ))}
@@ -225,7 +225,7 @@ export function DataTable<T extends Record<string, any>>({ columns, data, emptyM
             <tr>
               <td colSpan={columns.length} style={{
                 padding: '32px 16px', textAlign: 'center',
-                color: '#5C6B84', fontSize: 13,
+                color: 'var(--mute)', fontSize: 13,
               }}>{emptyMessage}</td>
             </tr>
           ) : (
@@ -234,8 +234,8 @@ export function DataTable<T extends Record<string, any>>({ columns, data, emptyM
                 {columns.map((col) => (
                   <td key={col.key} style={{
                     padding: '11px 14px',
-                    borderBottom: i < data.length - 1 ? '1px solid rgba(45,58,82,0.3)' : 'none',
-                    fontSize: 12.5, color: '#C8D3E8', textAlign: (col.align ?? 'left') as any,
+                    borderBottom: i < data.length - 1 ? '1px solid var(--line)' : 'none',
+                    fontSize: 12.5, color: 'var(--text)', textAlign: (col.align ?? 'left') as any,
                     fontFamily: col.mono ? "'JetBrains Mono', monospace" : undefined,
                     whiteSpace: col.mono ? 'nowrap' : undefined,
                   }}>
@@ -254,7 +254,7 @@ export function DataTable<T extends Record<string, any>>({ columns, data, emptyM
 // ── ProgressBar ───────────────────────────────────────────────────────────────
 export function ProgressBar({ value, color = '#C9A84C', height = 5 }: { value: number; color?: string; height?: number }) {
   return (
-    <div style={{ height, background: '#232C3E', borderRadius: 10, overflow: 'hidden' }}>
+    <div style={{ height, background: 'var(--bg4)', borderRadius: 10, overflow: 'hidden' }}>
       <div style={{
         height: '100%', width: `${Math.min(100, Math.max(0, value))}%`,
         background: color, borderRadius: 10, transition: 'width 0.6s ease',
@@ -267,11 +267,11 @@ export function ProgressBar({ value, color = '#C9A84C', height = 5 }: { value: n
 type AlertVariant = 'warning' | 'success' | 'info' | 'error' | 'gold'
 
 const ALERT_STYLES: Record<AlertVariant, CSSProperties> = {
-  gold:    { background: 'rgba(201,168,76,0.08)',  border: '1px solid rgba(201,168,76,0.2)', color: '#E8C56A', borderLeft: '3px solid #C9A84C' },
-  warning: { background: 'rgba(251,140,0,0.08)',   border: '1px solid rgba(251,140,0,0.2)',  color: '#FB8C00' },
-  success: { background: 'rgba(45,206,137,0.08)',  border: '1px solid rgba(45,206,137,0.2)', color: '#2DCE89' },
-  info:    { background: 'rgba(94,158,255,0.08)',  border: '1px solid rgba(94,158,255,0.2)', color: '#5E9EFF' },
-  error:   { background: 'rgba(245,54,92,0.08)',   border: '1px solid rgba(245,54,92,0.2)',  color: '#F5365C' },
+  gold:    { background: 'rgba(201,168,76,0.08)',  border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold2)', borderLeft: '3px solid var(--gold)' },
+  warning: { background: 'rgba(251,140,0,0.08)',   border: '1px solid rgba(251,140,0,0.2)',  color: 'var(--amber)' },
+  success: { background: 'rgba(45,206,137,0.08)',  border: '1px solid rgba(45,206,137,0.2)', color: 'var(--green)' },
+  info:    { background: 'rgba(94,158,255,0.08)',  border: '1px solid rgba(94,158,255,0.2)', color: 'var(--blue)' },
+  error:   { background: 'rgba(245,54,92,0.08)',   border: '1px solid rgba(245,54,92,0.2)',  color: 'var(--red)' },
 }
 
 export function Alert({ children, variant = 'gold', icon }: { children: ReactNode; variant?: AlertVariant; icon?: string }) {
@@ -301,15 +301,15 @@ interface FormInputProps {
 
 export function FormInput({ label, value, onChange, placeholder, type = 'text', as = 'input', children, style }: FormInputProps) {
   const inputStyle: CSSProperties = {
-    width: '100%', background: '#1C2230', border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: 8, padding: '9px 12px', fontSize: 12.5, color: '#E8EDF5',
+    width: '100%', background: 'var(--bg3)', border: '1px solid var(--line)',
+    borderRadius: 8, padding: '9px 12px', fontSize: 12.5, color: 'var(--heading)',
     fontFamily: "'Instrument Sans', sans-serif", outline: 'none', ...style,
   }
   return (
     <div style={{ marginBottom: 13 }}>
       {label && (
         <label style={{
-          display: 'block', fontSize: 10.5, fontWeight: 600, color: '#5C6B84',
+          display: 'block', fontSize: 10.5, fontWeight: 600, color: 'var(--mute)',
           textTransform: 'uppercase', letterSpacing: '0.07em',
           marginBottom: 5, fontFamily: "'JetBrains Mono', monospace",
         }}>{label}</label>
@@ -358,8 +358,8 @@ export function EmptyState({ icon, title, description }: { icon?: string; title:
   return (
     <div style={{ textAlign: 'center', padding: '48px 24px' }}>
       {icon && <div style={{ fontSize: 36, marginBottom: 12 }}>{icon}</div>}
-      <div style={{ fontSize: 14, fontWeight: 500, color: '#7A8BA8', marginBottom: 6 }}>{title}</div>
-      {description && <div style={{ fontSize: 12, color: '#5C6B84' }}>{description}</div>}
+      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--mute2)', marginBottom: 6 }}>{title}</div>
+      {description && <div style={{ fontSize: 12, color: 'var(--mute)' }}>{description}</div>}
     </div>
   )
 }
