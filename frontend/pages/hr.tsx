@@ -1,105 +1,91 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/router'
+import { useQuery } from '@tanstack/react-query'
 import AppLayout from '@/components/layout/AppLayout'
 import { Panel, Badge, Button, DataTable, Alert, StatCard, FormInput } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
+import api from '@/lib/api'
 import toast from 'react-hot-toast'
 
 type Tab = 'employees' | 'onboarding' | 'contracts' | 'rtw' | 'dbs' | 'leave' | 'performance'
 
-const INITIAL_EMPLOYEES = [
-  { name: 'Dominic Ogbuagu', role: 'CFO / Director', dept: 'Core Ops', type: 'FT', status: 'Active', rtw: 'Valid', dbs: 'Enhanced' },
-  { name: 'Aisha Ibrahim', role: 'Programme Manager', dept: 'Youth Connect', type: 'FT', status: 'Active', rtw: 'Valid', dbs: 'Enhanced' },
-  { name: 'Kwame Okafor', role: 'Community Worker', dept: 'Skills Hub', type: 'PT', status: 'Active', rtw: 'Due Soon', dbs: 'Enhanced' },
-  { name: 'Jamilu Musa', role: 'Finance Assistant', dept: 'Core Ops', type: 'PT', status: 'Active', rtw: 'Expired', dbs: 'Basic' },
-]
-
-const INITIAL_RTW = [
-  { name: 'Dominic Ogbuagu', docType: 'British Passport', checked: '01 Sep 2022', expires: 'N/A', status: 'Valid', sV: 'green' },
-  { name: 'Aisha Ibrahim', docType: 'British Passport', checked: '01 Mar 2023', expires: 'N/A', status: 'Valid', sV: 'green' },
-  { name: 'Kwame Okafor', docType: 'BRP Card', checked: '01 Jun 2023', expires: '31 Dec 2026', status: 'Due Soon', sV: 'amber' },
-  { name: 'Jamilu Musa', docType: 'BRP Card', checked: '01 Jan 2023', expires: '01 Jan 2025', status: 'Expired', sV: 'red' },
-]
-
-const INITIAL_LEAVE = [
-  { name: 'Kwame Okafor', type: 'Annual Leave', from: '28 Apr', to: '02 May', days: '5', status: 'Pending', sV: 'amber' },
-  { name: 'Aisha Ibrahim', type: 'Annual Leave', from: '14 Apr', to: '17 Apr', days: '4', status: 'Approved', sV: 'green' },
-]
-
-const INITIAL_REVIEWS = [
-  { name: 'Aisha Ibrahim', reviewer: 'D. Ogbuagu', type: 'Quarterly', due: '30 Apr 2025', status: 'Scheduled', sV: 'blue' },
-  { name: 'Kwame Okafor', reviewer: 'A. Ibrahim', type: 'Probation', due: '15 May 2025', status: 'Scheduled', sV: 'blue' },
-  { name: 'Jamilu Musa', reviewer: 'D. Ogbuagu', type: 'Annual', due: '01 Feb 2025', status: 'Completed', sV: 'green' },
-]
-
-const INITIAL_CONTRACTS = [
-  { name: 'Dominic Ogbuagu', docType: 'Employment Contract', issued: '01 Apr 2022', expires: 'Permanent', status: 'Active', sV: 'green' },
-  { name: 'Aisha Ibrahim', docType: 'Employment Contract', issued: '01 Mar 2023', expires: 'Permanent', status: 'Active', sV: 'green' },
-  { name: 'Kwame Okafor', docType: 'Fixed Term Contract', issued: '01 Jun 2023', expires: '31 May 2025', status: 'Due', sV: 'amber' },
-]
+type EmployeeRow = {
+  id: number
+  name: string
+  role: string
+  dept: string
+  type: string
+  status: string
+  rtw: string
+  dbs: string
+}
 
 export default function HR() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('employees')
-  const [employees] = useState(INITIAL_EMPLOYEES)
-  const [rtwRows, setRtwRows] = useState(INITIAL_RTW)
-  const [leaveRows, setLeaveRows] = useState(INITIAL_LEAVE)
-  const [reviewRows, setReviewRows] = useState(INITIAL_REVIEWS)
-  const [contractRows, setContractRows] = useState(INITIAL_CONTRACTS)
-  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null)
-  const [onboardingCount, setOnboardingCount] = useState(0)
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRow | null>(null)
   const [reviewName, setReviewName] = useState('')
   const [docName, setDocName] = useState('')
 
+  const { data, refetch } = useQuery({
+    queryKey: ['hr-workspace'],
+    queryFn: api.getHrWorkspace,
+    staleTime: 60_000,
+  })
+
+  const employees = data?.employees ?? []
+  const rtwRows = data?.rtw ?? []
+  const dbsRows = data?.dbs ?? []
+  const leaveRows = data?.leave ?? []
+  const reviewRows = data?.performance ?? []
+  const contractRows = data?.contracts ?? []
+  const summary = data?.summary
+
   const exportEmployees = () => downloadCsvFile('hr-employees.csv', employees)
 
-  const expiredCount = useMemo(() => rtwRows.filter((row) => row.status === 'Expired').length, [rtwRows])
-  const dueSoonDbs = 2
-
-  const approveLeave = (name: string) => {
-    setLeaveRows((current) =>
-      current.map((row) => (row.name === name ? { ...row, status: 'Approved', sV: 'green' } : row))
-    )
+  const approveLeave = async (id: number, name: string) => {
+    await api.approveHrLeave(id)
+    await refetch()
     toast.success(`Leave approved for ${name}`)
   }
 
-  const renewRtw = (name: string) => {
-    setRtwRows((current) =>
-      current.map((row) =>
-        row.name === name ? { ...row, checked: new Date().toLocaleDateString('en-GB'), expires: '31 Dec 2026', status: 'Valid', sV: 'green' } : row
-      )
-    )
+  const renewRtw = async (id: number, name: string) => {
+    await api.renewHrRtw(id)
+    await refetch()
     toast.success(`Right to Work renewed for ${name}`)
   }
 
-  const startOnboarding = () => {
-    setOnboardingCount((count) => count + 1)
-    toast.success('New onboarding workflow started')
-  }
-
-  const scheduleReview = () => {
+  const scheduleReview = async () => {
     if (!reviewName.trim()) {
       toast.error('Enter an employee name first')
       return
     }
-    setReviewRows((current) => [
-      { name: reviewName.trim(), reviewer: 'Workspace Admin', type: 'Quarterly', due: '30 Jun 2026', status: 'Scheduled', sV: 'blue' },
-      ...current,
-    ])
+    await api.createHrReview({
+      name: reviewName.trim(),
+      reviewer: 'Workspace Admin',
+      review_type: 'Quarterly',
+      due: '30 Jun 2026',
+      status: 'Scheduled',
+    })
     setReviewName('')
+    await refetch()
     toast.success('Performance review scheduled')
   }
 
-  const uploadDocument = () => {
+  const uploadDocument = async () => {
     if (!docName.trim()) {
       toast.error('Enter a document title first')
       return
     }
-    setContractRows((current) => [
-      { name: 'General HR File', docType: docName.trim(), issued: new Date().toLocaleDateString('en-GB'), expires: 'Open', status: 'Active', sV: 'green' },
-      ...current,
-    ])
+    await api.createHrContract({
+      name: 'General HR File',
+      doc_type: docName.trim(),
+      issued: new Date().toLocaleDateString('en-GB'),
+      expires: 'Open',
+      status: 'Active',
+    })
     setDocName('')
+    await refetch()
     toast.success('Document added to HR records')
   }
 
@@ -109,20 +95,20 @@ export default function HR() {
       subtitle="People & Workforce"
       actions={
         <div style={{ display: 'flex', gap: 10 }}>
-          <Button variant="ghost" onClick={exportEmployees}>↓ Export</Button>
+          <Button variant="ghost" onClick={exportEmployees}>Export</Button>
           <Button onClick={() => router.push('/payroll/new-employee')}>+ Add Employee</Button>
         </div>
       }
     >
-      <Alert variant="warning" icon="⚠">
-        <strong>RTW Check Required:</strong> J. Musa's Right to Work document has expired. Legal obligation — employment must be paused or document renewed immediately.
+      <Alert variant="warning" icon="!">
+        <strong>RTW Check Required:</strong> HR records now load from backend workspace tables, so renewals, leave approvals, and review scheduling no longer live in the client bundle.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Total Headcount" value="12" change="8 FT · 4 PT" icon="⊞" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="RTW Expired" value={expiredCount} change="Immediate action required" changeUp={false} icon="!" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
-        <StatCard label="DBS Renewals Due" value={dueSoonDbs} change="Within 90 days" icon="◎" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
-        <StatCard label="Open Vacancies" value="2" change="Skills Hub + Outreach" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Total Headcount" value={String(summary?.headcount ?? 0)} change="Backend workforce register" icon="EMP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="RTW Expired" value={String(summary?.expired_rtw ?? 0)} change="Immediate action required" changeUp={false} icon="!" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="DBS Renewals Due" value={String(summary?.dbs_due ?? 0)} change="Within 90 days" icon="DBS" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Open Vacancies" value={String(summary?.open_vacancies ?? 0)} change="Skills Hub + Outreach" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
@@ -155,14 +141,14 @@ export default function HR() {
                 { key: 'type', header: 'Type', render: (row) => <Badge variant={row.type === 'FT' ? 'blue' : 'slate'}>{row.type}</Badge> },
                 { key: 'rtw', header: 'RTW', render: (row) => <Badge variant={row.rtw === 'Valid' ? 'green' : row.rtw === 'Due Soon' ? 'amber' : 'red'}>{row.rtw}</Badge> },
                 { key: 'dbs', header: 'DBS', render: (row) => <Badge variant={row.dbs === 'Enhanced' ? 'blue' : 'slate'}>{row.dbs}</Badge> },
-                { key: 'actions', header: '', render: (row) => <Button small variant="ghost" onClick={() => setSelectedEmployee(row)}>View</Button> },
+                { key: 'actions', header: '', render: (row) => <Button small variant="ghost" onClick={() => setSelectedEmployee(row as EmployeeRow)}>View</Button> },
               ]}
               data={employees}
             />
           </Panel>
 
           {selectedEmployee && (
-            <Panel title="Employee Snapshot" titleIcon="⊞" iconColor="#C9A84C">
+            <Panel title="Employee Snapshot" titleIcon="EMP" iconColor="#C9A84C">
               <div style={{ fontSize: 16, fontWeight: 600, color: '#E8EDF5', marginBottom: 10 }}>{selectedEmployee.name}</div>
               <div style={{ display: 'grid', gap: 10, fontSize: 12.5 }}>
                 <div style={{ color: '#7A8BA8' }}>Role: <span style={{ color: '#E8EDF5' }}>{selectedEmployee.role}</span></div>
@@ -181,18 +167,18 @@ export default function HR() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Onboarding Workflows</div>
-            <Button onClick={startOnboarding}>+ Start Onboarding</Button>
+            <Button onClick={() => router.push('/payroll/new-employee')}>+ Start Onboarding</Button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14 }}>
-            <Panel title="Active Onboarding" titleIcon="⊞" iconColor="#C9A84C">
+            <Panel title="Active Onboarding" titleIcon="ON" iconColor="#C9A84C">
               <div style={{ textAlign: 'center', padding: '32px 0', color: '#5C6B84', fontSize: 12.5 }}>
-                {onboardingCount === 0 ? 'No active onboarding workflows.' : `${onboardingCount} onboarding workflow${onboardingCount > 1 ? 's' : ''} active.`}
+                {summary?.onboarding_count ? `${summary.onboarding_count} onboarding workflows active.` : 'No active onboarding workflows.'}
               </div>
             </Panel>
-            <Panel title="Onboarding Checklist" titleIcon="✓" iconColor="#2DCE89">
+            <Panel title="Onboarding Checklist" titleIcon="OK" iconColor="#2DCE89">
               {['Offer letter signed', 'Contract issued', 'Right to Work check', 'DBS check initiated', 'Bank details collected', 'IT equipment ordered', 'Induction scheduled', 'Payroll added'].map((item, index) => (
                 <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: index < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none', fontSize: 12 }}>
-                  <span style={{ color: '#2DCE89' }}>✓</span>
+                  <span style={{ color: '#2DCE89' }}>OK</span>
                   <span style={{ color: '#7A8BA8' }}>{item}</span>
                 </div>
               ))}
@@ -203,7 +189,7 @@ export default function HR() {
 
       {tab === 'rtw' && (
         <>
-          <Alert variant="error" icon="⚠">
+          <Alert variant="error" icon="!">
             <strong>CRIMINAL LIABILITY:</strong> RTW checks required before employment. Penalties from Feb 2024: <strong>£45,000</strong> per worker (first breach) / <strong>£60,000</strong> (repeat).
           </Alert>
           <Panel noPadding>
@@ -213,8 +199,8 @@ export default function HR() {
                 { key: 'docType', header: 'Document Type' },
                 { key: 'checked', header: 'Last Checked' },
                 { key: 'expires', header: 'Expires' },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.sV as any}>{row.status}</Badge> },
-                { key: 'actions', header: '', render: (row) => row.status === 'Expired' ? <Button small onClick={() => renewRtw(row.name)}>Renew</Button> : <Button small variant="ghost" onClick={() => setSelectedEmployee({ name: row.name, role: row.docType, dept: 'Compliance Check', type: 'Record', rtw: row.status, dbs: 'N/A' })}>View</Button> },
+                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.status === 'Valid' ? 'green' : row.status === 'Due Soon' ? 'amber' : 'red'}>{row.status}</Badge> },
+                { key: 'actions', header: '', render: (row) => row.status === 'Expired' ? <Button small onClick={() => renewRtw(row.id, row.name)}>Renew</Button> : <Button small variant="ghost" onClick={() => setSelectedEmployee({ id: row.id, name: row.name, role: row.docType, dept: 'Compliance Check', type: 'Record', status: row.status, rtw: row.status, dbs: 'N/A' })}>View</Button> },
               ]}
               data={rtwRows}
             />
@@ -224,7 +210,7 @@ export default function HR() {
 
       {tab === 'dbs' && (
         <>
-          <Alert variant="error" icon="⚠">
+          <Alert variant="error" icon="!">
             <strong>SAFEGUARDING DUTY:</strong> All staff or volunteers working with children require Enhanced DBS + Barred List check.
           </Alert>
           <Panel noPadding>
@@ -234,14 +220,9 @@ export default function HR() {
                 { key: 'level', header: 'DBS Level', render: (row) => <Badge variant={row.level === 'Enhanced' ? 'blue' : 'slate'}>{row.level}</Badge> },
                 { key: 'issued', header: 'Issued' },
                 { key: 'renewal', header: 'Next Renewal' },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.sV as any}>{row.status}</Badge> },
+                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.status === 'Valid' ? 'green' : 'amber'}>{row.status}</Badge> },
               ]}
-              data={[
-                { name: 'Dominic Ogbuagu', level: 'Enhanced', issued: '01 Sep 2022', renewal: 'Sep 2025', status: 'Valid', sV: 'green' },
-                { name: 'Aisha Ibrahim', level: 'Enhanced', issued: '01 Mar 2023', renewal: 'Mar 2026', status: 'Valid', sV: 'green' },
-                { name: 'Kwame Okafor', level: 'Enhanced', issued: '01 Jun 2022', renewal: 'Jun 2025', status: 'Due Soon', sV: 'amber' },
-                { name: 'Jamilu Musa', level: 'Basic', issued: '01 Jan 2023', renewal: 'Jan 2026', status: 'Valid', sV: 'green' },
-              ]}
+              data={dbsRows}
             />
           </Panel>
         </>
@@ -250,12 +231,12 @@ export default function HR() {
       {tab === 'leave' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
-            <StatCard label="Annual Leave Requests" value={leaveRows.filter((row) => row.status === 'Pending').length} change="Pending approval" icon="◷" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+            <StatCard label="Annual Leave Requests" value={String(leaveRows.filter((row: any) => row.status === 'Pending').length)} change="Pending approval" icon="LV" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
             <StatCard label="Sick Days YTD" value="8.5" change="Avg 0.7/employee" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-            <StatCard label="Leave Balance" value="124d" change="Across all staff" icon="≡" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+            <StatCard label="Leave Balance" value="124d" change="Across all staff" icon="BAL" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
             <StatCard label="Upcoming Absence" value="3" change="Next 14 days" icon="!" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
           </div>
-          <Panel title="Leave Requests" titleIcon="◷" iconColor="#C9A84C" noPadding>
+          <Panel title="Leave Requests" titleIcon="LV" iconColor="#C9A84C" noPadding>
             <DataTable
               columns={[
                 { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
@@ -263,8 +244,8 @@ export default function HR() {
                 { key: 'from', header: 'From' },
                 { key: 'to', header: 'To' },
                 { key: 'days', header: 'Days' },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.sV as any}>{row.status}</Badge> },
-                { key: 'actions', header: '', render: (row) => row.status === 'Pending' ? <Button small onClick={() => approveLeave(row.name)}>Approve</Button> : <Button small variant="ghost" onClick={() => setSelectedEmployee({ name: row.name, role: row.type, dept: 'Leave Request', type: 'Request', rtw: row.status, dbs: row.days })}>View</Button> },
+                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.status === 'Approved' ? 'green' : 'amber'}>{row.status}</Badge> },
+                { key: 'actions', header: '', render: (row) => row.status === 'Pending' ? <Button small onClick={() => approveLeave(row.id, row.name)}>Approve</Button> : <Button small variant="ghost" onClick={() => setSelectedEmployee({ id: row.id, name: row.name, role: row.type, dept: 'Leave Request', type: 'Request', status: row.status, rtw: row.status, dbs: row.days })}>View</Button> },
               ]}
               data={leaveRows}
             />
@@ -290,7 +271,7 @@ export default function HR() {
                 { key: 'reviewer', header: 'Reviewer' },
                 { key: 'type', header: 'Review Type', render: (row) => <Badge variant="slate">{row.type}</Badge> },
                 { key: 'due', header: 'Due Date' },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.sV as any}>{row.status}</Badge> },
+                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.status === 'Completed' ? 'green' : 'blue'}>{row.status}</Badge> },
               ]}
               data={reviewRows}
             />
@@ -316,8 +297,8 @@ export default function HR() {
                 { key: 'docType', header: 'Document Type', render: (row) => <Badge variant="slate">{row.docType}</Badge> },
                 { key: 'issued', header: 'Issued' },
                 { key: 'expires', header: 'Expires' },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.sV as any}>{row.status}</Badge> },
-                { key: 'actions', header: '', render: (row) => <Button small variant="ghost" onClick={() => setSelectedEmployee({ name: row.name, role: row.docType, dept: 'HR Document', type: 'Document', rtw: row.status, dbs: row.expires })}>↓ View</Button> },
+                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.status === 'Active' ? 'green' : 'amber'}>{row.status}</Badge> },
+                { key: 'actions', header: '', render: (row) => <Button small variant="ghost" onClick={() => setSelectedEmployee({ id: row.id, name: row.name, role: row.docType, dept: 'HR Document', type: 'Document', status: row.status, rtw: row.status, dbs: row.expires })}>View</Button> },
               ]}
               data={contractRows}
             />

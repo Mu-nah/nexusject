@@ -105,3 +105,74 @@ class UkviDuty(Base):
     latest_note = Column(Text, nullable=False, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HrRightToWorkRecord(Base):
+    __tablename__ = "hr_rtw_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    doc_type = Column(String(255), nullable=False)
+    checked = Column(String(100), nullable=False)
+    expires = Column(String(100), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HrDbsRecord(Base):
+    __tablename__ = "hr_dbs_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    level = Column(String(100), nullable=False)
+    issued = Column(String(100), nullable=False)
+    renewal = Column(String(100), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HrLeaveRequest(Base):
+    __tablename__ = "hr_leave_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    leave_type = Column(String(100), nullable=False)
+    date_from = Column(String(100), nullable=False)
+    date_to = Column(String(100), nullable=False)
+    days = Column(String(20), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HrPerformanceReview(Base):
+    __tablename__ = "hr_performance_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    reviewer = Column(String(255), nullable=False)
+    review_type = Column(String(100), nullable=False)
+    due = Column(String(100), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HrContractDocument(Base):
+    __tablename__ = "hr_contract_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    doc_type = Column(String(255), nullable=False)
+    issued = Column(String(100), nullable=False)
+    expires = Column(String(100), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

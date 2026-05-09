@@ -7,6 +7,11 @@ from sqlalchemy.orm import Session
 from backend.core.database import get_db
 from backend.core.security import get_current_user
 from backend.models.ops import (
+    HrContractDocument,
+    HrDbsRecord,
+    HrLeaveRequest,
+    HrPerformanceReview,
+    HrRightToWorkRecord,
     Trustee,
     UkviCosRecord,
     UkviDuty,
@@ -15,6 +20,7 @@ from backend.models.ops import (
     VolunteerAgreement,
     VolunteerHour,
 )
+from backend.models.employee import Employee
 from backend.models.user import User
 
 router = APIRouter(prefix="/ops", tags=["Operations"])
@@ -83,6 +89,66 @@ def _seed_ukvi(db: Session, org_id: int) -> None:
     db.commit()
 
 
+def _seed_hr(db: Session, org_id: int) -> None:
+    if not db.query(Employee).filter(Employee.organisation_id == org_id).count():
+        db.add_all(
+            [
+                Employee(organisation_id=org_id, employee_number="EMP-0001", full_name="Dominic Ogbuagu", role_title="CFO / Director", contract_type="full_time", gross_salary=1800, is_active=True),
+                Employee(organisation_id=org_id, employee_number="EMP-0002", full_name="Aisha Ibrahim", role_title="Programme Manager", contract_type="full_time", gross_salary=1600, is_active=True),
+                Employee(organisation_id=org_id, employee_number="EMP-0003", full_name="Kwame Okafor", role_title="Community Worker", contract_type="part_time", gross_salary=1200, is_active=True),
+                Employee(organisation_id=org_id, employee_number="EMP-0004", full_name="Jamilu Musa", role_title="Finance Assistant", contract_type="part_time", gross_salary=950, is_active=True),
+            ]
+        )
+
+    if not db.query(HrRightToWorkRecord).filter(HrRightToWorkRecord.organisation_id == org_id).count():
+        db.add_all(
+            [
+                HrRightToWorkRecord(organisation_id=org_id, name="Dominic Ogbuagu", doc_type="British Passport", checked="01 Sep 2022", expires="N/A", status="Valid"),
+                HrRightToWorkRecord(organisation_id=org_id, name="Aisha Ibrahim", doc_type="British Passport", checked="01 Mar 2023", expires="N/A", status="Valid"),
+                HrRightToWorkRecord(organisation_id=org_id, name="Kwame Okafor", doc_type="BRP Card", checked="01 Jun 2023", expires="31 Dec 2026", status="Due Soon"),
+                HrRightToWorkRecord(organisation_id=org_id, name="Jamilu Musa", doc_type="BRP Card", checked="01 Jan 2023", expires="01 Jan 2025", status="Expired"),
+            ]
+        )
+
+    if not db.query(HrDbsRecord).filter(HrDbsRecord.organisation_id == org_id).count():
+        db.add_all(
+            [
+                HrDbsRecord(organisation_id=org_id, name="Dominic Ogbuagu", level="Enhanced", issued="01 Sep 2022", renewal="Sep 2025", status="Valid"),
+                HrDbsRecord(organisation_id=org_id, name="Aisha Ibrahim", level="Enhanced", issued="01 Mar 2023", renewal="Mar 2026", status="Valid"),
+                HrDbsRecord(organisation_id=org_id, name="Kwame Okafor", level="Enhanced", issued="01 Jun 2022", renewal="Jun 2025", status="Due Soon"),
+                HrDbsRecord(organisation_id=org_id, name="Jamilu Musa", level="Basic", issued="01 Jan 2023", renewal="Jan 2026", status="Valid"),
+            ]
+        )
+
+    if not db.query(HrLeaveRequest).filter(HrLeaveRequest.organisation_id == org_id).count():
+        db.add_all(
+            [
+                HrLeaveRequest(organisation_id=org_id, name="Kwame Okafor", leave_type="Annual Leave", date_from="28 Apr", date_to="02 May", days="5", status="Pending"),
+                HrLeaveRequest(organisation_id=org_id, name="Aisha Ibrahim", leave_type="Annual Leave", date_from="14 Apr", date_to="17 Apr", days="4", status="Approved"),
+            ]
+        )
+
+    if not db.query(HrPerformanceReview).filter(HrPerformanceReview.organisation_id == org_id).count():
+        db.add_all(
+            [
+                HrPerformanceReview(organisation_id=org_id, name="Aisha Ibrahim", reviewer="D. Ogbuagu", review_type="Quarterly", due="30 Apr 2025", status="Scheduled"),
+                HrPerformanceReview(organisation_id=org_id, name="Kwame Okafor", reviewer="A. Ibrahim", review_type="Probation", due="15 May 2025", status="Scheduled"),
+                HrPerformanceReview(organisation_id=org_id, name="Jamilu Musa", reviewer="D. Ogbuagu", review_type="Annual", due="01 Feb 2025", status="Completed"),
+            ]
+        )
+
+    if not db.query(HrContractDocument).filter(HrContractDocument.organisation_id == org_id).count():
+        db.add_all(
+            [
+                HrContractDocument(organisation_id=org_id, name="Dominic Ogbuagu", doc_type="Employment Contract", issued="01 Apr 2022", expires="Permanent", status="Active"),
+                HrContractDocument(organisation_id=org_id, name="Aisha Ibrahim", doc_type="Employment Contract", issued="01 Mar 2023", expires="Permanent", status="Active"),
+                HrContractDocument(organisation_id=org_id, name="Kwame Okafor", doc_type="Fixed Term Contract", issued="01 Jun 2023", expires="31 May 2025", status="Due"),
+            ]
+        )
+
+    db.commit()
+
+
 class VolunteerPayload(BaseModel):
     name: str
     role: str
@@ -124,6 +190,31 @@ class UkviCosPayload(BaseModel):
     worker: str
     type: str
     issued: str
+    status: str
+
+
+class HrLeavePayload(BaseModel):
+    name: str
+    leave_type: str
+    date_from: str
+    date_to: str
+    days: str
+    status: str
+
+
+class HrReviewPayload(BaseModel):
+    name: str
+    reviewer: str
+    review_type: str
+    due: str
+    status: str
+
+
+class HrContractPayload(BaseModel):
+    name: str
+    doc_type: str
+    issued: str
+    expires: str
     status: str
 
 
@@ -325,3 +416,107 @@ async def report_ukvi_duty(duty_id: int, note: Optional[str] = None, current_use
     record.latest_note = note or f"{record.duty} reported."
     db.commit()
     return {"success": True, "latest_note": record.latest_note}
+
+
+@router.get("/hr")
+async def get_hr_workspace(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    org_id = current_user.organisation_id
+    _seed_hr(db, org_id)
+
+    employees = db.query(Employee).filter(Employee.organisation_id == org_id, Employee.is_active == True).order_by(Employee.full_name.asc()).all()
+    rtw_records = db.query(HrRightToWorkRecord).filter(HrRightToWorkRecord.organisation_id == org_id).order_by(HrRightToWorkRecord.name.asc()).all()
+    dbs_records = db.query(HrDbsRecord).filter(HrDbsRecord.organisation_id == org_id).order_by(HrDbsRecord.name.asc()).all()
+    leave_records = db.query(HrLeaveRequest).filter(HrLeaveRequest.organisation_id == org_id).order_by(HrLeaveRequest.created_at.desc()).all()
+    review_records = db.query(HrPerformanceReview).filter(HrPerformanceReview.organisation_id == org_id).order_by(HrPerformanceReview.created_at.desc()).all()
+    contract_records = db.query(HrContractDocument).filter(HrContractDocument.organisation_id == org_id).order_by(HrContractDocument.created_at.desc()).all()
+
+    rtw_lookup = {item.name: item for item in rtw_records}
+    dbs_lookup = {item.name: item for item in dbs_records}
+
+    employee_rows = []
+    for employee in employees:
+        rtw = rtw_lookup.get(employee.full_name)
+        dbs = dbs_lookup.get(employee.full_name)
+        employee_rows.append(
+            {
+                "id": employee.id,
+                "name": employee.full_name,
+                "role": employee.role_title or "Team Member",
+                "dept": "Core Ops",
+                "type": "FT" if employee.contract_type == "full_time" else "PT",
+                "status": "Active" if employee.is_active else "Inactive",
+                "rtw": rtw.status if rtw else "Pending",
+                "dbs": dbs.level if dbs else "Pending",
+            }
+        )
+
+    return {
+        "summary": {
+            "headcount": len(employee_rows),
+            "expired_rtw": sum(1 for item in rtw_records if item.status == "Expired"),
+            "dbs_due": sum(1 for item in dbs_records if item.status == "Due Soon"),
+            "open_vacancies": 2,
+            "onboarding_count": 0,
+        },
+        "employees": employee_rows,
+        "rtw": [
+            {"id": item.id, "name": item.name, "docType": item.doc_type, "checked": item.checked, "expires": item.expires, "status": item.status}
+            for item in rtw_records
+        ],
+        "dbs": [
+            {"id": item.id, "name": item.name, "level": item.level, "issued": item.issued, "renewal": item.renewal, "status": item.status}
+            for item in dbs_records
+        ],
+        "leave": [
+            {"id": item.id, "name": item.name, "type": item.leave_type, "from": item.date_from, "to": item.date_to, "days": item.days, "status": item.status}
+            for item in leave_records
+        ],
+        "performance": [
+            {"id": item.id, "name": item.name, "reviewer": item.reviewer, "type": item.review_type, "due": item.due, "status": item.status}
+            for item in review_records
+        ],
+        "contracts": [
+            {"id": item.id, "name": item.name, "docType": item.doc_type, "issued": item.issued, "expires": item.expires, "status": item.status}
+            for item in contract_records
+        ],
+    }
+
+
+@router.post("/hr/leave/{leave_id}/approve")
+async def approve_hr_leave(leave_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    record = db.query(HrLeaveRequest).filter(HrLeaveRequest.id == leave_id, HrLeaveRequest.organisation_id == current_user.organisation_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    record.status = "Approved"
+    db.commit()
+    return {"success": True}
+
+
+@router.post("/hr/rtw/{rtw_id}/renew")
+async def renew_hr_rtw(rtw_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    record = db.query(HrRightToWorkRecord).filter(HrRightToWorkRecord.id == rtw_id, HrRightToWorkRecord.organisation_id == current_user.organisation_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="RTW record not found")
+    record.checked = datetime.utcnow().strftime("%d %b %Y")
+    record.expires = "31 Dec 2026"
+    record.status = "Valid"
+    db.commit()
+    return {"success": True}
+
+
+@router.post("/hr/reviews")
+async def create_hr_review(data: HrReviewPayload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    record = HrPerformanceReview(organisation_id=current_user.organisation_id, **data.model_dump())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"id": record.id}
+
+
+@router.post("/hr/contracts")
+async def create_hr_contract(data: HrContractPayload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    record = HrContractDocument(organisation_id=current_user.organisation_id, **data.model_dump())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"id": record.id}

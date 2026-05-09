@@ -190,6 +190,26 @@ class ApiClient {
     return (await this.client.post(`/ops/ukvi/duties/${id}/report`, null, { params: note ? { note } : undefined })).data
   }
 
+  async getHrWorkspace() {
+    return (await this.client.get('/ops/hr')).data
+  }
+
+  async approveHrLeave(id: number) {
+    return (await this.client.post(`/ops/hr/leave/${id}/approve`)).data
+  }
+
+  async renewHrRtw(id: number) {
+    return (await this.client.post(`/ops/hr/rtw/${id}/renew`)).data
+  }
+
+  async createHrReview(data: any) {
+    return (await this.client.post('/ops/hr/reviews', data)).data
+  }
+
+  async createHrContract(data: any) {
+    return (await this.client.post('/ops/hr/contracts', data)).data
+  }
+
   // ── Accounting ──────────────────────────────────────────────────────────────
   async getAccounts(type?: string) {
     const q = type ? `?account_type=${type}` : ''
