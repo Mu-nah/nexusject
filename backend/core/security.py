@@ -64,5 +64,5 @@ def require_role(*roles):
 # Pre-built dependency callables — use directly in Depends(), e.g. Depends(require_finance)
 require_cfo     = require_role("owner", "cfo", "admin")
 require_finance = require_role("owner", "cfo", "finance_manager", "admin")
-require_any     = require_role("owner", "cfo", "finance_manager", "programme_manager", "admin")
+require_any     = require_role("owner", "cfo", "finance_manager", "programme_manager", "hr_manager", "compliance_manager", "admin")
 require_owner   = require_role("owner", "admin")

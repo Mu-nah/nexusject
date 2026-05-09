@@ -85,6 +85,8 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   const { user, logout } = useAuthStore()
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [isCompact, setIsCompact] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navItems = useMemo(() => NAV.flatMap((section) => section.items), [])
   const navHrefs = useMemo(() => Array.from(new Set(navItems.map((item) => item.href))), [navItems])
@@ -94,6 +96,17 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
       router.prefetch(href).catch(() => undefined)
     })
   }, [navHrefs, router])
+
+  useEffect(() => {
+    const syncViewport = () => {
+      const compact = window.innerWidth < 1120
+      setIsCompact(compact)
+      if (!compact) setSidebarOpen(false)
+    }
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [])
 
   const initials = user?.full_name
     ?.split(' ')
@@ -125,6 +138,12 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0C0F14' }}>
+      {isCompact && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,18,0.72)', zIndex: 190 }}
+        />
+      )}
       <aside
         style={{
           width: 256,
@@ -132,12 +151,13 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
           borderRight: '1px solid rgba(255,255,255,0.06)',
           display: 'flex',
           flexDirection: 'column',
-          position: 'fixed',
+          position: isCompact ? 'fixed' : 'fixed',
           top: 0,
-          left: 0,
+          left: isCompact ? (sidebarOpen ? 0 : -272) : 0,
           bottom: 0,
           zIndex: 200,
           overflowX: 'hidden',
+          transition: 'left 0.2s ease',
         }}
       >
         <div style={{ padding: '16px 16px 13px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -239,7 +259,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                   : { background: 'rgba(201,168,76,0.12)', color: '#E8C56A' }
 
                 return (
-                  <Link key={`${item.label}-${item.href}`} href={item.href} style={{ textDecoration: 'none' }}>
+                  <Link key={`${item.label}-${item.href}`} href={item.href} style={{ textDecoration: 'none' }} onClick={() => setSidebarOpen(false)}>
                     <div
                       style={{
                         display: 'flex',
@@ -349,7 +369,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
         </div>
       </aside>
 
-      <main style={{ marginLeft: 256, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <main style={{ marginLeft: isCompact ? 0 : 256, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <div
           style={{
             minHeight: 60,
@@ -363,7 +383,25 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             flexShrink: 0,
           }}
         >
-          <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 220 }}>
+            {isCompact && (
+              <button
+                onClick={() => setSidebarOpen((value) => !value)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: '#1C2230',
+                  color: '#E8EDF5',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                ☰
+              </button>
+            )}
+            <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#E8EDF5', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
               {title}
             </div>
@@ -373,9 +411,10 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
               </div>
             )}
           </div>
+          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', width: 260 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap', width: isCompact ? '100%' : 'auto' }}>
+            <div style={{ position: 'relative', width: isCompact ? '100%' : 260, flex: isCompact ? '1 1 100%' : undefined }}>
               <form onSubmit={handleSearchSubmit}>
                 <div
                   style={{
@@ -458,7 +497,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: 22, overflowY: 'auto', background: '#0C0F14' }}>{children}</div>
+        <div style={{ flex: 1, padding: isCompact ? 14 : 22, overflowY: 'auto', background: '#0C0F14' }}>{children}</div>
       </main>
     </div>
   )

@@ -8,6 +8,8 @@ class UserRole(str, enum.Enum):
     cfo = "cfo"
     finance_manager = "finance_manager"
     programme_manager = "programme_manager"
+    hr_manager = "hr_manager"
+    compliance_manager = "compliance_manager"
     admin = "admin"
     viewer = "viewer"
 

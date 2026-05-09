@@ -204,47 +204,50 @@ interface DataTableProps<T> {
 
 export function DataTable<T extends Record<string, any>>({ columns, data, emptyMessage = 'No records found' }: DataTableProps<T>) {
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.key} style={{
-              textAlign: (col.align ?? 'left') as any,
-              fontSize: 10.5, fontWeight: 600, color: '#5C6B84',
-              textTransform: 'uppercase', letterSpacing: '0.08em',
-              padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-              fontFamily: "'JetBrains Mono', monospace", background: '#141820',
-              whiteSpace: 'nowrap',
-            }}>{col.header}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {data.length === 0 ? (
+    <div style={{ width: '100%', overflowX: 'auto' }}>
+      <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
+        <thead>
           <tr>
-            <td colSpan={columns.length} style={{
-              padding: '32px 16px', textAlign: 'center',
-              color: '#5C6B84', fontSize: 13,
-            }}>{emptyMessage}</td>
+            {columns.map((col) => (
+              <th key={col.key} style={{
+                textAlign: (col.align ?? 'left') as any,
+                fontSize: 10.5, fontWeight: 600, color: '#5C6B84',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                fontFamily: "'JetBrains Mono', monospace", background: '#141820',
+                whiteSpace: 'nowrap',
+              }}>{col.header}</th>
+            ))}
           </tr>
-        ) : (
-          data.map((row, i) => (
-            <tr key={i} style={{ transition: 'background 0.1s' }}>
-              {columns.map((col) => (
-                <td key={col.key} style={{
-                  padding: '11px 14px',
-                  borderBottom: i < data.length - 1 ? '1px solid rgba(45,58,82,0.3)' : 'none',
-                  fontSize: 12.5, color: '#C8D3E8', textAlign: (col.align ?? 'left') as any,
-                  fontFamily: col.mono ? "'JetBrains Mono', monospace" : undefined,
-                }}>
-                  {col.render ? col.render(row) : row[col.key]}
-                </td>
-              ))}
+        </thead>
+        <tbody>
+          {data.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} style={{
+                padding: '32px 16px', textAlign: 'center',
+                color: '#5C6B84', fontSize: 13,
+              }}>{emptyMessage}</td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ) : (
+            data.map((row, i) => (
+              <tr key={i} style={{ transition: 'background 0.1s' }}>
+                {columns.map((col) => (
+                  <td key={col.key} style={{
+                    padding: '11px 14px',
+                    borderBottom: i < data.length - 1 ? '1px solid rgba(45,58,82,0.3)' : 'none',
+                    fontSize: 12.5, color: '#C8D3E8', textAlign: (col.align ?? 'left') as any,
+                    fontFamily: col.mono ? "'JetBrains Mono', monospace" : undefined,
+                    whiteSpace: col.mono ? 'nowrap' : undefined,
+                  }}>
+                    {col.render ? col.render(row) : row[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

@@ -114,6 +114,8 @@ export const roleLabel = (role: string): string => ({
   cfo: 'CFO',
   finance_manager: 'Finance Manager',
   programme_manager: 'Programme Manager',
+  hr_manager: 'HR',
+  compliance_manager: 'Compliance',
   admin: 'Administrator',
   viewer: 'Viewer',
 }[role] ?? role)

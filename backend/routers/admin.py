@@ -349,7 +349,7 @@ async def update_user_role(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    valid_roles = {"owner", "cfo", "finance_manager", "programme_manager", "admin", "viewer"}
+    valid_roles = {"owner", "cfo", "finance_manager", "programme_manager", "hr_manager", "compliance_manager", "admin", "viewer"}
     if role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
 

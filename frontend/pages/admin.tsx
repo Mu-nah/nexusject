@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 
 type Tab = 'workspace' | 'team' | 'access'
 
-const ROLE_OPTIONS = ['viewer', 'programme_manager', 'finance_manager', 'cfo', 'admin']
+const ROLE_OPTIONS = ['viewer', 'programme_manager', 'finance_manager', 'hr_manager', 'compliance_manager', 'cfo', 'admin']
 const LEGAL_TYPES = ['Company', 'Charity / NGO', 'CIC / Nonprofit', 'School / Training Centre', 'Other']
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'NGN']
 

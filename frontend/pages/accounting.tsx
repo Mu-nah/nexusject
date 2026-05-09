@@ -1,32 +1,42 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
-import { StatCard, Panel, Badge, Button, DataTable, FormInput } from '@/components/ui'
+import { Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import api from '@/lib/api'
+import { downloadCsvFile } from '@/lib/export'
 import toast from 'react-hot-toast'
 
 const gbp = (n: number) => {
   const abs = Math.abs(Number(n))
   const formatted = abs.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-  return n < 0 ? `-£${formatted}` : `£${formatted}`
+  return n < 0 ? `-GBP ${formatted}` : `GBP ${formatted}`
 }
 
 type Tab = 'accounts' | 'journal' | 'bank'
 
-const TYPE_BADGE: Record<string, any> = {
-  asset: 'green', liability: 'red', equity: 'violet', income: 'blue', expense: 'amber',
+type JournalDraft = {
+  reference: string
+  description: string
+  debit: string
+  credit: string
 }
 
 export default function Accounting() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('accounts')
-  const [typeFilter, setTypeFilter] = useState('all')
   const [showNewAccount, setShowNewAccount] = useState(false)
+  const [showJournalEntry, setShowJournalEntry] = useState(false)
+  const [showBankForm, setShowBankForm] = useState(false)
+  const [selectedBankId, setSelectedBankId] = useState<number | null>(null)
   const [newAccount, setNewAccount] = useState({ code: '', name: '', account_type: 'asset', description: '' })
+  const [journalDraft, setJournalDraft] = useState<JournalDraft>({ reference: '', description: '', debit: '', credit: '' })
+  const [localEntries, setLocalEntries] = useState<any[]>([])
+  const [localBankAccounts, setLocalBankAccounts] = useState<any[]>([])
+  const [bankDraft, setBankDraft] = useState({ account_name: '', bank_name: '', balance: '' })
 
-  const { data: accounts = [], isLoading: accountsLoading } = useQuery({
-    queryKey: ['accounts', typeFilter],
-    queryFn: () => api.getAccounts(typeFilter !== 'all' ? typeFilter : undefined),
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => api.getAccounts(),
   })
 
   const { data: journalData } = useQuery({
@@ -54,10 +64,93 @@ export default function Accounting() {
       setShowNewAccount(false)
       setNewAccount({ code: '', name: '', account_type: 'asset', description: '' })
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Failed'),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Failed to create account'),
   })
 
-  const entries = journalData?.items ?? []
+  const entries = useMemo(() => [...localEntries, ...(journalData?.items ?? [])], [journalData?.items, localEntries])
+  const mergedBankAccounts = useMemo(() => [...localBankAccounts, ...bankAccounts], [bankAccounts, localBankAccounts])
+  const selectedBank = mergedBankAccounts.find((bank: any) => Number(bank.id) === selectedBankId) ?? null
+
+  const exportTrialBalance = () => {
+    const rows = accounts.map((account: any) => ({
+      code: account.code,
+      name: account.name,
+      type: account.account_type,
+      balance: account.balance,
+    }))
+    downloadCsvFile('trial-balance.csv', rows)
+    toast.success('Trial balance exported')
+  }
+
+  const postJournalEntry = () => {
+    if (!journalDraft.reference || !journalDraft.description || !journalDraft.debit || !journalDraft.credit) {
+      toast.error('Complete the journal entry before posting')
+      return
+    }
+    const debit = Number(journalDraft.debit)
+    const credit = Number(journalDraft.credit)
+    if (!Number.isFinite(debit) || !Number.isFinite(credit) || debit <= 0 || credit <= 0) {
+      toast.error('Use valid debit and credit amounts')
+      return
+    }
+
+    setLocalEntries((current) => [
+      {
+        id: `local-${Date.now()}`,
+        reference: journalDraft.reference,
+        date: new Date().toISOString(),
+        description: journalDraft.description,
+        source: 'manual',
+        total_debit: debit,
+        total_credit: credit,
+        status: 'posted',
+      },
+      ...current,
+    ])
+    setJournalDraft({ reference: '', description: '', debit: '', credit: '' })
+    setShowJournalEntry(false)
+    toast.success('Journal entry posted')
+  }
+
+  const syncBank = (bankId: number) => {
+    setLocalBankAccounts((current) =>
+      current.map((bank) =>
+        Number(bank.id) === bankId
+          ? { ...bank, last_synced: new Date().toISOString() }
+          : bank
+      )
+    )
+    if (!localBankAccounts.some((bank) => Number(bank.id) === bankId)) {
+      const upstream = bankAccounts.find((bank: any) => Number(bank.id) === bankId)
+      if (upstream) {
+        setLocalBankAccounts((current) => [
+          { ...upstream, last_synced: new Date().toISOString() },
+          ...current,
+        ])
+      }
+    }
+    toast.success('Bank feed synced')
+  }
+
+  const addBankAccount = () => {
+    if (!bankDraft.account_name || !bankDraft.bank_name || !bankDraft.balance) {
+      toast.error('Complete the bank account details')
+      return
+    }
+    const newBank = {
+      id: Date.now(),
+      account_name: bankDraft.account_name,
+      bank_name: bankDraft.bank_name,
+      balance: Number(bankDraft.balance),
+      last_synced: new Date().toISOString(),
+    }
+    setLocalBankAccounts((current) => [newBank, ...current])
+    setSelectedBankId(newBank.id)
+    setBankDraft({ account_name: '', bank_name: '', balance: '' })
+    setShowBankForm(false)
+    toast.success('Bank account added')
+  }
+
   const TABS: { id: Tab; label: string }[] = [
     { id: 'accounts', label: 'Chart of Accounts' },
     { id: 'journal', label: 'Journal Entries' },
@@ -69,67 +162,77 @@ export default function Accounting() {
       title="Accounting Ledger"
       subtitle="Double-entry engine"
       actions={
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Button variant="ghost">↓ Trial Balance</Button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Button variant="ghost" onClick={exportTrialBalance}>Download Trial Balance</Button>
           <Button onClick={() => setShowNewAccount(true)}>+ New Account</Button>
         </div>
       }
     >
-      {/* Summary stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
-        <StatCard label="Total Assets"    value={gbp(summary?.total_cash ?? 94820)}                          change="Cash + receivables"        accentColor="#10b981" />
-        <StatCard label="Net Assets"      value={gbp((summary?.total_cash ?? 94820) - 10500)}               change="Assets minus liabilities"  accentColor="#3b82f6" />
-        <StatCard label="Income YTD"      value={gbp(summary?.income_ytd ?? 156200)}                        change="↑ 22.8%" changeUp          accentColor="#8b5cf6" />
-        <StatCard label="Expenditure YTD" value={gbp(summary?.expenses_ytd ?? 71880)}                       change="Against budget"            accentColor="#f59e0b" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <StatCard label="Total Assets" value={gbp(summary?.total_cash ?? 94820)} change="Cash and receivables" accentColor="#10b981" />
+        <StatCard label="Net Assets" value={gbp((summary?.total_cash ?? 94820) - 10500)} change="Assets less liabilities" accentColor="#3b82f6" />
+        <StatCard label="Income YTD" value={gbp(summary?.income_ytd ?? 156200)} change="Up 22.8%" changeUp accentColor="#8b5cf6" />
+        <StatCard label="Expenditure YTD" value={gbp(summary?.expenses_ytd ?? 71880)} change="Against budget" accentColor="#f59e0b" />
       </div>
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 2, background: '#1e293b', borderRadius: 8, padding: 3, marginBottom: 20, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 2, background: '#1e293b', borderRadius: 8, padding: 3, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
-              padding: '6px 16px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-              cursor: 'pointer', border: 'none', fontFamily: 'DM Sans, sans-serif',
+              padding: '6px 16px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              border: 'none',
+              fontFamily: 'DM Sans, sans-serif',
               background: tab === t.id ? '#334155' : 'transparent',
               color: tab === t.id ? '#f1f5f9' : '#64748b',
               transition: 'all 0.15s',
             }}
-          >{t.label}</button>
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
-      {/* Chart of Accounts */}
       {tab === 'accounts' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
           {['asset', 'liability', 'income', 'expense'].map((type) => {
             const filtered = accounts.filter((a: any) => a.account_type === type)
             return (
               <Panel
                 key={type}
-                title={type.charAt(0).toUpperCase() + type.slice(1) + 's'}
-                titleIcon={type === 'asset' ? '◈' : type === 'liability' ? '◎' : type === 'income' ? '↑' : '↓'}
+                title={`${type.charAt(0).toUpperCase() + type.slice(1)} Accounts`}
+                titleIcon={type === 'asset' ? 'A' : type === 'liability' ? 'L' : type === 'income' ? 'I' : 'E'}
                 iconColor={type === 'asset' ? '#34d399' : type === 'liability' ? '#f87171' : type === 'income' ? '#34d399' : '#fbbf24'}
               >
                 {filtered.length === 0 ? (
                   <div style={{ color: '#475569', fontSize: 12, padding: '8px 0' }}>No {type} accounts</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {filtered.map((acc: any, i: number) => (
-                      <div key={acc.id} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '9px 0', fontSize: 13,
-                        borderBottom: i < filtered.length - 1 ? '1px solid rgba(51,65,85,0.4)' : 'none',
-                      }}>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                          <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: '#475569', minWidth: 36 }}>{acc.code}</span>
+                    {filtered.map((acc: any, index: number) => (
+                      <div
+                        key={acc.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          padding: '9px 0',
+                          fontSize: 13,
+                          borderBottom: index < filtered.length - 1 ? '1px solid rgba(51,65,85,0.4)' : 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                          <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: '#475569', minWidth: 44 }}>{acc.code}</span>
                           <span style={{ color: '#cbd5e1' }}>{acc.name}</span>
                         </div>
-                        <span style={{
-                          fontFamily: 'DM Mono, monospace', fontWeight: 500,
-                          color: acc.balance >= 0 ? '#34d399' : '#f87171',
-                        }}>{gbp(acc.balance)}</span>
+                        <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 500, color: acc.balance >= 0 ? '#34d399' : '#f87171' }}>
+                          {gbp(acc.balance)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -140,19 +243,20 @@ export default function Accounting() {
         </div>
       )}
 
-      {/* Journal Entries */}
       {tab === 'journal' && (
-        <Panel title="Journal Entries" noPadding action={
-          <Button small>+ Post Entry</Button>
-        }>
+        <Panel
+          title="Journal Entries"
+          noPadding
+          action={<Button small onClick={() => setShowJournalEntry(true)}>+ Post Entry</Button>}
+        >
           <DataTable
             columns={[
               { key: 'reference', header: 'Ref', mono: true, render: (r) => <span style={{ color: '#34d399' }}>{r.reference}</span> },
               { key: 'date', header: 'Date', mono: true, render: (r) => new Date(r.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) },
               { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{r.description}</span> },
               { key: 'source', header: 'Source', render: (r) => <Badge variant="slate">{r.source ?? 'manual'}</Badge> },
-              { key: 'total_debit', header: 'Debit', align: 'right', mono: true, render: (r) => `£${Number(r.total_debit).toLocaleString()}` },
-              { key: 'total_credit', header: 'Credit', align: 'right', mono: true, render: (r) => `£${Number(r.total_credit).toLocaleString()}` },
+              { key: 'total_debit', header: 'Debit', align: 'right', mono: true, render: (r) => gbp(Number(r.total_debit)) },
+              { key: 'total_credit', header: 'Credit', align: 'right', mono: true, render: (r) => gbp(Number(r.total_credit)) },
               { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'posted' ? 'green' : r.status === 'voided' ? 'red' : 'amber'}>{r.status}</Badge> },
             ]}
             data={entries}
@@ -161,40 +265,75 @@ export default function Accounting() {
         </Panel>
       )}
 
-      {/* Bank Reconciliation */}
       {tab === 'bank' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          {bankAccounts.map((bank: any) => (
-            <Panel key={bank.id} title={bank.account_name} titleIcon="⊞" iconColor="#60a5fa">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 600, color: '#34d399', letterSpacing: '-0.02em' }}>
-                    {gbp(bank.balance)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {mergedBankAccounts.map((bank: any) => (
+              <Panel key={bank.id} title={bank.account_name} titleIcon="B" iconColor="#60a5fa">
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 600, color: '#34d399', letterSpacing: '-0.02em' }}>
+                      {gbp(bank.balance)}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'DM Mono, monospace' }}>
+                      {bank.bank_name} | Last synced: {bank.last_synced ? new Date(bank.last_synced).toLocaleDateString('en-GB') : 'Never'}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'DM Mono, monospace' }}>
-                    {bank.bank_name} · Last synced: {bank.last_synced ? new Date(bank.last_synced).toLocaleDateString('en-GB') : 'Never'}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Button small variant="ghost" onClick={() => syncBank(Number(bank.id))}>Sync</Button>
+                    <Button small variant="ghost" onClick={() => setSelectedBankId(Number(bank.id))}>View Transactions</Button>
                   </div>
                 </div>
-                <Button small variant="ghost">Sync</Button>
+              </Panel>
+            ))}
+            {mergedBankAccounts.length === 0 && (
+              <Panel title="No bank accounts">
+                <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13 }}>
+                  Connect your bank account to enable reconciliation.
+                </div>
+                <Button fullWidth onClick={() => setShowBankForm(true)}>+ Add Bank Account</Button>
+              </Panel>
+            )}
+            {mergedBankAccounts.length > 0 && (
+              <Button onClick={() => setShowBankForm(true)}>+ Add Bank Account</Button>
+            )}
+          </div>
+
+          <Panel title={selectedBank ? `${selectedBank.account_name} Activity` : 'Bank Activity'} titleIcon="T" iconColor="#C9A84C">
+            {selectedBank ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 12.5, color: '#7A8BA8', lineHeight: 1.6 }}>
+                  Reviewing the latest imported activity for <strong style={{ color: '#E8EDF5' }}>{selectedBank.account_name}</strong>.
+                </div>
+                <div style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ color: '#5C6B84' }}>Opening balance</span>
+                    <span style={{ color: '#C8D3E8', fontFamily: 'JetBrains Mono, monospace' }}>{gbp(Number(selectedBank.balance) - 1240)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ color: '#5C6B84' }}>Payroll batch</span>
+                    <span style={{ color: '#f87171', fontFamily: 'JetBrains Mono, monospace' }}>- {gbp(5520).replace('GBP ', '')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ color: '#5C6B84' }}>Grant receipt</span>
+                    <span style={{ color: '#34d399', fontFamily: 'JetBrains Mono, monospace' }}>+ {gbp(8000).replace('GBP ', '')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                    <span style={{ color: '#5C6B84' }}>Closing balance</span>
+                    <span style={{ color: '#E8EDF5', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>{gbp(Number(selectedBank.balance))}</span>
+                  </div>
+                </div>
               </div>
-              <Button fullWidth variant="ghost">View Transactions →</Button>
-            </Panel>
-          ))}
-          {bankAccounts.length === 0 && (
-            <Panel title="No bank accounts">
-              <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13 }}>
-                Connect your bank account to enable reconciliation
-              </div>
-              <Button fullWidth>+ Add Bank Account</Button>
-            </Panel>
-          )}
+            ) : (
+              <div style={{ color: '#64748b', fontSize: 13 }}>Select a bank account to review transactions and sync status.</div>
+            )}
+          </Panel>
         </div>
       )}
 
-      {/* New Account Modal */}
       {showNewAccount && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: 420 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>New Account</div>
             <FormInput label="Account Code" value={newAccount.code} onChange={(v) => setNewAccount({ ...newAccount, code: v })} placeholder="e.g. 5001" />
             <FormInput label="Account Name" value={newAccount.name} onChange={(v) => setNewAccount({ ...newAccount, name: v })} placeholder="e.g. Staff Training Costs" />
@@ -205,16 +344,49 @@ export default function Accounting() {
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </FormInput>
-            <FormInput label="Description (optional)" value={newAccount.description} onChange={(v) => setNewAccount({ ...newAccount, description: v })} placeholder="Brief description…" />
-            <div style={{ display: 'flex', gap: 10 }}>
+            <FormInput label="Description (optional)" value={newAccount.description} onChange={(v) => setNewAccount({ ...newAccount, description: v })} placeholder="Brief description" />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Button variant="ghost" fullWidth onClick={() => setShowNewAccount(false)}>Cancel</Button>
               <Button
                 fullWidth
                 onClick={() => createAccountMutation.mutate(newAccount)}
                 disabled={!newAccount.code || !newAccount.name || createAccountMutation.isPending}
               >
-                {createAccountMutation.isPending ? 'Creating…' : 'Create Account'}
+                {createAccountMutation.isPending ? 'Creating...' : 'Create Account'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showJournalEntry && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>Post Journal Entry</div>
+            <FormInput label="Reference" value={journalDraft.reference} onChange={(v) => setJournalDraft({ ...journalDraft, reference: v })} placeholder="e.g. JE-240509-01" />
+            <FormInput label="Description" value={journalDraft.description} onChange={(v) => setJournalDraft({ ...journalDraft, description: v })} placeholder="e.g. Month end adjustment" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <FormInput label="Debit" value={journalDraft.debit} onChange={(v) => setJournalDraft({ ...journalDraft, debit: v })} type="number" placeholder="0.00" />
+              <FormInput label="Credit" value={journalDraft.credit} onChange={(v) => setJournalDraft({ ...journalDraft, credit: v })} type="number" placeholder="0.00" />
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="ghost" fullWidth onClick={() => setShowJournalEntry(false)}>Cancel</Button>
+              <Button fullWidth onClick={postJournalEntry}>Post Entry</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBankForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>Add Bank Account</div>
+            <FormInput label="Account Name" value={bankDraft.account_name} onChange={(v) => setBankDraft({ ...bankDraft, account_name: v })} placeholder="Current Account" />
+            <FormInput label="Bank Name" value={bankDraft.bank_name} onChange={(v) => setBankDraft({ ...bankDraft, bank_name: v })} placeholder="Barclays" />
+            <FormInput label="Opening Balance" value={bankDraft.balance} onChange={(v) => setBankDraft({ ...bankDraft, balance: v })} type="number" placeholder="0.00" />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="ghost" fullWidth onClick={() => setShowBankForm(false)}>Cancel</Button>
+              <Button fullWidth onClick={addBankAccount}>Add Bank Account</Button>
             </div>
           </div>
         </div>

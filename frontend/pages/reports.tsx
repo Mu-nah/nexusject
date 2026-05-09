@@ -279,9 +279,8 @@ export default function Reports() {
         const result = await api.aiTrusteeReport()
         saved = result.report
       } else if (type === 'grant') {
-        router.push('/ai')
-        toast.success('Redirecting to AI assistant for grant report...')
-        return
+        const result = await api.aiFinancialAnalysis('grants')
+        saved = result.report
       } else {
         const focus = type === 'management_accounts' ? 'general' : 'grants'
         const result = await api.aiFinancialAnalysis(focus)
