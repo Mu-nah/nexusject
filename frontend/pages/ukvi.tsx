@@ -1,29 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import AppLayout from '@/components/layout/AppLayout'
 import { Alert, Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
+import api from '@/lib/api'
 import toast from 'react-hot-toast'
 
 type Tab = 'licence' | 'workers' | 'cos' | 'duties' | 'audit'
 
 type WorkerRecord = {
+  id?: number
   name: string
   role: string
   cos: string
   startDate: string
   visaExpiry: string
   rtw: string
-  rtwV: 'amber' | 'green' | 'red'
   status: string
 }
 
 type CosRecord = {
+  id?: number
   cosRef: string
   worker: string
   type: string
   issued: string
   status: string
-  sV: 'green' | 'slate' | 'amber'
 }
 
 const EMPTY_WORKER: WorkerRecord = {
@@ -33,7 +35,6 @@ const EMPTY_WORKER: WorkerRecord = {
   startDate: '',
   visaExpiry: '',
   rtw: 'Due Soon',
-  rtwV: 'amber',
   status: 'Active',
 }
 
@@ -43,80 +44,125 @@ const EMPTY_COS: CosRecord = {
   type: 'Undefined',
   issued: '',
   status: 'Available',
-  sV: 'slate',
 }
+
+const dutyVariant = (status: string) => status === 'Overdue' ? 'red' : status === 'Due' ? 'amber' : status === 'Reported' ? 'green' : 'slate'
+const rtwVariant = (status: string) => status === 'Valid' ? 'green' : status === 'Expired' ? 'red' : 'amber'
+const cosVariant = (status: string) => status === 'Used' ? 'green' : status === 'Reserved' ? 'amber' : 'slate'
 
 export default function UKVI() {
   const [tab, setTab] = useState<Tab>('licence')
-  const [dutyLog, setDutyLog] = useState('No report has been submitted from this screen yet.')
-  const [workers, setWorkers] = useState<WorkerRecord[]>([
-    { name: 'Kwame Okafor', role: 'Community Worker / 3229', cos: 'CoS-2023-0041', startDate: '01 Jun 2023', visaExpiry: '31 Dec 2026', rtw: 'Due Soon', rtwV: 'amber', status: 'Active' },
-  ])
-  const [cosRecords, setCosRecords] = useState<CosRecord[]>([
-    { cosRef: 'CoS-2023-0041', worker: 'Kwame Okafor', type: 'Defined', issued: '15 May 2023', status: 'Used', sV: 'green' },
-    { cosRef: 'CoS-2024-0012', worker: 'Unassigned', type: 'Undefined', issued: '-', status: 'Available', sV: 'slate' },
-  ])
   const [showWorkerForm, setShowWorkerForm] = useState(false)
   const [showCosForm, setShowCosForm] = useState(false)
   const [workerForm, setWorkerForm] = useState<WorkerRecord>(EMPTY_WORKER)
   const [cosForm, setCosForm] = useState<CosRecord>(EMPTY_COS)
-  const [editingWorkerIndex, setEditingWorkerIndex] = useState<number | null>(null)
-  const [editingCosIndex, setEditingCosIndex] = useState<number | null>(null)
+  const [editingWorkerId, setEditingWorkerId] = useState<number | null>(null)
+  const [editingCosId, setEditingCosId] = useState<number | null>(null)
+  const [dutyLog, setDutyLog] = useState('No report has been submitted from this screen yet.')
+
+  const { data, refetch } = useQuery({
+    queryKey: ['ukvi-workspace'],
+    queryFn: api.getUkviWorkspace,
+    staleTime: 60_000,
+  })
+
+  useEffect(() => {
+    if (data?.duty_log) {
+      setDutyLog(data.duty_log)
+    }
+  }, [data])
+
+  const workers = data?.workers ?? []
+  const cosRecords = data?.cos_records ?? []
+  const duties = data?.duties ?? []
+  const summary = data?.summary
 
   const exportPack = () => {
     downloadCsvFile('ukvi-audit-pack-index.csv', [
       { section: 'Sponsor licence', status: 'Ready' },
-      { section: 'Sponsored workers', status: 'Action needed' },
+      { section: 'Sponsored workers', status: 'Backend tracked' },
       { section: 'Reporting log', status: 'Ready' },
       { section: 'HR policies', status: 'Ready' },
     ])
     toast.success('Audit pack index exported')
   }
 
-  const openWorkerForm = (record?: WorkerRecord, index?: number) => {
+  const openWorkerForm = (record?: WorkerRecord) => {
     setWorkerForm(record ?? EMPTY_WORKER)
-    setEditingWorkerIndex(index ?? null)
+    setEditingWorkerId(record?.id ?? null)
     setShowWorkerForm(true)
   }
 
-  const saveWorker = () => {
+  const saveWorker = async () => {
     if (!workerForm.name || !workerForm.role || !workerForm.cos || !workerForm.visaExpiry) {
       toast.error('Complete the sponsored worker record before saving')
       return
     }
-    if (editingWorkerIndex === null) {
-      setWorkers((current) => [...current, workerForm])
+
+    const payload = {
+      name: workerForm.name,
+      role: workerForm.role,
+      cos: workerForm.cos,
+      start_date: workerForm.startDate,
+      visa_expiry: workerForm.visaExpiry,
+      rtw: workerForm.rtw,
+      status: workerForm.status,
+    }
+
+    if (editingWorkerId === null) {
+      await api.createUkviWorker(payload)
       toast.success('Sponsored worker saved')
     } else {
-      setWorkers((current) => current.map((row, index) => index === editingWorkerIndex ? workerForm : row))
+      await api.updateUkviWorker(editingWorkerId, payload)
       toast.success('Sponsored worker updated')
     }
+
+    await refetch()
     setShowWorkerForm(false)
-    setEditingWorkerIndex(null)
+    setEditingWorkerId(null)
     setWorkerForm(EMPTY_WORKER)
   }
 
-  const openCosForm = (record?: CosRecord, index?: number) => {
+  const openCosForm = (record?: CosRecord) => {
     setCosForm(record ?? EMPTY_COS)
-    setEditingCosIndex(index ?? null)
+    setEditingCosId(record?.id ?? null)
     setShowCosForm(true)
   }
 
-  const saveCos = () => {
+  const saveCos = async () => {
     if (!cosForm.cosRef || !cosForm.type) {
       toast.error('Complete the CoS record before saving')
       return
     }
-    if (editingCosIndex === null) {
-      setCosRecords((current) => [...current, cosForm])
+
+    const payload = {
+      cos_ref: cosForm.cosRef,
+      worker: cosForm.worker,
+      type: cosForm.type,
+      issued: cosForm.issued,
+      status: cosForm.status,
+    }
+
+    if (editingCosId === null) {
+      await api.createUkviCos(payload)
       toast.success('CoS record saved')
     } else {
-      setCosRecords((current) => current.map((row, index) => index === editingCosIndex ? cosForm : row))
+      await api.updateUkviCos(editingCosId, payload)
       toast.success('CoS record updated')
     }
+
+    await refetch()
     setShowCosForm(false)
-    setEditingCosIndex(null)
+    setEditingCosId(null)
     setCosForm(EMPTY_COS)
+  }
+
+  const reportDuty = async (dutyId: number, duty: string) => {
+    const note = `${duty} reported on ${new Date().toLocaleDateString('en-GB')}.`
+    const response = await api.reportUkviDuty(dutyId, note)
+    setDutyLog(response.latest_note)
+    await refetch()
+    toast.success('Reporting action logged')
   }
 
   return (
@@ -126,22 +172,19 @@ export default function UKVI() {
       actions={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={exportPack}>Export Pack</Button>
-          <Button onClick={() => {
-            setTab('audit')
-            toast.success('Audit pack view opened')
-          }}>Generate Audit Pack</Button>
+          <Button onClick={() => setTab('audit')}>Generate Audit Pack</Button>
         </div>
       }
     >
       <Alert variant="error" icon="!">
-        <strong>UKVI sponsor compliance:</strong> keep right-to-work, absence monitoring, reporting duties, and sponsor records ready for inspection at short notice.
+        <strong>UKVI sponsor compliance:</strong> this module now reads worker, CoS, and duty data from the backend workspace records instead of shipping those datasets in the page.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Licence Status" value="Active" change="A-rated sponsor" icon="L" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Sponsored Workers" value={String(workers.length)} change={workers[0]?.name ?? 'None'} icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="CoS Available" value={String(cosRecords.filter((row) => row.status === 'Available').length)} change="Annual allocation" icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="Reporting Duties" value="2" change="Actions overdue" changeUp={false} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Licence Status" value={summary?.licence_status ?? 'Active'} change="A-rated sponsor" icon="L" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Sponsored Workers" value={String(summary?.sponsored_workers ?? 0)} change={workers[0]?.name ?? 'None'} icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="CoS Available" value={String(summary?.cos_available ?? 0)} change="Annual allocation" icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Reporting Duties" value={String(summary?.reporting_duties ?? 0)} change="Actions overdue" changeUp={false} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
@@ -223,9 +266,9 @@ export default function UKVI() {
                 { key: 'cos', header: 'CoS Ref', mono: true },
                 { key: 'startDate', header: 'Start Date' },
                 { key: 'visaExpiry', header: 'Visa Expiry' },
-                { key: 'rtw', header: 'RTW', render: (r) => <Badge variant={r.rtwV}>{r.rtw}</Badge> },
+                { key: 'rtw', header: 'RTW', render: (r) => <Badge variant={rtwVariant(r.rtw) as any}>{r.rtw}</Badge> },
                 { key: 'status', header: 'Status', render: (r) => <Badge variant="green">{r.status}</Badge> },
-                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openWorkerForm(r, workers.findIndex((row) => row.name === r.name && row.cos === r.cos))}>View / Edit</Button> },
+                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openWorkerForm(r as WorkerRecord)}>View / Edit</Button> },
               ]}
               data={workers}
             />
@@ -246,8 +289,8 @@ export default function UKVI() {
                 { key: 'worker', header: 'Assigned To' },
                 { key: 'type', header: 'Type', render: (r) => <Badge variant="blue">{r.type}</Badge> },
                 { key: 'issued', header: 'Issued' },
-                { key: 'status', header: 'Status', render: (r) => <Badge variant={r.sV}>{r.status}</Badge> },
-                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openCosForm(r, cosRecords.findIndex((row) => row.cosRef === r.cosRef))}>View / Edit</Button> },
+                { key: 'status', header: 'Status', render: (r) => <Badge variant={cosVariant(r.status) as any}>{r.status}</Badge> },
+                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openCosForm(r as CosRecord)}>View / Edit</Button> },
               ]}
               data={cosRecords}
             />
@@ -266,17 +309,10 @@ export default function UKVI() {
                 { key: 'duty', header: 'Reporting Duty', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.duty}</span> },
                 { key: 'trigger', header: 'Trigger Event' },
                 { key: 'deadline', header: 'Deadline' },
-                { key: 'status', header: 'Status', render: (r) => <Badge variant={r.sV}>{r.status}</Badge> },
-                { key: 'actions', header: '', render: (r) => r.status === 'Overdue' || r.status === 'Due' ? <Button small onClick={() => {
-                  setDutyLog(`${r.duty} reported on ${new Date().toLocaleDateString('en-GB')}.`)
-                  toast.success('Reporting action logged')
-                }}>Report Now</Button> : <Button small variant="ghost" onClick={() => toast.success(`${r.duty} reviewed`)}>View</Button> },
+                { key: 'status', header: 'Status', render: (r) => <Badge variant={dutyVariant(r.status) as any}>{r.status}</Badge> },
+                { key: 'actions', header: '', render: (r) => r.status === 'Overdue' || r.status === 'Due' ? <Button small onClick={() => reportDuty(r.id, r.duty)}>Report Now</Button> : <Button small variant="ghost" onClick={() => toast.success(`${r.duty} reviewed`)}>View</Button> },
               ]}
-              data={[
-                { duty: 'RTW Check Renewal', trigger: 'J. Musa BRP expired', deadline: 'Immediate', status: 'Overdue', sV: 'red' as const },
-                { duty: 'Absence Report', trigger: 'K. Okafor - 11 consecutive days', deadline: 'Within 10 working days', status: 'Due', sV: 'amber' as const },
-                { duty: 'Annual Confirmation of Accuracy', trigger: 'Annual requirement', deadline: 'Jun 2025', status: 'Upcoming', sV: 'slate' as const },
-              ]}
+              data={duties}
             />
           </Panel>
           <Panel title="Latest Duty Update" titleIcon="LOG" iconColor="#5E9EFF" style={{ marginTop: 14 }}>
@@ -296,11 +332,11 @@ export default function UKVI() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             {[
               { title: 'Sponsor Licence', desc: 'Licence certificate, conditions, and rating history', status: 'Ready', sV: 'green' as const },
-              { title: 'Sponsored Workers', desc: 'CoS records, visa copies, and RTW evidence', status: 'Action Needed', sV: 'red' as const },
+              { title: 'Sponsored Workers', desc: 'CoS records, visa copies, and RTW evidence', status: workers.some((item: WorkerRecord) => item.rtw !== 'Valid') ? 'Action Needed' : 'Ready', sV: workers.some((item: WorkerRecord) => item.rtw !== 'Valid') ? 'red' as const : 'green' as const },
               { title: 'Reporting Log', desc: 'All SMS reports submitted to UKVI', status: 'Ready', sV: 'green' as const },
               { title: 'HR Policies', desc: 'Recruitment, monitoring, and absence policies', status: 'Ready', sV: 'green' as const },
               { title: 'Payroll Evidence', desc: 'Payslips matching CoS salary levels', status: 'Ready', sV: 'green' as const },
-              { title: 'Absence Records', desc: 'Attendance monitoring records', status: 'Incomplete', sV: 'amber' as const },
+              { title: 'Absence Records', desc: 'Attendance monitoring records', status: duties.some((item: any) => item.status === 'Overdue' || item.status === 'Due') ? 'Incomplete' : 'Ready', sV: duties.some((item: any) => item.status === 'Overdue' || item.status === 'Due') ? 'amber' as const : 'green' as const },
             ].map((item) => (
               <Panel key={item.title}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#E8EDF5', marginBottom: 6 }}>{item.title}</div>
@@ -316,7 +352,7 @@ export default function UKVI() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
           <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 560 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
-              {editingWorkerIndex === null ? 'Add Sponsored Worker' : 'Edit Sponsored Worker'}
+              {editingWorkerId === null ? 'Add Sponsored Worker' : 'Edit Sponsored Worker'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Worker Name" value={workerForm.name} onChange={(v) => setWorkerForm({ ...workerForm, name: v })} placeholder="Full name" />
@@ -324,14 +360,14 @@ export default function UKVI() {
               <FormInput label="CoS Reference" value={workerForm.cos} onChange={(v) => setWorkerForm({ ...workerForm, cos: v })} placeholder="CoS-2025-0001" />
               <FormInput label="Start Date" value={workerForm.startDate} onChange={(v) => setWorkerForm({ ...workerForm, startDate: v })} placeholder="01 Jun 2025" />
               <FormInput label="Visa Expiry" value={workerForm.visaExpiry} onChange={(v) => setWorkerForm({ ...workerForm, visaExpiry: v })} placeholder="31 Dec 2027" />
-              <FormInput label="RTW Status" as="select" value={workerForm.rtw} onChange={(v) => setWorkerForm({ ...workerForm, rtw: v, rtwV: v === 'Valid' ? 'green' : v === 'Expired' ? 'red' : 'amber' })}>
+              <FormInput label="RTW Status" as="select" value={workerForm.rtw} onChange={(v) => setWorkerForm({ ...workerForm, rtw: v })}>
                 <option value="Valid">Valid</option>
                 <option value="Due Soon">Due Soon</option>
                 <option value="Expired">Expired</option>
               </FormInput>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-              <Button variant="ghost" fullWidth onClick={() => { setShowWorkerForm(false); setEditingWorkerIndex(null); setWorkerForm(EMPTY_WORKER) }}>Cancel</Button>
+              <Button variant="ghost" fullWidth onClick={() => { setShowWorkerForm(false); setEditingWorkerId(null); setWorkerForm(EMPTY_WORKER) }}>Cancel</Button>
               <Button fullWidth onClick={saveWorker}>Save Worker</Button>
             </div>
           </div>
@@ -342,7 +378,7 @@ export default function UKVI() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
           <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
-              {editingCosIndex === null ? 'Assign CoS' : 'Edit CoS Record'}
+              {editingCosId === null ? 'Assign CoS' : 'Edit CoS Record'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="CoS Reference" value={cosForm.cosRef} onChange={(v) => setCosForm({ ...cosForm, cosRef: v })} placeholder="CoS-2025-0011" />
@@ -352,14 +388,14 @@ export default function UKVI() {
                 <option value="Undefined">Undefined</option>
               </FormInput>
               <FormInput label="Issued" value={cosForm.issued} onChange={(v) => setCosForm({ ...cosForm, issued: v })} placeholder="15 May 2025" />
-              <FormInput label="Status" as="select" value={cosForm.status} onChange={(v) => setCosForm({ ...cosForm, status: v, sV: v === 'Used' ? 'green' : v === 'Available' ? 'slate' : 'amber' })}>
+              <FormInput label="Status" as="select" value={cosForm.status} onChange={(v) => setCosForm({ ...cosForm, status: v })}>
                 <option value="Available">Available</option>
                 <option value="Used">Used</option>
                 <option value="Reserved">Reserved</option>
               </FormInput>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-              <Button variant="ghost" fullWidth onClick={() => { setShowCosForm(false); setEditingCosIndex(null); setCosForm(EMPTY_COS) }}>Cancel</Button>
+              <Button variant="ghost" fullWidth onClick={() => { setShowCosForm(false); setEditingCosId(null); setCosForm(EMPTY_COS) }}>Cancel</Button>
               <Button fullWidth onClick={saveCos}>Save CoS</Button>
             </div>
           </div>

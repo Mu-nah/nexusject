@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import AppLayout from '@/components/layout/AppLayout'
 import { Alert, Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
+import api from '@/lib/api'
 import toast from 'react-hot-toast'
 
 type TrusteeRecord = {
+  id?: number
   name: string
   role: string
   appointed: string
@@ -21,41 +24,59 @@ const EMPTY_TRUSTEE: TrusteeRecord = {
 }
 
 export default function Governance() {
-  const [trustees, setTrustees] = useState<TrusteeRecord[]>([
-    { name: 'Dominic Ogbuagu', role: 'Director / CFO', appointed: '01 Apr 2022', status: 'Active', coi: 'None declared' },
-    { name: 'Grace Okafor', role: 'Chair', appointed: '01 Apr 2022', status: 'Active', coi: 'None declared' },
-    { name: 'Ahmed Al-Rashid', role: 'Secretary', appointed: '15 Jun 2022', status: 'Active', coi: 'None declared' },
-  ])
-  const [interestNote, setInterestNote] = useState('No conflicts declared. Board members should declare interests annually.')
   const [showTrusteeForm, setShowTrusteeForm] = useState(false)
   const [trusteeForm, setTrusteeForm] = useState<TrusteeRecord>(EMPTY_TRUSTEE)
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [interestNote, setInterestNote] = useState('No conflicts declared. Board members should declare interests annually.')
+
+  const { data, refetch } = useQuery({
+    queryKey: ['governance-workspace'],
+    queryFn: api.getGovernanceWorkspace,
+    staleTime: 60_000,
+  })
+
+  useEffect(() => {
+    if (data?.interest_note) {
+      setInterestNote(data.interest_note)
+    }
+  }, [data])
+
+  const trustees = data?.trustees ?? []
+  const summary = data?.summary
 
   const exportRegister = () => {
     downloadCsvFile('trustee-register.csv', trustees)
     toast.success('Governance register exported')
   }
 
-  const openTrusteeForm = (record?: TrusteeRecord, index?: number) => {
+  const openTrusteeForm = (record?: TrusteeRecord) => {
     setTrusteeForm(record ?? EMPTY_TRUSTEE)
-    setEditingIndex(index ?? null)
+    setEditingId(record?.id ?? null)
     setShowTrusteeForm(true)
   }
 
-  const saveTrustee = () => {
+  const saveTrustee = async () => {
     if (!trusteeForm.name || !trusteeForm.role || !trusteeForm.appointed) {
       toast.error('Complete the trustee record before saving')
       return
     }
-    if (editingIndex === null) {
-      setTrustees((current) => [...current, trusteeForm])
+    const payload = {
+      name: trusteeForm.name,
+      role: trusteeForm.role,
+      appointed: trusteeForm.appointed,
+      status: trusteeForm.status,
+      coi: trusteeForm.coi,
+    }
+    if (editingId === null) {
+      await api.createTrustee(payload)
       toast.success('Trustee saved')
     } else {
-      setTrustees((current) => current.map((row, index) => index === editingIndex ? trusteeForm : row))
+      await api.updateTrustee(editingId, payload)
       toast.success('Trustee updated')
     }
+    await refetch()
     setShowTrusteeForm(false)
-    setEditingIndex(null)
+    setEditingId(null)
     setTrusteeForm(EMPTY_TRUSTEE)
   }
 
@@ -71,14 +92,14 @@ export default function Governance() {
       }
     >
       <Alert variant="warning" icon="!">
-        Governance module covering trustee register, conflicts, CIC reporting, and related party controls.
+        Governance data now loads from the backend workspace register instead of being carried inside the page bundle.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Directors / Trustees" value={String(trustees.length)} change="All active" icon="T" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Conflicts Declared" value="0" change="Annual review due June" icon="C" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Board Meetings" value="4" change="FY 2024-25" icon="M" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="CIC Report Due" value="31 Jan" change="Companies House" icon="R" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Directors / Trustees" value={String(summary?.trustee_count ?? 0)} change="Workspace register" icon="T" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Conflicts Declared" value={String(summary?.conflicts_declared ?? 0)} change="Annual review due June" icon="C" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Board Meetings" value={String(summary?.board_meetings ?? 0)} change="FY 2024-25" icon="M" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="CIC Report Due" value={summary?.cic_report_due ?? '31 Jan'} change="Companies House" icon="R" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginBottom: 14 }}>
@@ -89,7 +110,7 @@ export default function Governance() {
               { key: 'role', header: 'Role', render: (r) => <Badge variant="slate">{r.role}</Badge> },
               { key: 'appointed', header: 'Appointed' },
               { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'Active' ? 'green' : 'amber'}>{r.status}</Badge> },
-              { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openTrusteeForm(r, trustees.findIndex((row) => row.name === r.name && row.role === r.role))}>View / Edit</Button> },
+              { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openTrusteeForm(r as TrusteeRecord)}>View / Edit</Button> },
             ]}
             data={trustees}
           />
@@ -149,7 +170,7 @@ export default function Governance() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
           <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
-              {editingIndex === null ? 'Add Trustee' : 'Edit Trustee'}
+              {editingId === null ? 'Add Trustee' : 'Edit Trustee'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Full Name" value={trusteeForm.name} onChange={(v) => setTrusteeForm({ ...trusteeForm, name: v })} placeholder="Trustee name" />
@@ -163,7 +184,7 @@ export default function Governance() {
             </div>
             <FormInput label="Conflict of Interest Note" value={trusteeForm.coi} onChange={(v) => setTrusteeForm({ ...trusteeForm, coi: v })} placeholder="None declared" as="textarea" />
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-              <Button variant="ghost" fullWidth onClick={() => { setShowTrusteeForm(false); setEditingIndex(null); setTrusteeForm(EMPTY_TRUSTEE) }}>Cancel</Button>
+              <Button variant="ghost" fullWidth onClick={() => { setShowTrusteeForm(false); setEditingId(null); setTrusteeForm(EMPTY_TRUSTEE) }}>Cancel</Button>
               <Button fullWidth onClick={saveTrustee}>Save Trustee</Button>
             </div>
           </div>

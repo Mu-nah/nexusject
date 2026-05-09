@@ -44,6 +44,7 @@ def init_db():
         grant,
         report,
         invite,
+        ops,
     )
     Base.metadata.create_all(bind=engine)
     _ensure_runtime_columns()

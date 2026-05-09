@@ -134,6 +134,62 @@ class ApiClient {
     return (await this.client.get('/planning/budgets')).data
   }
 
+  async getVolunteersWorkspace() {
+    return (await this.client.get('/ops/volunteers')).data
+  }
+
+  async createVolunteer(data: any) {
+    return (await this.client.post('/ops/volunteers', data)).data
+  }
+
+  async updateVolunteer(id: number, data: any) {
+    return (await this.client.put(`/ops/volunteers/${id}`, data)).data
+  }
+
+  async createVolunteerHours(data: any) {
+    return (await this.client.post('/ops/volunteer-hours', data)).data
+  }
+
+  async updateVolunteerHours(id: number, data: any) {
+    return (await this.client.put(`/ops/volunteer-hours/${id}`, data)).data
+  }
+
+  async getGovernanceWorkspace() {
+    return (await this.client.get('/ops/governance')).data
+  }
+
+  async createTrustee(data: any) {
+    return (await this.client.post('/ops/governance/trustees', data)).data
+  }
+
+  async updateTrustee(id: number, data: any) {
+    return (await this.client.put(`/ops/governance/trustees/${id}`, data)).data
+  }
+
+  async getUkviWorkspace() {
+    return (await this.client.get('/ops/ukvi')).data
+  }
+
+  async createUkviWorker(data: any) {
+    return (await this.client.post('/ops/ukvi/workers', data)).data
+  }
+
+  async updateUkviWorker(id: number, data: any) {
+    return (await this.client.put(`/ops/ukvi/workers/${id}`, data)).data
+  }
+
+  async createUkviCos(data: any) {
+    return (await this.client.post('/ops/ukvi/cos', data)).data
+  }
+
+  async updateUkviCos(id: number, data: any) {
+    return (await this.client.put(`/ops/ukvi/cos/${id}`, data)).data
+  }
+
+  async reportUkviDuty(id: number, note?: string) {
+    return (await this.client.post(`/ops/ukvi/duties/${id}/report`, null, { params: note ? { note } : undefined })).data
+  }
+
   // ── Accounting ──────────────────────────────────────────────────────────────
   async getAccounts(type?: string) {
     const q = type ? `?account_type=${type}` : ''
