@@ -174,8 +174,8 @@ export function Button({ children, onClick, variant = 'primary', disabled, fullW
     justifyContent: fullWidth ? 'center' : undefined,
   }
   const variants: Record<string, CSSProperties> = {
-    primary: { background: '#C9A84C', color: '#0C0F14' },
-    default: { background: '#C9A84C', color: '#0C0F14' },
+    primary: { background: '#C9A84C', color: 'var(--ink-inverse)' },
+    default: { background: '#C9A84C', color: 'var(--ink-inverse)' },
     ghost:   { background: 'transparent', color: 'var(--mute2)', border: '1px solid var(--line2)' },
     success: { background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid rgba(45,206,137,0.3)' },
     danger:  { background: 'var(--red-bg)',  color: 'var(--red)', border: '1px solid rgba(245,54,92,0.3)' },

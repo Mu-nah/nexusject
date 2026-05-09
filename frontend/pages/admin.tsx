@@ -15,8 +15,8 @@ const tabButtonStyle = (active: boolean): React.CSSProperties => ({
   border: 'none',
   cursor: 'pointer',
   borderRadius: 9,
-  background: active ? '#C9A84C' : '#1C2230',
-  color: active ? '#0C0F14' : '#7A8BA8',
+  background: active ? '#C9A84C' : 'var(--surface-muted)',
+  color: active ? 'var(--ink-inverse)' : 'var(--mute2)',
   fontWeight: 600,
   fontSize: 12.5,
 })
@@ -158,20 +158,20 @@ export default function Admin() {
           <Panel title="Workspace Snapshot">
             <div style={{ display: 'grid', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 10.5, color: '#5C6B84', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Slug</div>
-                <div style={{ fontSize: 13, color: '#E8EDF5' }}>{workspace?.slug || '—'}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Slug</div>
+                <div style={{ fontSize: 13, color: 'var(--heading)' }}>{workspace?.slug || '—'}</div>
               </div>
               <div>
-                <div style={{ fontSize: 10.5, color: '#5C6B84', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Status</div>
+                <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Status</div>
                 <Badge variant={workspace?.is_active ? 'green' : 'red'}>{workspace?.is_active ? 'Active' : 'Inactive'}</Badge>
               </div>
               <div>
-                <div style={{ fontSize: 10.5, color: '#5C6B84', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Created</div>
-                <div style={{ fontSize: 13, color: '#E8EDF5' }}>{workspace?.created_at ? new Date(workspace.created_at).toLocaleString('en-GB') : '—'}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Created</div>
+                <div style={{ fontSize: 13, color: 'var(--heading)' }}>{workspace?.created_at ? new Date(workspace.created_at).toLocaleString('en-GB') : '—'}</div>
               </div>
               <div>
-                <div style={{ fontSize: 10.5, color: '#5C6B84', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Last Updated</div>
-                <div style={{ fontSize: 13, color: '#E8EDF5' }}>{workspace?.updated_at ? new Date(workspace.updated_at).toLocaleString('en-GB') : '—'}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Last Updated</div>
+                <div style={{ fontSize: 13, color: 'var(--heading)' }}>{workspace?.updated_at ? new Date(workspace.updated_at).toLocaleString('en-GB') : '—'}</div>
               </div>
               <Alert variant="success" icon="✓">
                 Changes here update the active workspace profile used across onboarding, reports, and team invites.
@@ -195,12 +195,12 @@ export default function Admin() {
           </Panel>
 
           <Panel title="Workspace Team">
-            <div style={{ marginBottom: 14, color: '#7A8BA8', fontSize: 12.5 }}>
+            <div style={{ marginBottom: 14, color: 'var(--mute2)', fontSize: 12.5 }}>
               Manage who belongs to this workspace and track invitation status in one place.
             </div>
             <DataTable
               columns={[
-                { key: 'full_name', header: 'Name', render: (row) => <span style={{ fontWeight: 600, color: '#E8EDF5' }}>{row.full_name}</span> },
+                { key: 'full_name', header: 'Name', render: (row) => <span style={{ fontWeight: 600, color: 'var(--heading)' }}>{row.full_name}</span> },
                 { key: 'email', header: 'Email', mono: true },
                 { key: 'role', header: 'Role', render: (row) => <Badge variant={['owner', 'admin'].includes(row.role) ? 'gold' : 'slate'}>{row.role.replace('_', ' ')}</Badge> },
                 { key: 'last_login', header: 'Last Login', render: (row) => row.last_login ? new Date(row.last_login).toLocaleString('en-GB') : 'Never' },
@@ -213,7 +213,7 @@ export default function Admin() {
           <Panel title="Pending and Past Invites" style={{ gridColumn: '1 / -1' }}>
             <DataTable
               columns={[
-                { key: 'full_name', header: 'Invitee', render: (row) => <span style={{ fontWeight: 600, color: '#E8EDF5' }}>{row.full_name}</span> },
+                { key: 'full_name', header: 'Invitee', render: (row) => <span style={{ fontWeight: 600, color: 'var(--heading)' }}>{row.full_name}</span> },
                 { key: 'email', header: 'Email', mono: true },
                 { key: 'role', header: 'Role', render: (row) => <Badge variant="slate">{row.role.replace('_', ' ')}</Badge> },
                 { key: 'accepted', header: 'Status', render: (row) => <Badge variant={row.accepted ? 'green' : 'amber'}>{row.accepted ? 'Accepted' : 'Pending'}</Badge> },
@@ -240,7 +240,7 @@ export default function Admin() {
           <Panel title="User Access Monitor">
             <DataTable
               columns={[
-                { key: 'full_name', header: 'User', render: (row) => <span style={{ fontWeight: 600, color: '#E8EDF5' }}>{row.full_name}</span> },
+                { key: 'full_name', header: 'User', render: (row) => <span style={{ fontWeight: 600, color: 'var(--heading)' }}>{row.full_name}</span> },
                 { key: 'email', header: 'Email', mono: true },
                 { key: 'role', header: 'Role', render: (row) => <Badge variant={['owner', 'admin'].includes(row.role) ? 'gold' : 'slate'}>{row.role.replace('_', ' ')}</Badge> },
                 { key: 'is_active', header: 'Status', render: (row) => <Badge variant={row.is_active ? 'green' : 'red'}>{row.is_active ? 'Active' : 'Disabled'}</Badge> },
@@ -255,7 +255,7 @@ export default function Admin() {
           <Panel title="Invite Access Trail">
             <DataTable
               columns={[
-                { key: 'full_name', header: 'Invitee', render: (row) => <span style={{ fontWeight: 600, color: '#E8EDF5' }}>{row.full_name}</span> },
+                { key: 'full_name', header: 'Invitee', render: (row) => <span style={{ fontWeight: 600, color: 'var(--heading)' }}>{row.full_name}</span> },
                 { key: 'email', header: 'Email', mono: true },
                 { key: 'role', header: 'Role', render: (row) => <Badge variant="slate">{row.role.replace('_', ' ')}</Badge> },
                 { key: 'accepted', header: 'Status', render: (row) => <Badge variant={row.accepted ? 'green' : 'amber'}>{row.accepted ? 'Accepted' : 'Pending'}</Badge> },

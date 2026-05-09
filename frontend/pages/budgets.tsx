@@ -107,15 +107,15 @@ export default function Budgets() {
       {tab === 'overview' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Budget vs Actual</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Budget vs Actual</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
                 style={{
-                  background: '#1C2230',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#C8D3E8',
+                  background: 'var(--surface-muted)',
+                  border: '1px solid var(--line2)',
+                  color: 'var(--text)',
                   borderRadius: 7,
                   padding: '6px 12px',
                   fontSize: 12,
@@ -131,9 +131,9 @@ export default function Budgets() {
           <Panel title="Budget Summary" titleIcon="BS" iconColor="#C9A84C" noPadding>
             <DataTable
               columns={[
-                { key: 'category', header: 'Category', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.category}</span> },
-                { key: 'budget', header: 'Budget', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#7A8BA8' }}>{currency(r.budget)}</span> },
-                { key: 'actual', header: 'Actual', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#C8D3E8' }}>{currency(r.actual)}</span> },
+                { key: 'category', header: 'Category', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.category}</span> },
+                { key: 'budget', header: 'Budget', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--mute2)' }}>{currency(r.budget)}</span> },
+                { key: 'actual', header: 'Actual', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{currency(r.actual)}</span> },
                 { key: 'variance', header: 'Variance', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: r.variance >= 0 ? '#2DCE89' : '#F5365C' }}>{r.variance >= 0 ? '+' : '-'}{currency(Math.abs(r.variance))}</span> },
                 { key: 'variantPct', header: '% Var', align: 'right', render: (r) => <Badge variant={r.variantPct >= 0 ? 'green' : 'red'}>{r.variantPct >= 0 ? '+' : ''}{r.variantPct.toFixed(1)}%</Badge> },
               ]}
@@ -144,7 +144,7 @@ export default function Budgets() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 14 }}>
             <Panel title="Budget Utilisation Chart" titleIcon="CH" iconColor="#C9A84C">
               {isLoading ? (
-                <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8BA8', fontSize: 12.5 }}>
+                <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute2)', fontSize: 12.5 }}>
                   Loading budget chart...
                 </div>
               ) : (
@@ -153,7 +153,7 @@ export default function Budgets() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,58,82,0.5)" vertical={false} />
                     <XAxis dataKey="name" tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Math.round(v / 1000)}k`} />
-                    <Tooltip contentStyle={{ background: '#1C2230', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [currency(v), '']} />
+                    <Tooltip contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} formatter={(v: number) => [currency(v), '']} />
                     <Bar dataKey="budget" fill="rgba(201,168,76,0.25)" stroke="#C9A84C" strokeWidth={1} radius={[3, 3, 0, 0]} name="Budget" />
                     <Bar dataKey="actual" fill="rgba(201,168,76,0.55)" stroke="#C9A84C" strokeWidth={1} radius={[3, 3, 0, 0]} name="Actual" />
                   </BarChart>
@@ -162,7 +162,7 @@ export default function Budgets() {
             </Panel>
 
             <Panel title="Budget Control Note" titleIcon="NT" iconColor="#5E9EFF">
-              <div style={{ fontSize: 12.5, color: '#C8D3E8', lineHeight: 1.8 }}>{budgetNote}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.8 }}>{budgetNote}</div>
             </Panel>
           </div>
         </>
@@ -172,7 +172,7 @@ export default function Budgets() {
         <Panel noPadding>
           <DataTable
             columns={[
-              { key: 'dept', header: 'Department', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.dept}</span> },
+              { key: 'dept', header: 'Department', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.dept}</span> },
               { key: 'allocated', header: 'Allocated', align: 'right', mono: true },
               { key: 'spent', header: 'Spent', align: 'right', mono: true },
               { key: 'remaining', header: 'Remaining', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#2DCE89' }}>{r.remaining}</span> },
@@ -182,7 +182,7 @@ export default function Budgets() {
                 render: (r) => (
                   <div style={{ width: 100 }}>
                     <ProgressBar value={r.pct} color={r.pct > 90 ? '#F5365C' : r.pct > 80 ? '#FB8C00' : '#C9A84C'} />
-                    <div style={{ fontSize: 10, color: '#5C6B84', marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>{r.pct}%</div>
+                    <div style={{ fontSize: 10, color: 'var(--mute)', marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>{r.pct}%</div>
                   </div>
                 ),
               },
@@ -195,13 +195,13 @@ export default function Budgets() {
       {tab === 'variance' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Variance Analysis</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Variance Analysis</div>
             <Button onClick={analyseVariances}>Analyse Variances</Button>
           </div>
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'category', header: 'Category', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.category}</span> },
+                { key: 'category', header: 'Category', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.category}</span> },
                 { key: 'budget', header: 'Budget', align: 'right', render: (r) => currency(r.budget) },
                 { key: 'actual', header: 'Actual', align: 'right', render: (r) => currency(r.actual) },
                 { key: 'variance', header: 'Variance', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: r.variance >= 0 ? '#2DCE89' : '#F5365C' }}>{r.variance >= 0 ? '+' : '-'}{currency(Math.abs(r.variance))}</span> },
@@ -211,7 +211,7 @@ export default function Budgets() {
             />
           </Panel>
           <Panel title="Variance Narrative" titleIcon="AI" iconColor="#C9A84C" style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 12.5, color: '#C8D3E8', lineHeight: 1.8 }}>{varianceNarrative}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.8 }}>{varianceNarrative}</div>
           </Panel>
         </>
       )}
@@ -220,7 +220,7 @@ export default function Budgets() {
         <Panel noPadding>
           <DataTable
             columns={[
-              { key: 'category', header: 'Category', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.category}</span> },
+              { key: 'category', header: 'Category', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.category}</span> },
               { key: 'h1', header: 'H1 Actual', align: 'right', mono: true },
               { key: 'h2', header: 'H2 Forecast', align: 'right', mono: true },
               { key: 'fy', header: 'FY Total', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#C9A84C' }}>{r.fy}</span> },

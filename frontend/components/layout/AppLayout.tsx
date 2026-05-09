@@ -210,7 +210,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 15,
-                color: '#0C0F14',
+                color: 'var(--ink-inverse)',
                 fontFamily: "'Instrument Serif', serif",
                 flexShrink: 0,
               }}
@@ -378,7 +378,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                 justifyContent: 'center',
                 fontSize: 11,
                 fontWeight: 600,
-                color: '#0C0F14',
+                color: 'var(--ink-inverse)',
                 flexShrink: 0,
               }}
             >

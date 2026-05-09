@@ -68,7 +68,7 @@ export default function Dashboard() {
               <XAxis dataKey="month_short" tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `£${v/1000}k`} />
               <Tooltip
-                contentStyle={{ background: '#1C2230', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }}
                 formatter={(v: number) => [`£${v.toLocaleString()}`, '']}
               />
               <Bar dataKey="income"   fill="rgba(201,168,76,0.45)"  stroke="#C9A84C" strokeWidth={1} radius={[3,3,0,0]} name="Income" />
@@ -83,17 +83,17 @@ export default function Dashboard() {
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={68} dataKey="value" strokeWidth={0}>
                 {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
-              <Tooltip contentStyle={{ background: '#1C2230', border: '1px solid rgba(255,255,255,0.08)', fontSize: 12 }} formatter={(v) => [`${v}%`, '']} />
+              <Tooltip contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', fontSize: 12, color: 'var(--text)' }} formatter={(v) => [`${v}%`, '']} />
             </PieChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 12 }}>
             {pieData.map((d) => (
               <div key={d.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#7A8BA8' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--mute2)' }}>
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, display: 'inline-block' }} />
                   {d.name}
                 </span>
-                <span style={{ color: '#C8D3E8', fontFamily: "'JetBrains Mono', monospace" }}>{d.value}%</span>
+                <span style={{ color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace" }}>{d.value}%</span>
               </div>
             ))}
           </div>
@@ -103,13 +103,13 @@ export default function Dashboard() {
       {/* Grants + Pending + Donations */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
         <Panel title="Grant Status" titleIcon="⊕" iconColor="#5E9EFF" action={
-          <span onClick={() => router.push('/grants')} style={{ fontSize: 11.5, color: '#C9A84C', cursor: 'pointer', fontWeight: 500 }}>Manage →</span>
+          <span onClick={() => router.push('/grants')} style={{ fontSize: 11.5, color: 'var(--gold)', cursor: 'pointer', fontWeight: 500 }}>Manage →</span>
         }>
           {grantList.slice(0, 3).map((g: any) => (
             <div key={g.id} style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
-                <span style={{ color: '#7A8BA8' }}>{g.name?.split(' ').slice(0, 3).join(' ')}</span>
-                <span style={{ color: '#C8D3E8', fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ color: 'var(--mute2)' }}>{g.name?.split(' ').slice(0, 3).join(' ')}</span>
+                <span style={{ color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace" }}>
                   £{(g.spent/1000).toFixed(0)}k / £{(g.awarded/1000).toFixed(0)}k
                 </span>
               </div>
@@ -122,14 +122,14 @@ export default function Dashboard() {
         </Panel>
 
         <Panel title="Pending Approvals" titleIcon="⊟" iconColor="#FB8C00" action={
-          <span onClick={() => router.push('/expenses')} style={{ fontSize: 11.5, color: '#C9A84C', cursor: 'pointer', fontWeight: 500 }}>Review →</span>
+          <span onClick={() => router.push('/expenses')} style={{ fontSize: 11.5, color: 'var(--gold)', cursor: 'pointer', fontWeight: 500 }}>Review →</span>
         }>
           <DataTable
             columns={[
               { key: 'name', header: 'Claimant', render: (r) => (
                 <div>
-                  <div style={{ fontWeight: 500, color: '#e2e8f0', fontSize: 12 }}>{r.name}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{r.date}</div>
+                  <div style={{ fontWeight: 500, color: 'var(--heading)', fontSize: 12 }}>{r.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--mute)' }}>{r.date}</div>
                 </div>
               )},
               { key: 'amount', header: '', align: 'right', render: (r) => <Badge variant="amber">{r.amount}</Badge> },
@@ -144,12 +144,12 @@ export default function Dashboard() {
         </Panel>
 
         <Panel title="Donations YTD" titleIcon="♡" iconColor="#F5365C" action={
-          <span onClick={() => router.push('/donations')} style={{ fontSize: 11.5, color: '#C9A84C', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
+          <span onClick={() => router.push('/donations')} style={{ fontSize: 11.5, color: 'var(--gold)', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
         }>
           <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 28, fontWeight: 600, color: '#2DCE89', letterSpacing: '-0.03em', marginBottom: 4 }}>
             {gbp(donations?.ytd_total ?? 9240)}
           </div>
-          <div style={{ fontSize: 12, color: '#5C6B84', marginBottom: 16 }}>↑ 34% vs prior year</div>
+          <div style={{ fontSize: 12, color: 'var(--mute)', marginBottom: 16 }}>↑ 34% vs prior year</div>
           <ResponsiveContainer width="100%" height={80}>
             <AreaChart data={donationTrend}>
               <defs>
@@ -166,12 +166,12 @@ export default function Dashboard() {
 
       {/* Recent transactions */}
       <Panel title="Recent Transactions" action={
-        <span onClick={() => router.push('/accounting')} style={{ fontSize: 11.5, color: '#C9A84C', cursor: 'pointer', fontWeight: 500 }}>View ledger →</span>
+        <span onClick={() => router.push('/accounting')} style={{ fontSize: 11.5, color: 'var(--gold)', cursor: 'pointer', fontWeight: 500 }}>View ledger →</span>
       } noPadding>
         <DataTable
           columns={[
             { key: 'date', header: 'Date', mono: true },
-            { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{r.description}</span> },
+            { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.description}</span> },
             { key: 'category', header: 'Category', render: (r) => <Badge variant={r.catVariant as any}>{r.category}</Badge> },
             { key: 'programme', header: 'Programme' },
             { key: 'amount', header: 'Amount', align: 'right', render: (r) => (

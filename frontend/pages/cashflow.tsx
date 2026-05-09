@@ -123,12 +123,12 @@ export default function Cashflow() {
       {tab === 'forecast' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>13-Week Rolling Cash Forecast</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>13-Week Rolling Cash Forecast</div>
             <Button onClick={refreshForecast}>Refresh Forecast</Button>
           </div>
           <Panel title="Weekly Cash Position" titleIcon="CF" iconColor="#C9A84C">
             {isLoading || isFetching ? (
-              <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8BA8', fontSize: 12.5 }}>
+              <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mute2)', fontSize: 12.5 }}>
                 Loading forecast...
               </div>
             ) : isError ? (
@@ -147,7 +147,7 @@ export default function Cashflow() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,58,82,0.5)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Math.round(v / 1000)}k`} />
-                  <Tooltip contentStyle={{ background: '#1C2230', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [currency(v), '']} />
+                  <Tooltip contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} formatter={(v: number) => [currency(v), '']} />
                   <Area type="monotone" dataKey="balance" stroke="#C9A84C" strokeWidth={2} fill="url(#cashGrad)" dot={false} name="Cash Balance" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -176,7 +176,7 @@ export default function Cashflow() {
 
       {tab === 'scenarios' && (
         <>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5', marginBottom: 14 }}>Cash Flow Scenarios</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)', marginBottom: 14 }}>Cash Flow Scenarios</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
             {[
               { key: 'optimistic', label: 'Optimistic', color: '#2DCE89', endBalance: summary ? currency(summary.projected_cash + 12000) : 'GBP 0', desc: 'Receivables clear on time and the next grant milestone lands in the next cycle.' },
@@ -190,8 +190,8 @@ export default function Cashflow() {
                 <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 32, color: scenario.color, letterSpacing: '-0.03em', marginBottom: 4 }}>
                   {scenario.endBalance}
                 </div>
-                <div style={{ fontSize: 12, color: '#5C6B84', marginBottom: 12 }}>13-week closing outlook</div>
-                <div style={{ fontSize: 12, color: '#7A8BA8', lineHeight: 1.6, marginBottom: 14 }}>{scenario.desc}</div>
+                <div style={{ fontSize: 12, color: 'var(--mute)', marginBottom: 12 }}>13-week closing outlook</div>
+                <div style={{ fontSize: 12, color: 'var(--mute2)', lineHeight: 1.6, marginBottom: 14 }}>{scenario.desc}</div>
                 <Button small variant={selectedScenario === scenario.key ? 'primary' : 'ghost'} onClick={() => setSelectedScenario(scenario.key as Scenario)}>
                   {selectedScenario === scenario.key ? 'Selected' : 'Use Scenario'}
                 </Button>
@@ -206,21 +206,21 @@ export default function Cashflow() {
             style={{ marginTop: 14 }}
             action={<Button small onClick={generateScenarioAnalysis}>Generate Analysis</Button>}
           >
-            <div style={{ fontSize: 12.5, color: '#C8D3E8', lineHeight: 1.8 }}>{analysisText}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.8 }}>{analysisText}</div>
           </Panel>
         </>
       )}
 
       {tab === 'runway' && (
         <>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5', marginBottom: 14 }}>Runway Calculator</div>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)', marginBottom: 14 }}>Runway Calculator</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             <Panel title="Current Runway" titleIcon="RW" iconColor="#C9A84C">
               <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 64, color: '#E8C56A', textAlign: 'center', letterSpacing: '-0.04em', margin: '16px 0 4px' }}>
                 {summary?.runway_months ? Math.round(summary.runway_months * 30) : 0}
               </div>
-              <div style={{ textAlign: 'center', fontSize: 13, color: '#5C6B84' }}>days at current burn rate</div>
-              <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#7A8BA8' }}>
+              <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--mute)' }}>days at current burn rate</div>
+              <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: 'var(--mute2)' }}>
                 Lowest projected point is <strong style={{ color: '#C9A84C' }}>{summary?.lowest_week ?? 'W0'}</strong> at {summary ? currency(summary.lowest_balance) : 'GBP 0'}.
               </div>
             </Panel>
@@ -234,8 +234,8 @@ export default function Cashflow() {
                 { label: 'Lowest Forecast Week', value: summary?.lowest_week ?? 'W0' },
               ].map((row) => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
-                  <span style={{ color: '#5C6B84' }}>{row.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#C8D3E8' }}>{row.value}</span>
+                  <span style={{ color: 'var(--mute)' }}>{row.label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{row.value}</span>
                 </div>
               ))}
             </Panel>
@@ -252,7 +252,7 @@ export default function Cashflow() {
               {recommendations.map((item) => (
                 <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <Badge variant="gold">Action</Badge>
-                  <div style={{ fontSize: 12.5, color: '#C8D3E8', lineHeight: 1.7 }}>{item}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.7 }}>{item}</div>
                 </div>
               ))}
             </div>
