@@ -217,6 +217,19 @@ function renderMarkdownReport(markdown: string): ReactNode[] {
       i += 1
       continue
     }
+    if (line.startsWith('#')) {
+      const headingText = line.replace(/^#+\s*/, '')
+      elements.push(
+        <h3
+          key={`hx-${i}`}
+          style={{ fontSize: 15, lineHeight: 1.35, color: '#e2e8f0', margin: '20px 0 10px', fontWeight: 700 }}
+        >
+          {renderInline(headingText)}
+        </h3>
+      )
+      i += 1
+      continue
+    }
 
     const metaSegments = parseMetaSegments(line)
     if (metaSegments.length >= 2) {
@@ -287,6 +300,12 @@ function renderMarkdownReport(markdown: string): ReactNode[] {
       paragraphLines.push(current)
       i += 1
     }
+    if (paragraphLines.length === 0) {
+      elements.push(<p key={`fallback-${i}`} style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.85, color: '#cbd5e1' }}>{renderInline(line)}</p>)
+      i += 1
+      continue
+    }
+
     elements.push(<p key={`p-${i}`} style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.85, color: '#cbd5e1' }}>{renderInline(paragraphLines.join(' '))}</p>)
   }
 
