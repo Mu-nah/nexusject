@@ -174,7 +174,7 @@ export default function Donations() {
       {/* New Donor Modal */}
       {showNewDonor && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: 420 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: 420 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
               Add Donor
             </div>

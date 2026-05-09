@@ -161,7 +161,7 @@ export default function Volunteers() {
         <StatCard label="DBS Required" value={String(summary?.dbs_required ?? 0)} change="Renewals due" changeUp={false} icon="D" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         {([
           { key: 'register', label: 'Volunteer Register' },
           { key: 'hours', label: 'Hours Log' },
@@ -177,7 +177,7 @@ export default function Volunteers() {
               fontSize: 12.5,
               background: 'none',
               borderBottom: tab === t.key ? '2px solid #C9A84C' : '2px solid transparent',
-              color: tab === t.key ? '#E8C56A' : '#5C6B84',
+              color: tab === t.key ? 'var(--gold)' : 'var(--mute)',
               fontWeight: tab === t.key ? 600 : 400,
               fontFamily: "'Instrument Sans', sans-serif",
             }}
@@ -191,7 +191,7 @@ export default function Volunteers() {
         <Panel noPadding>
           <DataTable
             columns={[
-              { key: 'name', header: 'Name', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.name}</span> },
+              { key: 'name', header: 'Name', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.name}</span> },
               { key: 'role', header: 'Role' },
               { key: 'programme', header: 'Programme', render: (r) => <Badge variant="slate">{r.programme}</Badge> },
               { key: 'hours', header: 'Commitment' },
@@ -207,13 +207,13 @@ export default function Volunteers() {
       {tab === 'hours' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Volunteer Hours Log</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Volunteer Hours Log</div>
             <Button onClick={() => openHoursForm()}>+ Log Hours</Button>
           </div>
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Volunteer', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.name}</span> },
+                { key: 'name', header: 'Volunteer', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.name}</span> },
                 { key: 'week', header: 'Week Ending' },
                 { key: 'logged', header: 'Hours Logged', mono: true },
                 { key: 'approved', header: 'Approved', mono: true },
@@ -231,7 +231,7 @@ export default function Volunteers() {
         <Panel noPadding>
           <DataTable
             columns={[
-              { key: 'name', header: 'Volunteer', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.name}</span> },
+              { key: 'name', header: 'Volunteer', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.name}</span> },
               { key: 'issued', header: 'Issued' },
               { key: 'signed', header: 'Signed' },
               { key: 'expires', header: 'Expires' },
@@ -252,7 +252,7 @@ export default function Volunteers() {
 
       {showVolunteerForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
               {editingVolunteerId === null ? 'Add Volunteer' : 'Edit Volunteer'}
             </div>
@@ -287,7 +287,7 @@ export default function Volunteers() {
 
       {showHoursForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
               {editingHoursId === null ? 'Log Volunteer Hours' : 'Edit Hours Log'}
             </div>

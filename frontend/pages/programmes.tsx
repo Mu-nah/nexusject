@@ -234,7 +234,7 @@ export default function Programmes() {
           {programmes.map((p: any) => {
             const status = getStatus(p)
             return (
-              <div key={p.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '18px 20px' }}>
+              <div key={p.id} style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 12, padding: '18px 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 500, color: '#e2e8f0', marginBottom: 4 }}>{p.name}</div>

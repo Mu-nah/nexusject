@@ -106,7 +106,7 @@ export default function Governance() {
         <Panel title="Trustee / Director Register" titleIcon="TR" iconColor="#C9A84C" action={<Button small onClick={() => openTrusteeForm()}>+ Add Trustee</Button>}>
           <DataTable
             columns={[
-              { key: 'name', header: 'Name', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.name}</span> },
+              { key: 'name', header: 'Name', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.name}</span> },
               { key: 'role', header: 'Role', render: (r) => <Badge variant="slate">{r.role}</Badge> },
               { key: 'appointed', header: 'Appointed' },
               { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'Active' ? 'green' : 'amber'}>{r.status}</Badge> },
@@ -117,7 +117,7 @@ export default function Governance() {
         </Panel>
 
         <Panel title="Conflict of Interest Register" titleIcon="COI" iconColor="#5E9EFF">
-          <div style={{ padding: '12px 0', color: '#C8D3E8', fontSize: 12.5, lineHeight: 1.7 }}>{interestNote}</div>
+          <div style={{ padding: '12px 0', color: 'var(--text)', fontSize: 12.5, lineHeight: 1.7 }}>{interestNote}</div>
           <Button
             variant="ghost"
             small
@@ -141,9 +141,9 @@ export default function Governance() {
             { label: 'Asset Lock', value: 'Confirmed' },
             { label: 'Community Benefit', value: 'Employment and training' },
           ].map((row) => (
-            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
-              <span style={{ color: '#5C6B84' }}>{row.label}</span>
-              <span style={{ color: '#C8D3E8', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{row.value}</span>
+            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
+              <span style={{ color: 'var(--mute)' }}>{row.label}</span>
+              <span style={{ color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{row.value}</span>
             </div>
           ))}
           <div style={{ marginTop: 14 }}>
@@ -154,7 +154,7 @@ export default function Governance() {
         </Panel>
 
         <Panel title="Related Party Transactions" titleIcon="RPT" iconColor="#FB8C00">
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#5C6B84', fontSize: 12.5, marginBottom: 12 }}>
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--mute)', fontSize: 12.5, marginBottom: 12 }}>
             No related party transactions recorded this financial year.
           </div>
           <div style={{ padding: 12, background: 'rgba(251,140,0,0.06)', border: '1px solid rgba(251,140,0,0.15)', borderRadius: 8, fontSize: 12, color: '#FB8C00', lineHeight: 1.6 }}>
@@ -168,7 +168,7 @@ export default function Governance() {
 
       {showTrusteeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
               {editingId === null ? 'Add Trustee' : 'Edit Trustee'}
             </div>

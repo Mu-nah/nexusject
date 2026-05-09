@@ -165,7 +165,7 @@ export default function AP() {
         <StatCard label="Paid YTD" value="£24,180" change="↑ 6% vs prior year" changeUp icon="£" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         {([
           { key: 'invoices', label: 'Supplier Invoices' },
           { key: 'suppliers', label: 'Suppliers' },
@@ -176,7 +176,7 @@ export default function AP() {
           <button key={section.key} onClick={() => setTab(section.key)} style={{
             padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 12.5,
             background: 'none', borderBottom: tab === section.key ? '2px solid #C9A84C' : '2px solid transparent',
-            color: tab === section.key ? '#E8C56A' : '#5C6B84', fontWeight: tab === section.key ? 600 : 400,
+            color: tab === section.key ? 'var(--gold)' : 'var(--mute)', fontWeight: tab === section.key ? 600 : 400,
             fontFamily: "'Instrument Sans', sans-serif",
           }}>{section.label}</button>
         ))}
@@ -185,9 +185,9 @@ export default function AP() {
       {tab === 'invoices' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Supplier Invoices</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Supplier Invoices</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <select value={filter} onChange={(event) => setFilter(event.target.value)} style={{ background: '#1C2230', border: '1px solid rgba(255,255,255,0.08)', color: '#C8D3E8', borderRadius: 7, padding: '6px 12px', fontSize: 12 }}>
+              <select value={filter} onChange={(event) => setFilter(event.target.value)} style={{ background: 'var(--surface-muted)', border: '1px solid var(--line2)', color: 'var(--text)', borderRadius: 7, padding: '6px 12px', fontSize: 12 }}>
                 <option value="all">All</option>
                 <option value="pending">Pending Approval</option>
                 <option value="approved">Approved</option>
@@ -200,9 +200,9 @@ export default function AP() {
             <DataTable
               columns={[
                 { key: 'ref', header: 'Reference', mono: true },
-                { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.supplier}</span> },
+                { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.supplier}</span> },
                 { key: 'due', header: 'Due Date' },
-                { key: 'amount', header: 'Amount', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#C8D3E8' }}>{row.amount}</span> },
+                { key: 'amount', header: 'Amount', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{row.amount}</span> },
                 { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
                 {
                   key: 'actions',
@@ -225,7 +225,7 @@ export default function AP() {
       {tab === 'suppliers' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Supplier Register</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Supplier Register</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button onClick={() => openSupplierForm()}>+ Add Supplier</Button>
             </div>
@@ -233,7 +233,7 @@ export default function AP() {
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'category', header: 'Category', render: (row) => <Badge variant="slate">{row.category}</Badge> },
                 { key: 'terms', header: 'Terms' },
                 { key: 'outstanding', header: 'Outstanding', align: 'right', mono: true },
@@ -259,7 +259,7 @@ export default function AP() {
         <Panel title="Aged Creditors Analysis" titleIcon="A" iconColor="#C9A84C" action={<Badge variant="slate">DPO calculated</Badge>}>
           <DataTable
             columns={[
-              { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.supplier}</span> },
+              { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.supplier}</span> },
               { key: 'current', header: 'Current', align: 'right', mono: true },
               { key: 'd30', header: '31-60d', align: 'right', mono: true },
               { key: 'd60', header: '61-90d', align: 'right', mono: true },
@@ -277,7 +277,7 @@ export default function AP() {
       {tab === 'payments' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Payment Runs</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Payment Runs</div>
             <Button onClick={runPaymentBatch}>Run Payment Batch</Button>
           </div>
           <Alert variant="info" icon="i">Approved invoices ready for payment. Verify bank details before executing payment run.</Alert>
@@ -302,7 +302,7 @@ export default function AP() {
       {tab === 'po' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Purchase Orders</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Purchase Orders</div>
             <Button onClick={createPo}>+ Create PO</Button>
           </div>
           <Alert variant="info" icon="i">3-way matching: PO → Goods Receipt → Invoice. Auto-flags mismatches for approval.</Alert>
@@ -310,7 +310,7 @@ export default function AP() {
             <DataTable
               columns={[
                 { key: 'ref', header: 'PO Number', mono: true },
-                { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.supplier}</span> },
+                { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.supplier}</span> },
                 { key: 'desc', header: 'Description' },
                 { key: 'amount', header: 'Amount', align: 'right', mono: true },
                 { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
@@ -326,7 +326,7 @@ export default function AP() {
 
       {showInvoiceForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingInvoiceRef ? 'Edit Supplier Invoice' : 'Log Supplier Invoice'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Invoice Reference" value={invoiceForm.ref} onChange={(v) => setInvoiceForm({ ...invoiceForm, ref: v })} placeholder="SUP-0131" />
@@ -349,7 +349,7 @@ export default function AP() {
 
       {showSupplierForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingSupplierName ? 'Edit Supplier' : 'Add Supplier'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Supplier Name" value={supplierForm.name} onChange={(v) => setSupplierForm({ ...supplierForm, name: v })} placeholder="Supplier name" />

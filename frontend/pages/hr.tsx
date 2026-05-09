@@ -198,7 +198,7 @@ export default function HR() {
         </Panel>
       )}
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         {([
           { key: 'employees', label: 'All Employees' },
           { key: 'onboarding', label: 'Onboarding' },
@@ -218,7 +218,7 @@ export default function HR() {
               fontSize: 12.5,
               background: 'none',
               borderBottom: tab === section.key ? '2px solid #C9A84C' : '2px solid transparent',
-              color: tab === section.key ? '#E8C56A' : '#5C6B84',
+              color: tab === section.key ? 'var(--gold)' : 'var(--mute)',
               fontWeight: tab === section.key ? 600 : 400,
               fontFamily: "'Instrument Sans', sans-serif",
             }}
@@ -232,13 +232,13 @@ export default function HR() {
         <div style={{ display: 'grid', gridTemplateColumns: selectedEmployee ? 'minmax(0, 1.45fr) minmax(260px, 0.8fr)' : '1fr', gap: 14 }}>
           <Panel noPadding>
             {isLoading ? (
-              <div style={{ padding: '32px 16px', textAlign: 'center', color: '#5C6B84', fontSize: 13 }}>Loading HR records...</div>
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--mute)', fontSize: 13 }}>Loading HR records...</div>
             ) : employees.length === 0 ? (
               <EmptyState title="No employees yet" description="Add the first employee to populate HR, payroll, right-to-work, and document workflows." />
             ) : (
               <DataTable
                 columns={[
-                  { key: 'name', header: 'Name', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                  { key: 'name', header: 'Name', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                   { key: 'role', header: 'Role' },
                   { key: 'dept', header: 'Department', render: (row) => <Badge variant="slate">{row.dept}</Badge> },
                   { key: 'type', header: 'Type', render: (row) => <Badge variant={row.type === 'FT' ? 'blue' : 'slate'}>{row.type}</Badge> },
@@ -253,13 +253,13 @@ export default function HR() {
 
           {selectedEmployee && (
             <Panel title="Employee Snapshot" titleIcon="EMP" iconColor="#C9A84C">
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#E8EDF5', marginBottom: 10 }}>{selectedEmployee.name}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--heading)', marginBottom: 10 }}>{selectedEmployee.name}</div>
               <div style={{ display: 'grid', gap: 10, fontSize: 12.5 }}>
-                <div style={{ color: '#7A8BA8' }}>Role: <span style={{ color: '#E8EDF5' }}>{selectedEmployee.role}</span></div>
-                <div style={{ color: '#7A8BA8' }}>Department: <span style={{ color: '#E8EDF5' }}>{selectedEmployee.dept}</span></div>
-                <div style={{ color: '#7A8BA8' }}>Employment Type: <span style={{ color: '#E8EDF5' }}>{selectedEmployee.type}</span></div>
-                <div style={{ color: '#7A8BA8' }}>RTW Status: <span style={{ color: '#E8EDF5' }}>{selectedEmployee.rtw}</span></div>
-                <div style={{ color: '#7A8BA8' }}>DBS Level: <span style={{ color: '#E8EDF5' }}>{selectedEmployee.dbs}</span></div>
+                <div style={{ color: 'var(--mute)' }}>Role: <span style={{ color: 'var(--heading)' }}>{selectedEmployee.role}</span></div>
+                <div style={{ color: 'var(--mute)' }}>Department: <span style={{ color: 'var(--heading)' }}>{selectedEmployee.dept}</span></div>
+                <div style={{ color: 'var(--mute)' }}>Employment Type: <span style={{ color: 'var(--heading)' }}>{selectedEmployee.type}</span></div>
+                <div style={{ color: 'var(--mute)' }}>RTW Status: <span style={{ color: 'var(--heading)' }}>{selectedEmployee.rtw}</span></div>
+                <div style={{ color: 'var(--mute)' }}>DBS Level: <span style={{ color: 'var(--heading)' }}>{selectedEmployee.dbs}</span></div>
               </div>
               <Button variant="ghost" fullWidth style={{ marginTop: 14 }} onClick={() => setSelectedEmployee(null)}>Close</Button>
             </Panel>
@@ -270,18 +270,18 @@ export default function HR() {
       {tab === 'onboarding' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Onboarding Workflows</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Onboarding Workflows</div>
             <Button onClick={openEmployeeForm}>+ Start Onboarding</Button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(260px, 1fr)', gap: 14 }}>
             <Panel title="Active Onboarding" titleIcon="ON" iconColor="#C9A84C">
-              <div style={{ textAlign: 'center', padding: '32px 0', color: '#5C6B84', fontSize: 12.5 }}>
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--mute)', fontSize: 12.5 }}>
                 {summary?.onboarding_count ? `${summary.onboarding_count} onboarding workflows active.` : 'No active onboarding workflows.'}
               </div>
             </Panel>
             <Panel title="Onboarding Checklist" titleIcon="OK" iconColor="#2DCE89">
               {['Offer letter signed', 'Contract issued', 'Right to Work check', 'DBS check initiated', 'Bank details collected', 'IT equipment ordered', 'Induction scheduled', 'Payroll added'].map((item, index) => (
-                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: index < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none', fontSize: 12 }}>
+                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: index < 7 ? '1px solid var(--line)' : 'none', fontSize: 12 }}>
                   <span style={{ color: '#2DCE89' }}>OK</span>
                   <span style={{ color: '#7A8BA8' }}>{item}</span>
                 </div>
@@ -299,7 +299,7 @@ export default function HR() {
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'docType', header: 'Document Type' },
                 { key: 'checked', header: 'Last Checked' },
                 { key: 'expires', header: 'Expires' },
@@ -320,7 +320,7 @@ export default function HR() {
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'level', header: 'DBS Level', render: (row) => <Badge variant={row.level === 'Enhanced' ? 'blue' : 'slate'}>{row.level}</Badge> },
                 { key: 'issued', header: 'Issued' },
                 { key: 'renewal', header: 'Next Renewal' },
@@ -343,7 +343,7 @@ export default function HR() {
           <Panel title="Leave Requests" titleIcon="LV" iconColor="#C9A84C" noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'type', header: 'Type', render: (row) => <Badge variant="blue">{row.type}</Badge> },
                 { key: 'from', header: 'From' },
                 { key: 'to', header: 'To' },
@@ -360,7 +360,7 @@ export default function HR() {
       {tab === 'performance' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Performance Management</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Performance Management</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 220 }}>
                 <FormInput value={reviewName} onChange={setReviewName} placeholder="Employee name" />
@@ -371,7 +371,7 @@ export default function HR() {
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'reviewer', header: 'Reviewer' },
                 { key: 'type', header: 'Review Type', render: (row) => <Badge variant="slate">{row.type}</Badge> },
                 { key: 'due', header: 'Due Date' },
@@ -386,7 +386,7 @@ export default function HR() {
       {tab === 'contracts' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Contracts & HR Documents</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Contracts & HR Documents</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 240 }}>
                 <FormInput value={docName} onChange={setDocName} placeholder="Document title" />
@@ -397,7 +397,7 @@ export default function HR() {
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Employee', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'docType', header: 'Document Type', render: (row) => <Badge variant="slate">{row.docType}</Badge> },
                 { key: 'issued', header: 'Issued' },
                 { key: 'expires', header: 'Expires' },
