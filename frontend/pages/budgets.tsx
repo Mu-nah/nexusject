@@ -77,7 +77,7 @@ export default function Budgets() {
         <StatCard label="Net Variance" value={summary ? `${summary.net_variance >= 0 ? '+' : '-'}${currency(Math.abs(summary.net_variance))}` : 'Loading...'} change={`${summary?.active_staff ?? 0} active staff in planning scope`} changeUp={!!summary && summary.net_variance >= 0} icon="V" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         {([
           { key: 'overview', label: 'Budget vs Actual' },
           { key: 'dept', label: 'Departmental Budgets' },
@@ -94,7 +94,7 @@ export default function Budgets() {
               fontSize: 12.5,
               background: 'none',
               borderBottom: tab === t.key ? '2px solid #C9A84C' : '2px solid transparent',
-              color: tab === t.key ? '#E8C56A' : '#5C6B84',
+              color: tab === t.key ? 'var(--gold)' : 'var(--mute)',
               fontWeight: tab === t.key ? 600 : 400,
               fontFamily: "'Instrument Sans', sans-serif",
             }}
@@ -151,8 +151,8 @@ export default function Budgets() {
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} barGap={2}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,58,82,0.5)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Math.round(v / 1000)}k`} />
+                    <XAxis dataKey="name" tick={{ fill: 'var(--mute)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'var(--mute)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Math.round(v / 1000)}k`} />
                     <Tooltip contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} formatter={(v: number) => [currency(v), '']} />
                     <Bar dataKey="budget" fill="rgba(201,168,76,0.25)" stroke="#C9A84C" strokeWidth={1} radius={[3, 3, 0, 0]} name="Budget" />
                     <Bar dataKey="actual" fill="rgba(201,168,76,0.55)" stroke="#C9A84C" strokeWidth={1} radius={[3, 3, 0, 0]} name="Actual" />

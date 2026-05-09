@@ -94,7 +94,7 @@ export default function Cashflow() {
         <StatCard label="Runway" value={summary?.runway_months ? `${summary.runway_months} mo` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="At current burn rate" icon="R" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         {([
           { key: 'forecast', label: '13-Week Forecast' },
           { key: 'scenarios', label: 'Scenarios' },
@@ -110,7 +110,7 @@ export default function Cashflow() {
               fontSize: 12.5,
               background: 'none',
               borderBottom: tab === t.key ? '2px solid #C9A84C' : '2px solid transparent',
-              color: tab === t.key ? '#E8C56A' : '#5C6B84',
+              color: tab === t.key ? 'var(--gold)' : 'var(--mute)',
               fontWeight: tab === t.key ? 600 : 400,
               fontFamily: "'Instrument Sans', sans-serif",
             }}
@@ -145,8 +145,8 @@ export default function Cashflow() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,58,82,0.5)" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Math.round(v / 1000)}k`} />
+                  <XAxis dataKey="week" tick={{ fill: 'var(--mute)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--mute)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Math.round(v / 1000)}k`} />
                   <Tooltip contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} formatter={(v: number) => [currency(v), '']} />
                   <Area type="monotone" dataKey="balance" stroke="#C9A84C" strokeWidth={2} fill="url(#cashGrad)" dot={false} name="Cash Balance" />
                 </AreaChart>
@@ -233,7 +233,7 @@ export default function Cashflow() {
                 { label: 'Projected 13-Week Close', value: summary ? currency(summary.projected_cash) : 'GBP 0' },
                 { label: 'Lowest Forecast Week', value: summary?.lowest_week ?? 'W0' },
               ].map((row) => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 12 }}>
                   <span style={{ color: 'var(--mute)' }}>{row.label}</span>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{row.value}</span>
                 </div>

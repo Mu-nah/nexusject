@@ -61,7 +61,7 @@ export default function VAT() {
         <StatCard label="MTD Status" value="Connected" change="HMRC API active" changeUp icon="OK" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         {([
           { key: 'returns', label: 'VAT Returns' },
           { key: 'transactions', label: 'VAT Transactions' },
@@ -77,7 +77,7 @@ export default function VAT() {
               fontSize: 12.5,
               background: 'none',
               borderBottom: tab === t.key ? '2px solid #C9A84C' : '2px solid transparent',
-              color: tab === t.key ? '#E8C56A' : '#5C6B84',
+              color: tab === t.key ? 'var(--gold)' : 'var(--mute)',
               fontWeight: tab === t.key ? 600 : 400,
               fontFamily: "'Instrument Sans', sans-serif",
             }}
@@ -92,7 +92,7 @@ export default function VAT() {
           <Panel title="VAT Returns Log" titleIcon="VR" iconColor="#C9A84C">
             <DataTable
               columns={[
-                { key: 'period', header: 'Period', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.period}</span> },
+                { key: 'period', header: 'Period', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.period}</span> },
                 { key: 'due', header: 'Due Date' },
                 { key: 'vatDue', header: 'VAT Due', align: 'right', mono: true },
                 { key: 'status', header: 'Status', render: (r) => <Badge variant={r.variant}>{r.status}</Badge> },
@@ -108,8 +108,8 @@ export default function VAT() {
                 { label: 'VAT on Purchases (Input)', value: 'GBP 650.00', color: '#F5365C' },
                 { label: 'Net VAT Due', value: 'GBP 1,240.00', color: '#C9A84C' },
               ].map((row) => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
-                  <span style={{ color: '#7A8BA8' }}>{row.label}</span>
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
+                  <span style={{ color: 'var(--mute)' }}>{row.label}</span>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: row.color }}>{row.value}</span>
                 </div>
               ))}
@@ -123,7 +123,7 @@ export default function VAT() {
             </Panel>
 
             <Panel title="Submission Status" titleIcon="SS" iconColor="#5E9EFF">
-              <div style={{ fontSize: 12.5, color: '#C8D3E8', lineHeight: 1.8 }}>{submissionNote}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.8 }}>{submissionNote}</div>
             </Panel>
           </div>
         </div>
@@ -132,14 +132,14 @@ export default function VAT() {
       {tab === 'transactions' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>VAT Transaction Ledger</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>VAT Transaction Ledger</div>
             <select
               value={rateFilter}
               onChange={(e) => setRateFilter(e.target.value)}
               style={{
-                background: '#1C2230',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#C8D3E8',
+                background: 'var(--surface-muted)',
+                border: '1px solid var(--line2)',
+                color: 'var(--text)',
                 borderRadius: 7,
                 padding: '6px 12px',
                 fontSize: 12,
@@ -157,7 +157,7 @@ export default function VAT() {
             <DataTable
               columns={[
                 { key: 'date', header: 'Date', mono: true },
-                { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.description}</span> },
+                { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.description}</span> },
                 { key: 'type', header: 'Type', render: (r) => <Badge variant={r.type === 'Income' ? 'green' : 'slate'}>{r.type}</Badge> },
                 { key: 'rate', header: 'VAT Rate' },
                 { key: 'vat', header: 'VAT Amount', align: 'right', mono: true },
@@ -178,10 +178,10 @@ export default function VAT() {
               { label: 'Accounting Basis', value: 'Invoice (Accruals)' },
               { label: 'MTD Integration', value: 'HMRC API Connected' },
             ].map((row) => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
-                <span style={{ color: '#7A8BA8' }}>{row.label}</span>
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
+                <span style={{ color: 'var(--mute)' }}>{row.label}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#C8D3E8', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{row.value}</span>
+                  <span style={{ color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{row.value}</span>
                   {row.badge && <Badge variant="green">{row.badge}</Badge>}
                 </div>
               </div>
@@ -195,11 +195,11 @@ export default function VAT() {
               { rate: 'Zero Rate', pct: '0%', desc: 'Food and childrens clothing', color: '#5E9EFF' },
               { rate: 'Exempt', pct: '-', desc: 'Charity income and welfare services', color: '#2DCE89' },
             ].map((row) => (
-              <div key={row.rate} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div key={row.rate} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: row.color, fontFamily: "'JetBrains Mono', monospace", width: 36, flexShrink: 0 }}>{row.pct}</div>
                 <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 500, color: '#C8D3E8' }}>{row.rate}</div>
-                  <div style={{ fontSize: 11, color: '#5C6B84' }}>{row.desc}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)' }}>{row.rate}</div>
+                  <div style={{ fontSize: 11, color: 'var(--mute)' }}>{row.desc}</div>
                 </div>
               </div>
             ))}
