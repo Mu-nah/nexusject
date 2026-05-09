@@ -28,6 +28,16 @@ class ApiClient {
         return Promise.reject(error)
       }
     )
+
+    // Bind instance methods so they remain safe when passed directly to React Query.
+    const proto = Object.getPrototypeOf(this) as Record<string, unknown>
+    for (const key of Object.getOwnPropertyNames(proto)) {
+      if (key === 'constructor') continue
+      const value = (this as Record<string, unknown>)[key]
+      if (typeof value === 'function') {
+        ;(this as Record<string, unknown>)[key] = value.bind(this)
+      }
+    }
   }
 
   // ── Auth ────────────────────────────────────────────────────────────────────
