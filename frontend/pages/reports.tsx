@@ -326,6 +326,8 @@ export default function Reports() {
   const [shareName, setShareName] = useState('')
   const [shareAccessMode, setShareAccessMode] = useState<'anyone_with_link' | 'specific_email'>('anyone_with_link')
   const [viewerOpen, setViewerOpen] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [shareTarget, setShareTarget] = useState<WorkspaceReport | null>(null)
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null)
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null)
   const [showAllHistory, setShowAllHistory] = useState(false)
@@ -475,6 +477,13 @@ export default function Reports() {
     }
   }
 
+  const openShareDialog = (target: WorkspaceReport) => {
+    setShareTarget(target)
+    setShareAccessMode(target.share_access_mode === 'specific_email' ? 'specific_email' : 'anyone_with_link')
+    setShareEmail(target.allowed_email || '')
+    setShareModalOpen(true)
+  }
+
   const handleShare = async (reportId: number) => {
     if (shareAccessMode === 'specific_email' && !shareEmail.trim()) {
       toast.error('Enter the allowed email address first')
@@ -488,6 +497,7 @@ export default function Reports() {
       const shareUrl = res.share_url || `${window.location.origin}/reports?shared=${res.share_token}`
       await navigator.clipboard.writeText(shareUrl)
       toast.success(shareAccessMode === 'specific_email' ? 'Restricted share link copied' : 'Share link copied')
+      setShareModalOpen(false)
     } catch {
       toast.error('Share link could not be created')
     }
@@ -505,6 +515,7 @@ export default function Reports() {
         access_mode: shareAccessMode,
       })
       toast.success(res.sent ? 'Report emailed successfully' : 'SMTP not configured - email not sent')
+      setShareModalOpen(false)
     } catch {
       toast.error('Email share failed')
     }
@@ -710,7 +721,7 @@ export default function Reports() {
                         {loadingReportId === rep.id ? 'Opening...' : 'Open Viewer'}
                       </Button>
                       <Button small variant="ghost" onClick={() => handleDownloadPdf(rep.id)}>PDF</Button>
-                      <Button small variant="ghost" onClick={() => handleShare(rep.id)}>Share</Button>
+                      <Button small variant="ghost" onClick={() => openShareDialog(rep)}>Share</Button>
                       <button
                         type="button"
                         onClick={() => handleDeleteReport(rep.id)}
@@ -775,6 +786,57 @@ export default function Reports() {
         </Panel>
       </div>
 
+      {shareModalOpen && shareTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 230, padding: 18 }}>
+          <div style={{ width: '100%', maxWidth: 560, background: '#0b1120', border: '1px solid rgba(51,65,85,0.82)', borderRadius: 22, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(51,65,85,0.5)', background: 'rgba(15,23,42,0.88)' }}>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#f8fafc', marginBottom: 4 }}>Share Report</div>
+                <div style={{ fontSize: 12.5, color: '#94a3b8' }}>{shareTarget.title}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(false)}
+                style={{ width: 38, height: 38, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: '#141820', color: '#cbd5e1', cursor: 'pointer', fontSize: 16 }}
+              >
+                X
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: 12, padding: 22 }}>
+              <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.7 }}>
+                Choose who can open this report before copying the link or emailing it.
+              </div>
+              <select
+                value={shareAccessMode}
+                onChange={(e) => setShareAccessMode(e.target.value as 'anyone_with_link' | 'specific_email')}
+                style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+              >
+                <option value="anyone_with_link">Anyone with link</option>
+                <option value="specific_email">Specific email only</option>
+              </select>
+              <input
+                value={shareName}
+                onChange={(e) => setShareName(e.target.value)}
+                placeholder="Recipient name"
+                style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+              />
+              <input
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+                placeholder={shareAccessMode === 'specific_email' ? 'Allowed / recipient email' : 'Recipient email (optional for link)'}
+                style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+              />
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <Button variant="ghost" onClick={() => setShareModalOpen(false)}>Cancel</Button>
+                <Button variant="ghost" onClick={() => handleShare(shareTarget.id)}>Copy Share Link</Button>
+                <Button onClick={() => handleEmailShare(shareTarget.id)}>Email PDF</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewerOpen && report && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.78)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'stretch', justifyContent: 'center', zIndex: 220, padding: 18 }}>
           <div style={{ width: '100%', maxWidth: 1280, background: '#0b1120', border: '1px solid rgba(51,65,85,0.82)', borderRadius: 22, overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto auto 1fr', maxHeight: 'calc(100vh - 36px)' }}>
@@ -797,7 +859,7 @@ export default function Reports() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Button small variant="ghost" onClick={() => handleShare(report.id)}>Copy Share Link</Button>
+                <Button small variant="ghost" onClick={() => openShareDialog(report)}>Share</Button>
                 <Button small variant="ghost" onClick={() => handleDownloadPdf(report.id)}>Download PDF</Button>
                 <Button small onClick={() => router.push('/ai')}>Refine with AI</Button>
                 <button
