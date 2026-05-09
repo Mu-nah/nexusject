@@ -101,6 +101,15 @@ function parseMetaSegments(line: string): Array<{ label: string; value: string }
   return []
 }
 
+function buildPreviewMarkdown(markdown: string): string {
+  const normalized = markdown.replace(/\r\n/g, '\n').trim()
+  if (!normalized) return ''
+
+  const lines = normalized.split('\n')
+  const preview = lines.slice(0, 18).join('\n').trim()
+  return lines.length > 18 ? `${preview}\n\n...` : preview
+}
+
 function renderMarkdownReport(markdown: string): ReactNode[] {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n')
   const elements: ReactNode[] = []
@@ -301,6 +310,21 @@ export default function Reports() {
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
 
+  const previewNarrative = useMemo(
+    () => buildPreviewMarkdown(report?.narrative || ''),
+    [report?.id, report?.narrative]
+  )
+
+  const previewElements = useMemo(
+    () => renderMarkdownReport(previewNarrative),
+    [previewNarrative]
+  )
+
+  const fullReportElements = useMemo(
+    () => renderMarkdownReport(report?.narrative || ''),
+    [report?.id, report?.narrative]
+  )
+
   const loadHistory = async () => {
     setIsLoadingHistory(true)
     try {
@@ -315,12 +339,14 @@ export default function Reports() {
     }
   }
 
-  const openReport = async (reportId: number) => {
+  const selectReport = async (reportId: number, options?: { openViewer?: boolean }) => {
     setLoadingReportId(reportId)
     try {
       const fullReport = await api.getReport(reportId)
       setReport(fullReport)
-      setViewerOpen(true)
+      if (options?.openViewer) {
+        setViewerOpen(true)
+      }
     } catch {
       toast.error('Could not open report')
     } finally {
@@ -539,11 +565,11 @@ export default function Reports() {
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={() => openReport(rep.id)}
+                      onClick={() => selectReport(rep.id)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
-                          openReport(rep.id)
+                          selectReport(rep.id)
                         }
                       }}
                       style={{ minWidth: 0, cursor: 'pointer' }}
@@ -557,8 +583,8 @@ export default function Reports() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <Button small variant="ghost" onClick={() => openReport(rep.id)}>
-                        {loadingReportId === rep.id ? 'Opening...' : 'Open'}
+                      <Button small variant="ghost" onClick={() => selectReport(rep.id, { openViewer: true })}>
+                        {loadingReportId === rep.id ? 'Opening...' : 'Open Viewer'}
                       </Button>
                       <Button small variant="ghost" onClick={() => handleDownloadPdf(rep.id)}>PDF</Button>
                       <Button small variant="ghost" onClick={() => handleShare(rep.id)}>Share</Button>
@@ -609,14 +635,14 @@ export default function Reports() {
                     {report.period_label && <Badge variant="blue">{report.period_label}</Badge>}
                   </div>
                 </div>
-                <Button onClick={() => setViewerOpen(true)} disabled={loadingReportId === report.id}>
-                  {loadingReportId === report.id ? 'Opening...' : 'Open Viewer'}
+                <Button onClick={() => setViewerOpen(true)}>
+                  Open Viewer
                 </Button>
               </div>
               <div style={{ background: 'linear-gradient(180deg, rgba(10,15,26,0.9), rgba(10,15,26,0.7))', border: '1px solid rgba(30,41,59,0.9)', borderRadius: 18, padding: '24px 26px', minHeight: 320, maxHeight: 560, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 60%, rgba(10,15,26,1) 100%)', pointerEvents: 'none' }} />
                 <div style={{ maxHeight: 500, overflowY: 'auto', overflowX: 'hidden', opacity: 0.95, paddingRight: 4 }}>
-                  {renderMarkdownReport(report.narrative || '')}
+                  {previewElements}
                 </div>
               </div>
             </div>
@@ -681,7 +707,7 @@ export default function Reports() {
 
             <div style={{ overflowY: 'auto', padding: '26px 28px 32px', background: 'linear-gradient(180deg, #08101d 0%, #0b1220 100%)', fontFamily: 'Instrument Sans, sans-serif' }}>
               <div style={{ maxWidth: 980, margin: '0 auto', background: '#0b1322', border: '1px solid rgba(51,65,85,0.55)', borderRadius: 20, padding: 'clamp(18px, 3vw, 30px)', boxShadow: '0 30px 80px rgba(0,0,0,0.35)' }}>
-                {renderMarkdownReport(report.narrative || '')}
+                {fullReportElements}
               </div>
             </div>
           </div>
