@@ -33,6 +33,8 @@ export default function Accounting() {
   const [localEntries, setLocalEntries] = useState<any[]>([])
   const [localBankAccounts, setLocalBankAccounts] = useState<any[]>([])
   const [bankDraft, setBankDraft] = useState({ account_name: '', bank_name: '', balance: '' })
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editingBankId, setEditingBankId] = useState<number | null>(null)
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts'],
@@ -94,22 +96,26 @@ export default function Accounting() {
       return
     }
 
-    setLocalEntries((current) => [
-      {
-        id: `local-${Date.now()}`,
-        reference: journalDraft.reference,
-        date: new Date().toISOString(),
-        description: journalDraft.description,
-        source: 'manual',
-        total_debit: debit,
-        total_credit: credit,
-        status: 'posted',
-      },
-      ...current,
-    ])
+    const nextEntry = {
+      id: editingEntryId ?? `local-${Date.now()}`,
+      reference: journalDraft.reference,
+      date: new Date().toISOString(),
+      description: journalDraft.description,
+      source: 'manual',
+      total_debit: debit,
+      total_credit: credit,
+      status: 'posted',
+    }
+
+    setLocalEntries((current) =>
+      editingEntryId
+        ? current.map((entry) => entry.id === editingEntryId ? nextEntry : entry)
+        : [nextEntry, ...current]
+    )
     setJournalDraft({ reference: '', description: '', debit: '', credit: '' })
     setShowJournalEntry(false)
-    toast.success('Journal entry posted')
+    setEditingEntryId(null)
+    toast.success(editingEntryId ? 'Journal entry updated' : 'Journal entry posted')
   }
 
   const syncBank = (bankId: number) => {
@@ -138,17 +144,56 @@ export default function Accounting() {
       return
     }
     const newBank = {
-      id: Date.now(),
+      id: editingBankId ?? Date.now(),
       account_name: bankDraft.account_name,
       bank_name: bankDraft.bank_name,
       balance: Number(bankDraft.balance),
       last_synced: new Date().toISOString(),
     }
-    setLocalBankAccounts((current) => [newBank, ...current])
+    setLocalBankAccounts((current) =>
+      editingBankId
+        ? current.map((bank) => Number(bank.id) === editingBankId ? newBank : bank)
+        : [newBank, ...current]
+    )
     setSelectedBankId(newBank.id)
     setBankDraft({ account_name: '', bank_name: '', balance: '' })
     setShowBankForm(false)
-    toast.success('Bank account added')
+    setEditingBankId(null)
+    toast.success(editingBankId ? 'Bank account updated' : 'Bank account added')
+  }
+
+  const openJournalEditor = (entry: any) => {
+    setJournalDraft({
+      reference: entry.reference,
+      description: entry.description,
+      debit: String(entry.total_debit),
+      credit: String(entry.total_credit),
+    })
+    setEditingEntryId(entry.id)
+    setShowJournalEntry(true)
+  }
+
+  const deleteJournalEntry = (entryId: string) => {
+    setLocalEntries((current) => current.filter((entry) => entry.id !== entryId))
+    toast.success('Journal entry deleted')
+  }
+
+  const openBankEditor = (bank: any) => {
+    setBankDraft({
+      account_name: bank.account_name,
+      bank_name: bank.bank_name,
+      balance: String(bank.balance),
+    })
+    setEditingBankId(Number(bank.id))
+    setShowBankForm(true)
+  }
+
+  const deleteBankAccount = (bankId: number) => {
+    setLocalBankAccounts((current) => current.filter((bank) => Number(bank.id) !== bankId))
+    if (selectedBankId === bankId) {
+      setSelectedBankId(null)
+    }
+    toast.success('Bank account deleted')
   }
 
   const TABS: { id: Tab; label: string }[] = [
@@ -258,6 +303,7 @@ export default function Accounting() {
               { key: 'total_debit', header: 'Debit', align: 'right', mono: true, render: (r) => gbp(Number(r.total_debit)) },
               { key: 'total_credit', header: 'Credit', align: 'right', mono: true, render: (r) => gbp(Number(r.total_credit)) },
               { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'posted' ? 'green' : r.status === 'voided' ? 'red' : 'amber'}>{r.status}</Badge> },
+              { key: 'actions', header: '', render: (r) => String(r.id).startsWith('local-') ? <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><Button small variant="ghost" onClick={() => openJournalEditor(r)}>Edit</Button><Button small variant="ghost" onClick={() => deleteJournalEntry(String(r.id))} style={{ color: '#f87171' }}>Delete</Button></div> : <Button small variant="ghost" onClick={() => toast.success(`Viewing ${r.reference}`)}>View</Button> },
             ]}
             data={entries}
             emptyMessage="No journal entries posted yet"
@@ -282,6 +328,8 @@ export default function Accounting() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Button small variant="ghost" onClick={() => syncBank(Number(bank.id))}>Sync</Button>
                     <Button small variant="ghost" onClick={() => setSelectedBankId(Number(bank.id))}>View Transactions</Button>
+                    {localBankAccounts.some((item) => Number(item.id) === Number(bank.id)) && <Button small variant="ghost" onClick={() => openBankEditor(bank)}>Edit</Button>}
+                    {localBankAccounts.some((item) => Number(item.id) === Number(bank.id)) && <Button small variant="ghost" onClick={() => deleteBankAccount(Number(bank.id))} style={{ color: '#f87171' }}>Delete</Button>}
                   </div>
                 </div>
               </Panel>
@@ -362,7 +410,7 @@ export default function Accounting() {
       {showJournalEntry && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
           <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
-            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>Post Journal Entry</div>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingEntryId ? 'Edit Journal Entry' : 'Post Journal Entry'}</div>
             <FormInput label="Reference" value={journalDraft.reference} onChange={(v) => setJournalDraft({ ...journalDraft, reference: v })} placeholder="e.g. JE-240509-01" />
             <FormInput label="Description" value={journalDraft.description} onChange={(v) => setJournalDraft({ ...journalDraft, description: v })} placeholder="e.g. Month end adjustment" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
@@ -370,8 +418,8 @@ export default function Accounting() {
               <FormInput label="Credit" value={journalDraft.credit} onChange={(v) => setJournalDraft({ ...journalDraft, credit: v })} type="number" placeholder="0.00" />
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Button variant="ghost" fullWidth onClick={() => setShowJournalEntry(false)}>Cancel</Button>
-              <Button fullWidth onClick={postJournalEntry}>Post Entry</Button>
+              <Button variant="ghost" fullWidth onClick={() => { setShowJournalEntry(false); setEditingEntryId(null); setJournalDraft({ reference: '', description: '', debit: '', credit: '' }) }}>Cancel</Button>
+              <Button fullWidth onClick={postJournalEntry}>{editingEntryId ? 'Save Entry' : 'Post Entry'}</Button>
             </div>
           </div>
         </div>
@@ -380,13 +428,13 @@ export default function Accounting() {
       {showBankForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
           <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>Add Bank Account</div>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingBankId ? 'Edit Bank Account' : 'Add Bank Account'}</div>
             <FormInput label="Account Name" value={bankDraft.account_name} onChange={(v) => setBankDraft({ ...bankDraft, account_name: v })} placeholder="Current Account" />
             <FormInput label="Bank Name" value={bankDraft.bank_name} onChange={(v) => setBankDraft({ ...bankDraft, bank_name: v })} placeholder="Barclays" />
             <FormInput label="Opening Balance" value={bankDraft.balance} onChange={(v) => setBankDraft({ ...bankDraft, balance: v })} type="number" placeholder="0.00" />
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Button variant="ghost" fullWidth onClick={() => setShowBankForm(false)}>Cancel</Button>
-              <Button fullWidth onClick={addBankAccount}>Add Bank Account</Button>
+              <Button variant="ghost" fullWidth onClick={() => { setShowBankForm(false); setEditingBankId(null); setBankDraft({ account_name: '', bank_name: '', balance: '' }) }}>Cancel</Button>
+              <Button fullWidth onClick={addBankAccount}>{editingBankId ? 'Save Bank Account' : 'Add Bank Account'}</Button>
             </div>
           </div>
         </div>

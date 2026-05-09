@@ -1,12 +1,47 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import { Panel, Badge, Button, DataTable, Alert, StatCard, FormInput } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import toast from 'react-hot-toast'
 
 type Tab = 'invoices' | 'suppliers' | 'aged' | 'payments' | 'po'
+type InvoiceStatus = 'Pending Approval' | 'Approved' | 'Paid'
 
-const INITIAL_INVOICES = [
+type InvoiceRecord = {
+  ref: string
+  supplier: string
+  due: string
+  amount: string
+  status: InvoiceStatus
+  variant: 'amber' | 'green'
+}
+
+type SupplierRecord = {
+  name: string
+  category: string
+  terms: string
+  outstanding: string
+  status: string
+}
+
+const EMPTY_INVOICE: InvoiceRecord = {
+  ref: '',
+  supplier: '',
+  due: '',
+  amount: '',
+  status: 'Pending Approval',
+  variant: 'amber',
+}
+
+const EMPTY_SUPPLIER: SupplierRecord = {
+  name: '',
+  category: 'New Supplier',
+  terms: 'Net 30',
+  outstanding: '£0.00',
+  status: 'Active',
+}
+
+const INITIAL_INVOICES: InvoiceRecord[] = [
   { ref: 'SUP-0128', supplier: 'Manchester Catering Co', due: '20 Mar 2025', amount: '£124.00', status: 'Pending Approval', variant: 'amber' },
   { ref: 'SUP-0129', supplier: 'Rochdale Venue Hire', due: '25 Mar 2025', amount: '£200.00', status: 'Approved', variant: 'green' },
   { ref: 'SUP-0130', supplier: 'BT Business', due: '01 Apr 2025', amount: '£89.50', status: 'Pending Approval', variant: 'amber' },
@@ -14,7 +49,7 @@ const INITIAL_INVOICES = [
   { ref: 'SUP-0126', supplier: 'Office Supplies Ltd', due: '05 Mar 2025', amount: '£67.20', status: 'Paid', variant: 'green' },
 ]
 
-const INITIAL_SUPPLIERS = [
+const INITIAL_SUPPLIERS: SupplierRecord[] = [
   { name: 'Manchester Catering Co', category: 'Catering', terms: 'Net 30', outstanding: '£124.00', status: 'Active' },
   { name: 'Rochdale Venue Hire', category: 'Facilities', terms: 'Net 30', outstanding: '£200.00', status: 'Active' },
   { name: 'BT Business', category: 'Utilities', terms: 'Net 14', outstanding: '£89.50', status: 'Active' },
@@ -24,36 +59,84 @@ const INITIAL_SUPPLIERS = [
 export default function AP() {
   const [tab, setTab] = useState<Tab>('invoices')
   const [filter, setFilter] = useState('all')
-  const [supplierName, setSupplierName] = useState('')
-  const [invoiceRef, setInvoiceRef] = useState('')
-  const [invoices, setInvoices] = useState(INITIAL_INVOICES)
-  const [suppliers, setSuppliers] = useState(INITIAL_SUPPLIERS)
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>(INITIAL_INVOICES)
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>(INITIAL_SUPPLIERS)
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+  const [showSupplierForm, setShowSupplierForm] = useState(false)
+  const [invoiceForm, setInvoiceForm] = useState<InvoiceRecord>(EMPTY_INVOICE)
+  const [supplierForm, setSupplierForm] = useState<SupplierRecord>(EMPTY_SUPPLIER)
+  const [editingInvoiceRef, setEditingInvoiceRef] = useState<string | null>(null)
+  const [editingSupplierName, setEditingSupplierName] = useState<string | null>(null)
 
   const filtered = filter === 'all' ? invoices : invoices.filter((invoice) => invoice.status.toLowerCase().includes(filter))
   const exportPayables = () => downloadCsvFile('accounts-payable.csv', filtered)
 
-  const addInvoice = () => {
-    const ref = invoiceRef.trim() || `SUP-${String(invoices.length + 131).padStart(4, '0')}`
-    setInvoices((current) => [
-      { ref, supplier: supplierName.trim() || 'New Supplier', due: '31 May 2026', amount: '£150.00', status: 'Pending Approval', variant: 'amber' },
-      ...current,
-    ])
-    setInvoiceRef('')
-    setSupplierName('')
-    toast.success('Supplier invoice logged')
+  const openInvoiceForm = (record?: InvoiceRecord) => {
+    setInvoiceForm(record ?? {
+      ...EMPTY_INVOICE,
+      ref: `SUP-${String(invoices.length + 131).padStart(4, '0')}`,
+      due: '31 May 2026',
+      amount: '£150.00',
+    })
+    setEditingInvoiceRef(record?.ref ?? null)
+    setShowInvoiceForm(true)
   }
 
-  const addSupplier = () => {
-    if (!supplierName.trim()) {
+  const saveInvoice = () => {
+    if (!invoiceForm.ref.trim() || !invoiceForm.supplier.trim() || !invoiceForm.amount.trim() || !invoiceForm.due.trim()) {
+      toast.error('Complete the invoice details before saving')
+      return
+    }
+
+    const next = { ...invoiceForm, variant: invoiceForm.status === 'Pending Approval' ? 'amber' : 'green' as 'amber' | 'green' }
+    if (editingInvoiceRef) {
+      setInvoices((current) => current.map((invoice) => invoice.ref === editingInvoiceRef ? next : invoice))
+      toast.success(`Invoice ${next.ref} updated`)
+    } else {
+      setInvoices((current) => [next, ...current])
+      toast.success('Supplier invoice logged')
+    }
+
+    setShowInvoiceForm(false)
+    setEditingInvoiceRef(null)
+    setInvoiceForm(EMPTY_INVOICE)
+  }
+
+  const deleteInvoice = (ref: string) => {
+    setInvoices((current) => current.filter((invoice) => invoice.ref !== ref))
+    toast.success(`Invoice ${ref} deleted`)
+  }
+
+  const openSupplierForm = (record?: SupplierRecord) => {
+    setSupplierForm(record ?? EMPTY_SUPPLIER)
+    setEditingSupplierName(record?.name ?? null)
+    setShowSupplierForm(true)
+  }
+
+  const saveSupplier = () => {
+    if (!supplierForm.name.trim()) {
       toast.error('Enter a supplier name first')
       return
     }
-    setSuppliers((current) => [
-      { name: supplierName.trim(), category: 'New Supplier', terms: 'Net 30', outstanding: '£0.00', status: 'Active' },
-      ...current,
-    ])
-    setSupplierName('')
-    toast.success('Supplier added')
+
+    const next = { ...supplierForm }
+    if (editingSupplierName) {
+      setSuppliers((current) => current.map((supplier) => supplier.name === editingSupplierName ? next : supplier))
+      setInvoices((current) => current.map((invoice) => invoice.supplier === editingSupplierName ? { ...invoice, supplier: next.name } : invoice))
+      toast.success('Supplier updated')
+    } else {
+      setSuppliers((current) => [next, ...current])
+      toast.success('Supplier added')
+    }
+
+    setShowSupplierForm(false)
+    setEditingSupplierName(null)
+    setSupplierForm(EMPTY_SUPPLIER)
+  }
+
+  const deleteSupplier = (name: string) => {
+    setSuppliers((current) => current.filter((supplier) => supplier.name !== name))
+    toast.success(`Supplier ${name} deleted`)
   }
 
   const approveInvoice = (ref: string) => {
@@ -70,15 +153,15 @@ export default function AP() {
       subtitle="Accounts Payable"
       actions={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Button variant="ghost" onClick={exportPayables}>↓ Export</Button>
-          <Button onClick={addInvoice}>+ Log Invoice</Button>
+          <Button variant="ghost" onClick={exportPayables}>Export</Button>
+          <Button onClick={() => openInvoiceForm()}>+ Log Invoice</Button>
         </div>
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Total Payable" value="£413.50" change="3 invoices outstanding" icon="⊜" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Pending Approval" value="£213.50" change="2 invoices" changeUp={false} icon="⊟" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
-        <StatCard label="Due This Week" value="£200.00" change="1 invoice" icon="◷" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Total Payable" value="£413.50" change="3 invoices outstanding" icon="AP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Pending Approval" value="£213.50" change="2 invoices" changeUp={false} icon="P" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Due This Week" value="£200.00" change="1 invoice" icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
         <StatCard label="Paid YTD" value="£24,180" change="↑ 6% vs prior year" changeUp icon="£" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
@@ -110,9 +193,7 @@ export default function AP() {
                 <option value="approved">Approved</option>
                 <option value="paid">Paid</option>
               </select>
-              <div style={{ minWidth: 150 }}><FormInput value={invoiceRef} onChange={setInvoiceRef} placeholder="Invoice ref" /></div>
-              <div style={{ minWidth: 180 }}><FormInput value={supplierName} onChange={setSupplierName} placeholder="Supplier" /></div>
-              <Button onClick={addInvoice}>+ Log Invoice</Button>
+              <Button onClick={() => openInvoiceForm()}>+ Log Invoice</Button>
             </div>
           </div>
           <Panel noPadding>
@@ -123,7 +204,17 @@ export default function AP() {
                 { key: 'due', header: 'Due Date' },
                 { key: 'amount', header: 'Amount', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#C8D3E8' }}>{row.amount}</span> },
                 { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
-                { key: 'actions', header: '', render: (row) => row.status === 'Pending Approval' ? <Button small onClick={() => approveInvoice(row.ref)}>Approve</Button> : <Button small variant="ghost" onClick={() => toast.success(`Viewing ${row.ref}`)}>View</Button> },
+                {
+                  key: 'actions',
+                  header: '',
+                  render: (row) => (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      {row.status === 'Pending Approval' && <Button small onClick={() => approveInvoice(row.ref)}>Approve</Button>}
+                      <Button small variant="ghost" onClick={() => openInvoiceForm(row as InvoiceRecord)}>Edit</Button>
+                      <Button small variant="ghost" onClick={() => deleteInvoice(row.ref)} style={{ color: '#F87171' }}>Delete</Button>
+                    </div>
+                  ),
+                },
               ]}
               data={filtered}
             />
@@ -136,8 +227,7 @@ export default function AP() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Supplier Register</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 220 }}><FormInput value={supplierName} onChange={setSupplierName} placeholder="Supplier name" /></div>
-              <Button onClick={addSupplier}>+ Add Supplier</Button>
+              <Button onClick={() => openSupplierForm()}>+ Add Supplier</Button>
             </div>
           </div>
           <Panel noPadding>
@@ -148,6 +238,16 @@ export default function AP() {
                 { key: 'terms', header: 'Terms' },
                 { key: 'outstanding', header: 'Outstanding', align: 'right', mono: true },
                 { key: 'status', header: 'Status', render: (row) => <Badge variant="green">{row.status}</Badge> },
+                {
+                  key: 'actions',
+                  header: '',
+                  render: (row) => (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <Button small variant="ghost" onClick={() => openSupplierForm(row as SupplierRecord)}>Edit</Button>
+                      <Button small variant="ghost" onClick={() => deleteSupplier(row.name)} style={{ color: '#F87171' }}>Delete</Button>
+                    </div>
+                  ),
+                },
               ]}
               data={suppliers}
             />
@@ -156,7 +256,7 @@ export default function AP() {
       )}
 
       {tab === 'aged' && (
-        <Panel title="Aged Creditors Analysis" titleIcon="◇" iconColor="#C9A84C" action={<Badge variant="slate">DPO calculated</Badge>}>
+        <Panel title="Aged Creditors Analysis" titleIcon="A" iconColor="#C9A84C" action={<Badge variant="slate">DPO calculated</Badge>}>
           <DataTable
             columns={[
               { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.supplier}</span> },
@@ -178,9 +278,9 @@ export default function AP() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Payment Runs</div>
-            <Button onClick={runPaymentBatch}>▶ Run Payment Batch</Button>
+            <Button onClick={runPaymentBatch}>Run Payment Batch</Button>
           </div>
-          <Alert variant="info" icon="ℹ">Approved invoices ready for payment. Verify bank details before executing payment run.</Alert>
+          <Alert variant="info" icon="i">Approved invoices ready for payment. Verify bank details before executing payment run.</Alert>
           <Panel noPadding>
             <DataTable
               columns={[
@@ -205,7 +305,7 @@ export default function AP() {
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Purchase Orders</div>
             <Button onClick={createPo}>+ Create PO</Button>
           </div>
-          <Alert variant="info" icon="ℹ">3-way matching: PO → Goods Receipt → Invoice. Auto-flags mismatches for approval.</Alert>
+          <Alert variant="info" icon="i">3-way matching: PO → Goods Receipt → Invoice. Auto-flags mismatches for approval.</Alert>
           <Panel noPadding>
             <DataTable
               columns={[
@@ -222,6 +322,47 @@ export default function AP() {
             />
           </Panel>
         </>
+      )}
+
+      {showInvoiceForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingInvoiceRef ? 'Edit Supplier Invoice' : 'Log Supplier Invoice'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Invoice Reference" value={invoiceForm.ref} onChange={(v) => setInvoiceForm({ ...invoiceForm, ref: v })} placeholder="SUP-0131" />
+              <FormInput label="Supplier" value={invoiceForm.supplier} onChange={(v) => setInvoiceForm({ ...invoiceForm, supplier: v })} placeholder="Supplier name" />
+              <FormInput label="Due Date" value={invoiceForm.due} onChange={(v) => setInvoiceForm({ ...invoiceForm, due: v })} placeholder="31 May 2026" />
+              <FormInput label="Amount" value={invoiceForm.amount} onChange={(v) => setInvoiceForm({ ...invoiceForm, amount: v })} placeholder="£150.00" />
+              <FormInput label="Status" as="select" value={invoiceForm.status} onChange={(v) => setInvoiceForm({ ...invoiceForm, status: v as InvoiceStatus })}>
+                <option value="Pending Approval">Pending Approval</option>
+                <option value="Approved">Approved</option>
+                <option value="Paid">Paid</option>
+              </FormInput>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowInvoiceForm(false); setEditingInvoiceRef(null); setInvoiceForm(EMPTY_INVOICE) }}>Cancel</Button>
+              <Button fullWidth onClick={saveInvoice}>Save Invoice</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSupplierForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingSupplierName ? 'Edit Supplier' : 'Add Supplier'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Supplier Name" value={supplierForm.name} onChange={(v) => setSupplierForm({ ...supplierForm, name: v })} placeholder="Supplier name" />
+              <FormInput label="Category" value={supplierForm.category} onChange={(v) => setSupplierForm({ ...supplierForm, category: v })} placeholder="Category" />
+              <FormInput label="Terms" value={supplierForm.terms} onChange={(v) => setSupplierForm({ ...supplierForm, terms: v })} placeholder="Net 30" />
+              <FormInput label="Outstanding" value={supplierForm.outstanding} onChange={(v) => setSupplierForm({ ...supplierForm, outstanding: v })} placeholder="£0.00" />
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowSupplierForm(false); setEditingSupplierName(null); setSupplierForm(EMPTY_SUPPLIER) }}>Cancel</Button>
+              <Button fullWidth onClick={saveSupplier}>Save Supplier</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )
