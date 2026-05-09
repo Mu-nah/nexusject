@@ -170,6 +170,20 @@ def _is_divider_row(line: str) -> bool:
     return stripped.startswith("|") and set(stripped.replace("|", "").replace(":", "").replace("-", "").replace(" ", "")) == set()
 
 
+def _parse_meta_segments(line: str) -> list[tuple[str, str]]:
+    import re
+
+    markdown_matches = list(re.finditer(r"\*\*([^*]+?):\*\*\s*([^*]+?)(?=\s+\*\*[^*]+?:\*\*|$)", line))
+    if len(markdown_matches) >= 2:
+        return [(match.group(1).strip(), match.group(2).strip()) for match in markdown_matches]
+
+    plain_matches = list(re.finditer(r"([A-Za-z][A-Za-z /&()\-]+?):\s*([^:]+?)(?=\s+[A-Za-z][A-Za-z /&()\-]+?:|$)", line))
+    if len(plain_matches) >= 2:
+        return [(match.group(1).strip(), match.group(2).strip()) for match in plain_matches]
+
+    return []
+
+
 def build_report_pdf_bytes(title: str, narrative: str) -> bytes:
     styles = _build_styles()
     story = []
@@ -204,6 +218,37 @@ def build_report_pdf_bytes(title: str, narrative: str) -> bytes:
 
         if line.startswith("### "):
             story.append(Paragraph(_escape_paragraph(line[4:]), styles["h3"]))
+            i += 1
+            continue
+
+        meta_segments = _parse_meta_segments(line)
+        if len(meta_segments) >= 2:
+            rows = []
+            for label, value in meta_segments:
+                rows.append(
+                    [
+                        Paragraph(f"<b>{_escape_paragraph(label)}</b>", styles["meta"]),
+                        Paragraph(_escape_paragraph(value), styles["body"]),
+                    ]
+                )
+
+            meta_table = Table(rows, colWidths=[4.1 * cm, 10.8 * cm])
+            meta_table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                        ("BOX", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
+                        ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#E2E8F0")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                        ("TOPPADDING", (0, 0), (-1, -1), 6),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ]
+                )
+            )
+            story.append(meta_table)
+            story.append(Spacer(1, 0.18 * cm))
             i += 1
             continue
 

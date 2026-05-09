@@ -81,6 +81,26 @@ function isDividerRow(line: string): boolean {
   return /^\|?[\s:-]+(\|[\s:-]+)+\|?$/.test(line.trim())
 }
 
+function parseMetaSegments(line: string): Array<{ label: string; value: string }> {
+  const markdownMatches = Array.from(line.matchAll(/\*\*([^*]+?):\*\*\s*([^*]+?)(?=\s+\*\*[^*]+?:\*\*|$)/g))
+  if (markdownMatches.length >= 2) {
+    return markdownMatches.map((match) => ({
+      label: match[1].trim(),
+      value: match[2].trim(),
+    }))
+  }
+
+  const plainMatches = Array.from(line.matchAll(/([A-Za-z][A-Za-z /&()-]+?):\s*([^:]+?)(?=\s+[A-Za-z][A-Za-z /&()-]+?:|$)/g))
+  if (plainMatches.length >= 2) {
+    return plainMatches.map((match) => ({
+      label: match[1].trim(),
+      value: match[2].trim(),
+    }))
+  }
+
+  return []
+}
+
 function renderMarkdownReport(markdown: string): ReactNode[] {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n')
   const elements: ReactNode[] = []
@@ -185,6 +205,38 @@ function renderMarkdownReport(markdown: string): ReactNode[] {
     }
     if (line.startsWith('### ')) {
       elements.push(<h3 key={`h3-${i}`} style={{ fontSize: 16, lineHeight: 1.3, color: '#e2e8f0', margin: '22px 0 10px', fontWeight: 700 }}>{renderInline(line.slice(4))}</h3>)
+      i += 1
+      continue
+    }
+
+    const metaSegments = parseMetaSegments(line)
+    if (metaSegments.length >= 2) {
+      elements.push(
+        <div
+          key={`meta-${i}`}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 10,
+            margin: '10px 0 22px',
+          }}
+        >
+          {metaSegments.map((segment, segmentIndex) => (
+            <div
+              key={segmentIndex}
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(51,65,85,0.6)',
+                background: 'rgba(15,23,42,0.82)',
+              }}
+            >
+              <div style={{ fontSize: 10.5, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{segment.label}</div>
+              <div style={{ fontSize: 13.5, color: '#e2e8f0', lineHeight: 1.6 }}>{renderInline(segment.value)}</div>
+            </div>
+          ))}
+        </div>
+      )
       i += 1
       continue
     }
@@ -419,20 +471,20 @@ export default function Reports() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
         {REPORTS.map((r) => (
-          <Panel key={r.id} style={{ position: 'relative', overflow: 'hidden' }}>
+          <Panel key={r.id} style={{ position: 'relative', overflow: 'hidden', minHeight: 184 }}>
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(201,168,76,0.12), transparent 40%)', pointerEvents: 'none' }} />
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, position: 'relative' }}>
               <div style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 14, background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#E8C56A', fontSize: 12, fontWeight: 700 }}>
                 {r.icon}
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minHeight: 124, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                   <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 16 }}>{r.title}</div>
                   <Badge variant={r.badgeVariant}>{r.badge}</Badge>
                   {r.aiPowered && <Badge variant="green">Workspace AI</Badge>}
                 </div>
-                <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>{r.description}</div>
-                <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ minWidth: 180 }}>
+                <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6, marginBottom: 18, flex: 1 }}>{r.description}</div>
+                <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ minWidth: 160, alignSelf: 'flex-start' }}>
                   {generating === r.id ? 'Generating...' : 'Generate'}
                 </Button>
               </div>
