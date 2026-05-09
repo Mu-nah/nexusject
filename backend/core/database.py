@@ -63,5 +63,19 @@ def _ensure_runtime_columns():
             for statement in statements:
                 with engine.begin() as conn:
                     conn.execute(text(statement))
+
+        if "report_documents" in inspector.get_table_names():
+            existing = {column["name"] for column in inspector.get_columns("report_documents")}
+            statements = []
+            if "share_access_mode" not in existing:
+                statements.append(
+                    "ALTER TABLE report_documents ADD COLUMN share_access_mode VARCHAR(32) NOT NULL DEFAULT 'anyone_with_link'"
+                )
+            if "allowed_email" not in existing:
+                statements.append("ALTER TABLE report_documents ADD COLUMN allowed_email VARCHAR(255)")
+
+            for statement in statements:
+                with engine.begin() as conn:
+                    conn.execute(text(statement))
     except Exception as exc:
         logger.warning(f"Runtime schema check skipped: {exc}")

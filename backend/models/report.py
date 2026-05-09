@@ -17,5 +17,7 @@ class ReportDocument(Base):
     narrative = Column(Text, nullable=False)
     ai_generated = Column(Boolean, default=True)
     share_token = Column(String(64), unique=True, nullable=True, index=True)
+    share_access_mode = Column(String(32), nullable=False, default="anyone_with_link")
+    allowed_email = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

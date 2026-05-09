@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -16,6 +16,19 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 class ReportShareEmailRequest(BaseModel):
     email: EmailStr
     recipient_name: str = ""
+    access_mode: str = "specific_email"
+
+
+class ReportShareRequest(BaseModel):
+    access_mode: str = "anyone_with_link"
+    allowed_email: EmailStr | None = None
+
+
+def _build_share_url(base_url: str, share_token: str, email: str | None = None) -> str:
+    url = f"{base_url}/reports?shared={share_token}"
+    if email:
+        url += f"&email={email}"
+    return url
 
 
 @router.get("")
@@ -76,25 +89,36 @@ async def delete_report(
 @router.get("/shared/{share_token}")
 async def get_shared_report(
     share_token: str,
-    current_user: User = Depends(get_current_user),
+    email: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     report = (
         db.query(ReportDocument)
         .filter(
             ReportDocument.share_token == share_token,
-            ReportDocument.organisation_id == current_user.organisation_id,
         )
         .first()
     )
     if not report:
         raise HTTPException(status_code=404, detail="Shared report not found")
+
+    access_mode = getattr(report, "share_access_mode", "anyone_with_link")
+    allowed_email = (getattr(report, "allowed_email", None) or "").strip().lower()
+
+    if access_mode == "specific_email":
+        provided_email = (email or "").strip().lower()
+        if not provided_email:
+            raise HTTPException(status_code=403, detail="email_required")
+        if allowed_email and provided_email != allowed_email:
+            raise HTTPException(status_code=403, detail="email_not_allowed")
+
     return serialize_report(report)
 
 
 @router.post("/{report_id}/share")
 async def get_share_link(
     report_id: int,
+    data: ReportShareRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -109,11 +133,25 @@ async def get_share_link(
     )
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+
+    if data.access_mode not in {"anyone_with_link", "specific_email"}:
+        raise HTTPException(status_code=400, detail="Invalid access mode")
+    if data.access_mode == "specific_email" and not data.allowed_email:
+        raise HTTPException(status_code=400, detail="Allowed email is required for restricted sharing")
+
+    report.share_access_mode = data.access_mode
+    report.allowed_email = data.allowed_email.lower() if data.allowed_email else None
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
     base_url = request.headers.get("origin") or "http://localhost:3000"
     return {
         "report_id": report.id,
         "share_token": report.share_token,
-        "share_url": f"{base_url}/reports?shared={report.share_token}",
+        "share_access_mode": report.share_access_mode,
+        "allowed_email": report.allowed_email,
+        "share_url": _build_share_url(base_url, report.share_token, report.allowed_email if report.share_access_mode == "specific_email" else None),
     }
 
 
@@ -138,7 +176,14 @@ async def email_share_report(
 
     organisation = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
     base_url = request.headers.get("origin") or "http://localhost:3000"
-    share_url = f"{base_url}/reports?shared={report.share_token}"
+    access_mode = data.access_mode if data.access_mode in {"anyone_with_link", "specific_email"} else "specific_email"
+    report.share_access_mode = access_mode
+    report.allowed_email = data.email.lower() if access_mode == "specific_email" else None
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    share_url = _build_share_url(base_url, report.share_token, report.allowed_email if report.share_access_mode == "specific_email" else None)
     pdf_bytes = build_report_pdf_bytes(report.title, report.narrative)
     sent = send_report_share_email(
         to_email=data.email,
@@ -149,7 +194,7 @@ async def email_share_report(
         share_link=share_url,
         pdf_bytes=pdf_bytes,
     )
-    return {"sent": sent, "share_url": share_url}
+    return {"sent": sent, "share_url": share_url, "share_access_mode": report.share_access_mode, "allowed_email": report.allowed_email}
 
 
 @router.get("/{report_id}/pdf")

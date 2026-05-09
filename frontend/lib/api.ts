@@ -425,15 +425,17 @@ class ApiClient {
     return (await this.client.delete(`/reports/${reportId}`)).data
   }
 
-  async getSharedReport(shareToken: string) {
-    return (await this.client.get(`/reports/shared/${shareToken}`)).data
+  async getSharedReport(shareToken: string, email?: string) {
+    return (await this.client.get(`/reports/shared/${shareToken}`, {
+      params: email ? { email } : undefined,
+    })).data
   }
 
-  async createShareLink(reportId: number) {
-    return (await this.client.post(`/reports/${reportId}/share`)).data
+  async createShareLink(reportId: number, data?: { access_mode?: 'anyone_with_link' | 'specific_email'; allowed_email?: string }) {
+    return (await this.client.post(`/reports/${reportId}/share`, data ?? {})).data
   }
 
-  async emailShareReport(reportId: number, data: { email: string; recipient_name?: string }) {
+  async emailShareReport(reportId: number, data: { email: string; recipient_name?: string; access_mode?: 'anyone_with_link' | 'specific_email' }) {
     return (await this.client.post(`/reports/${reportId}/email-share`, data)).data
   }
 

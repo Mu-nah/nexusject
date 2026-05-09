@@ -13,6 +13,8 @@ interface WorkspaceReport {
   report_type: string
   period_label?: string | null
   narrative?: string
+  share_access_mode?: 'anyone_with_link' | 'specific_email'
+  allowed_email?: string | null
   created_at: string
   share_token?: string
 }
@@ -322,12 +324,19 @@ export default function Reports() {
   const [filterType, setFilterType] = useState('all')
   const [shareEmail, setShareEmail] = useState('')
   const [shareName, setShareName] = useState('')
+  const [shareAccessMode, setShareAccessMode] = useState<'anyone_with_link' | 'specific_email'>('anyone_with_link')
   const [viewerOpen, setViewerOpen] = useState(false)
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null)
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null)
   const [showAllHistory, setShowAllHistory] = useState(false)
+  const [sharedAccessEmail, setSharedAccessEmail] = useState('')
+  const [sharedAccessRequired, setSharedAccessRequired] = useState(false)
+  const [sharedAccessError, setSharedAccessError] = useState('')
+  const [isLoadingShared, setIsLoadingShared] = useState(false)
+  const [hasAuthToken, setHasAuthToken] = useState(false)
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
+  const sharedEmailQuery = typeof router.query.email === 'string' ? router.query.email : ''
 
   const previewNarrative = useMemo(
     () => buildPreviewMarkdown(report?.narrative || ''),
@@ -344,6 +353,17 @@ export default function Reports() {
     [report?.id, report?.narrative]
   )
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setHasAuthToken(Boolean(window.localStorage.getItem('erp_token')))
+  }, [])
+
+  useEffect(() => {
+    if (sharedEmailQuery) {
+      setSharedAccessEmail(sharedEmailQuery)
+    }
+  }, [sharedEmailQuery])
+
   const loadHistory = async () => {
     setIsLoadingHistory(true)
     try {
@@ -352,6 +372,8 @@ export default function Reports() {
       if (!report && items.length > 0 && !shareQuery) {
         const fullReport = await api.getReport(items[0].id)
         setReport(fullReport)
+        setShareAccessMode(fullReport.share_access_mode === 'specific_email' ? 'specific_email' : 'anyone_with_link')
+        setShareEmail(fullReport.allowed_email || '')
       }
     } finally {
       setIsLoadingHistory(false)
@@ -363,6 +385,8 @@ export default function Reports() {
     try {
       const fullReport = await api.getReport(reportId)
       setReport(fullReport)
+      setShareAccessMode(fullReport.share_access_mode === 'specific_email' ? 'specific_email' : 'anyone_with_link')
+      setShareEmail(fullReport.allowed_email || '')
       if (options?.openViewer) {
         setViewerOpen(true)
       }
@@ -374,19 +398,38 @@ export default function Reports() {
   }
 
   useEffect(() => {
+    if (shareQuery && !hasAuthToken) return
     loadHistory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [shareQuery, hasAuthToken])
 
   useEffect(() => {
     if (!shareQuery) return
-    api.getSharedReport(shareQuery)
+    setIsLoadingShared(true)
+    setSharedAccessError('')
+    setSharedAccessRequired(false)
+    api.getSharedReport(shareQuery, sharedEmailQuery || undefined)
       .then((shared) => {
         setReport(shared)
+        setShareAccessMode(shared.share_access_mode === 'specific_email' ? 'specific_email' : 'anyone_with_link')
+        setShareEmail(shared.allowed_email || '')
         setViewerOpen(true)
       })
-      .catch(() => toast.error('Shared report not found'))
-  }, [shareQuery])
+      .catch((error) => {
+        const detail = error?.response?.data?.detail
+        if (detail === 'email_required') {
+          setSharedAccessRequired(true)
+          return
+        }
+        if (detail === 'email_not_allowed') {
+          setSharedAccessRequired(true)
+          setSharedAccessError('This shared report is restricted to a specific email address.')
+          return
+        }
+        toast.error('Shared report not found')
+      })
+      .finally(() => setIsLoadingShared(false))
+  }, [shareQuery, sharedEmailQuery])
 
   const generate = async (type: ReportType) => {
     if (!type) return
@@ -433,11 +476,18 @@ export default function Reports() {
   }
 
   const handleShare = async (reportId: number) => {
+    if (shareAccessMode === 'specific_email' && !shareEmail.trim()) {
+      toast.error('Enter the allowed email address first')
+      return
+    }
     try {
-      const res = await api.createShareLink(reportId)
-      const shareUrl = `${window.location.origin}/reports?shared=${res.share_token}`
+      const res = await api.createShareLink(reportId, {
+        access_mode: shareAccessMode,
+        allowed_email: shareAccessMode === 'specific_email' ? shareEmail.trim() : undefined,
+      })
+      const shareUrl = res.share_url || `${window.location.origin}/reports?shared=${res.share_token}`
       await navigator.clipboard.writeText(shareUrl)
-      toast.success('Share link copied')
+      toast.success(shareAccessMode === 'specific_email' ? 'Restricted share link copied' : 'Share link copied')
     } catch {
       toast.error('Share link could not be created')
     }
@@ -452,10 +502,43 @@ export default function Reports() {
       const res = await api.emailShareReport(reportId, {
         email: shareEmail.trim(),
         recipient_name: shareName.trim(),
+        access_mode: shareAccessMode,
       })
       toast.success(res.sent ? 'Report emailed successfully' : 'SMTP not configured - email not sent')
     } catch {
       toast.error('Email share failed')
+    }
+  }
+
+  const handleSharedAccessSubmit = async () => {
+    if (!shareQuery || !sharedAccessEmail.trim()) {
+      setSharedAccessError('Enter the allowed email address to open this shared report.')
+      return
+    }
+
+    setIsLoadingShared(true)
+    setSharedAccessError('')
+    try {
+      const shared = await api.getSharedReport(shareQuery, sharedAccessEmail.trim())
+      setReport(shared)
+      setViewerOpen(true)
+      await router.replace(
+        {
+          pathname: router.pathname,
+          query: { ...router.query, shared: shareQuery, email: sharedAccessEmail.trim() },
+        },
+        undefined,
+        { shallow: true }
+      )
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      setSharedAccessError(
+        detail === 'email_not_allowed'
+          ? 'That email does not have access to this shared report.'
+          : 'The shared report could not be opened.'
+      )
+    } finally {
+      setIsLoadingShared(false)
     }
   }
 
@@ -513,6 +596,27 @@ export default function Reports() {
       <Alert variant="success" icon="AI">
         AI-generated reports are saved to the workspace library. Open them in the report viewer, share them, download PDF copies, or remove older versions from history.
       </Alert>
+
+      {shareQuery && sharedAccessRequired && !report && (
+        <Panel style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', marginBottom: 8 }}>Restricted Shared Report</div>
+          <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.7, marginBottom: 14 }}>
+            This report is limited to a specific email address. Enter that email to open the shared document.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) auto', gap: 10 }}>
+            <input
+              value={sharedAccessEmail}
+              onChange={(e) => setSharedAccessEmail(e.target.value)}
+              placeholder="Allowed email address"
+              style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+            />
+            <Button onClick={handleSharedAccessSubmit} disabled={isLoadingShared}>
+              {isLoadingShared ? 'Checking...' : 'Open Shared Report'}
+            </Button>
+          </div>
+          {sharedAccessError && <div style={{ fontSize: 12.5, color: '#f87171', marginTop: 10 }}>{sharedAccessError}</div>}
+        </Panel>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
         {REPORTS.map((r) => (
@@ -707,6 +811,14 @@ export default function Reports() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, padding: '16px 22px', borderBottom: '1px solid rgba(51,65,85,0.35)', background: '#0f172a' }}>
+              <select
+                value={shareAccessMode}
+                onChange={(e) => setShareAccessMode(e.target.value as 'anyone_with_link' | 'specific_email')}
+                style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
+              >
+                <option value="anyone_with_link">Anyone with link</option>
+                <option value="specific_email">Specific email only</option>
+              </select>
               <input
                 value={shareName}
                 onChange={(e) => setShareName(e.target.value)}
@@ -716,7 +828,7 @@ export default function Reports() {
               <input
                 value={shareEmail}
                 onChange={(e) => setShareEmail(e.target.value)}
-                placeholder="Recipient email"
+                placeholder={shareAccessMode === 'specific_email' ? 'Allowed / recipient email' : 'Recipient email'}
                 style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', color: '#E8EDF5' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

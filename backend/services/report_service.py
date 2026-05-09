@@ -42,6 +42,8 @@ def save_workspace_report(
         narrative=narrative,
         ai_generated=ai_generated,
         share_token=secrets.token_urlsafe(18),
+        share_access_mode="anyone_with_link",
+        allowed_email=None,
     )
     db.add(report)
     db.commit()
@@ -58,6 +60,8 @@ def serialize_report(report: ReportDocument) -> dict:
         "narrative": report.narrative,
         "ai_generated": report.ai_generated,
         "share_token": report.share_token,
+        "share_access_mode": getattr(report, "share_access_mode", "anyone_with_link"),
+        "allowed_email": getattr(report, "allowed_email", None),
         "created_at": report.created_at.isoformat(),
         "updated_at": report.updated_at.isoformat(),
     }
@@ -71,6 +75,8 @@ def serialize_report_summary(report: ReportDocument) -> dict:
         "period_label": report.period_label,
         "ai_generated": report.ai_generated,
         "share_token": report.share_token,
+        "share_access_mode": getattr(report, "share_access_mode", "anyone_with_link"),
+        "allowed_email": getattr(report, "allowed_email", None),
         "created_at": report.created_at.isoformat(),
         "updated_at": report.updated_at.isoformat(),
     }
