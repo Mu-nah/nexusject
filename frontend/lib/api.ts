@@ -70,8 +70,30 @@ class ApiClient {
     return (await this.client.get('/admin/users')).data
   }
 
+  async getWorkspace() {
+    return (await this.client.get('/admin/workspace')).data
+  }
+
+  async updateWorkspace(data: {
+    name?: string
+    legal_type?: string
+    charity_number?: string
+    companies_house_number?: string
+    address?: string
+    email?: string
+    phone?: string
+    country?: string
+    currency?: string
+  }) {
+    return (await this.client.patch('/admin/workspace', data)).data
+  }
+
   async listWorkspaceInvites() {
     return (await this.client.get('/admin/invites')).data
+  }
+
+  async getAccessMonitor() {
+    return (await this.client.get('/admin/access-monitor')).data
   }
 
   async inviteWorkspaceUser(data: { email: string; full_name: string; role: string }) {

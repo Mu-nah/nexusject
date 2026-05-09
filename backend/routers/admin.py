@@ -43,9 +43,12 @@ class OrgUpdate(BaseModel):
     name: Optional[str] = None
     legal_type: Optional[str] = None
     charity_number: Optional[str] = None
+    companies_house_number: Optional[str] = None
     address: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
+    country: Optional[str] = None
+    currency: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -76,6 +79,59 @@ async def list_organisations(
         }
         for o in orgs
     ]
+
+
+@router.get("/workspace")
+async def get_workspace(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+
+    return {
+        "id": org.id,
+        "slug": org.slug,
+        "name": org.name,
+        "legal_type": org.legal_type,
+        "charity_number": org.charity_number,
+        "companies_house_number": org.companies_house_number,
+        "address": org.address,
+        "email": org.email,
+        "phone": org.phone,
+        "country": org.country,
+        "currency": org.currency,
+        "is_active": org.is_active,
+        "created_at": org.created_at.isoformat(),
+        "updated_at": org.updated_at.isoformat() if org.updated_at else None,
+    }
+
+
+@router.patch("/workspace")
+async def update_workspace(
+    data: OrgUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(org, field, value)
+    org.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(org)
+
+    return {
+        "id": org.id,
+        "name": org.name,
+        "legal_type": org.legal_type,
+        "country": org.country,
+        "currency": org.currency,
+        "updated": True,
+    }
 
 
 @router.post("/organisations", status_code=201)
@@ -232,6 +288,58 @@ async def list_invites(
         }
         for invite in invites
     ]
+
+
+@router.get("/access-monitor")
+async def access_monitor(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    users = (
+        db.query(User)
+        .filter(User.organisation_id == current_user.organisation_id)
+        .order_by(User.full_name)
+        .all()
+    )
+    invites = (
+        db.query(WorkspaceInvite)
+        .filter(WorkspaceInvite.organisation_id == current_user.organisation_id)
+        .order_by(WorkspaceInvite.created_at.desc())
+        .all()
+    )
+
+    return {
+        "summary": {
+            "active_users": sum(1 for user in users if user.is_active),
+            "owners_admins": sum(1 for user in users if user.role in {"owner", "admin"}),
+            "pending_invites": sum(1 for invite in invites if not invite.accepted),
+            "never_logged_in": sum(1 for user in users if not user.last_login),
+        },
+        "users": [
+            {
+                "id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "role": user.role,
+                "is_active": user.is_active,
+                "last_login": user.last_login.isoformat() if user.last_login else None,
+                "created_at": user.created_at.isoformat(),
+            }
+            for user in users
+        ],
+        "invites": [
+            {
+                "id": invite.id,
+                "full_name": invite.full_name,
+                "email": invite.email,
+                "role": invite.role,
+                "accepted": invite.accepted,
+                "created_at": invite.created_at.isoformat(),
+                "accepted_at": invite.accepted_at.isoformat() if invite.accepted_at else None,
+            }
+            for invite in invites
+        ],
+    }
 
 
 @router.patch("/users/{user_id}/role")
