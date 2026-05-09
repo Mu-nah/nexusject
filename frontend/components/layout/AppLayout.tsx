@@ -81,7 +81,14 @@ interface Props {
 export default function AppLayout({ children, title, subtitle, actions }: Props) {
   const router = useRouter()
   const { user, logout } = useAuthStore()
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    const attrTheme = document.documentElement.getAttribute('data-theme')
+    if (attrTheme === 'light' || attrTheme === 'dark') return attrTheme
+    const storedTheme = window.localStorage.getItem('nexus-theme')
+    if (storedTheme === 'light' || storedTheme === 'dark') return storedTheme
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  })
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
@@ -103,15 +110,12 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const storedTheme = window.localStorage.getItem('nexus-theme')
-    const nextTheme =
-      storedTheme === 'light' || storedTheme === 'dark'
-        ? storedTheme
-        : window.matchMedia('(prefers-color-scheme: light)').matches
-          ? 'light'
-          : 'dark'
-    setTheme(nextTheme)
-    document.documentElement.setAttribute('data-theme', nextTheme)
+    const attrTheme = document.documentElement.getAttribute('data-theme')
+    if (attrTheme === 'light' || attrTheme === 'dark') {
+      setTheme(attrTheme)
+      return
+    }
+    document.documentElement.setAttribute('data-theme', theme)
   }, [])
 
   useEffect(() => {

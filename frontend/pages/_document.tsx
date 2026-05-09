@@ -1,6 +1,20 @@
 import { Head, Html, Main, NextScript } from 'next/document'
 
 export default function Document() {
+  const themeInitScript = `
+    (function () {
+      try {
+        var stored = window.localStorage.getItem('nexus-theme');
+        var theme = stored === 'light' || stored === 'dark'
+          ? stored
+          : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (error) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  `
+
   return (
     <Html lang="en">
       <Head>
@@ -14,6 +28,7 @@ export default function Document() {
         />
       </Head>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <Main />
         <NextScript />
       </body>
