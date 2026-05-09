@@ -520,27 +520,34 @@ export default function Reports() {
           <div style={{ fontSize: 13, color: '#64748b' }}>Generate your first workspace report to start building the shared library.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {visibleHistory.map((rep) => {
+{visibleHistory.map((rep) => {
                 const isActive = report?.id === rep.id
                 return (
-                  <button
+                  <div
                     key={rep.id}
-                    onClick={() => openReport(rep.id)}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) auto',
                       gap: 12,
                       width: '100%',
-                      textAlign: 'left',
                       padding: 14,
                       background: isActive ? 'rgba(201,168,76,0.1)' : '#10141d',
                       border: isActive ? '1px solid rgba(201,168,76,0.38)' : '1px solid rgba(255,255,255,0.06)',
                       borderRadius: 14,
-                      cursor: 'pointer',
                     }}
                   >
-                    <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openReport(rep.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openReport(rep.id)
+                        }
+                      }}
+                      style={{ minWidth: 0, cursor: 'pointer' }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                         <div style={{ fontWeight: 600, color: '#e2e8f0' }}>{rep.title}</div>
                         <Badge variant="slate">{rep.report_type.replace(/_/g, ' ')}</Badge>
@@ -550,14 +557,14 @@ export default function Reports() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleDownloadPdf(rep.id) }}>PDF</Button>
-                      <Button small variant="ghost" onClick={(e) => { e.stopPropagation(); handleShare(rep.id) }}>Share</Button>
+                      <Button small variant="ghost" onClick={() => openReport(rep.id)}>
+                        {loadingReportId === rep.id ? 'Opening...' : 'Open'}
+                      </Button>
+                      <Button small variant="ghost" onClick={() => handleDownloadPdf(rep.id)}>PDF</Button>
+                      <Button small variant="ghost" onClick={() => handleShare(rep.id)}>Share</Button>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteReport(rep.id)
-                        }}
+                        onClick={() => handleDeleteReport(rep.id)}
                         disabled={deletingReportId === rep.id}
                         style={{
                           width: 32,
@@ -574,7 +581,7 @@ export default function Reports() {
                         ×
                       </button>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
               {filteredHistory.length > 5 && (
