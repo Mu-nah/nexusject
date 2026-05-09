@@ -1,18 +1,67 @@
 import { useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
-import { Alert, Badge, Button, DataTable, Panel, StatCard } from '@/components/ui'
+import { Alert, Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import toast from 'react-hot-toast'
 
 type Tab = 'licence' | 'workers' | 'cos' | 'duties' | 'audit'
 
+type WorkerRecord = {
+  name: string
+  role: string
+  cos: string
+  startDate: string
+  visaExpiry: string
+  rtw: string
+  rtwV: 'amber' | 'green' | 'red'
+  status: string
+}
+
+type CosRecord = {
+  cosRef: string
+  worker: string
+  type: string
+  issued: string
+  status: string
+  sV: 'green' | 'slate' | 'amber'
+}
+
+const EMPTY_WORKER: WorkerRecord = {
+  name: '',
+  role: '',
+  cos: '',
+  startDate: '',
+  visaExpiry: '',
+  rtw: 'Due Soon',
+  rtwV: 'amber',
+  status: 'Active',
+}
+
+const EMPTY_COS: CosRecord = {
+  cosRef: '',
+  worker: 'Unassigned',
+  type: 'Undefined',
+  issued: '',
+  status: 'Available',
+  sV: 'slate',
+}
+
 export default function UKVI() {
   const [tab, setTab] = useState<Tab>('licence')
   const [dutyLog, setDutyLog] = useState('No report has been submitted from this screen yet.')
-
-  const workers = [
-    { name: 'Kwame Okafor', role: 'Community Worker / 3229', cos: 'CoS-2023-0041', startDate: '01 Jun 2023', visaExpiry: '31 Dec 2026', rtw: 'Due Soon', rtwV: 'amber' as const, status: 'Active' },
-  ]
+  const [workers, setWorkers] = useState<WorkerRecord[]>([
+    { name: 'Kwame Okafor', role: 'Community Worker / 3229', cos: 'CoS-2023-0041', startDate: '01 Jun 2023', visaExpiry: '31 Dec 2026', rtw: 'Due Soon', rtwV: 'amber', status: 'Active' },
+  ])
+  const [cosRecords, setCosRecords] = useState<CosRecord[]>([
+    { cosRef: 'CoS-2023-0041', worker: 'Kwame Okafor', type: 'Defined', issued: '15 May 2023', status: 'Used', sV: 'green' },
+    { cosRef: 'CoS-2024-0012', worker: 'Unassigned', type: 'Undefined', issued: '-', status: 'Available', sV: 'slate' },
+  ])
+  const [showWorkerForm, setShowWorkerForm] = useState(false)
+  const [showCosForm, setShowCosForm] = useState(false)
+  const [workerForm, setWorkerForm] = useState<WorkerRecord>(EMPTY_WORKER)
+  const [cosForm, setCosForm] = useState<CosRecord>(EMPTY_COS)
+  const [editingWorkerIndex, setEditingWorkerIndex] = useState<number | null>(null)
+  const [editingCosIndex, setEditingCosIndex] = useState<number | null>(null)
 
   const exportPack = () => {
     downloadCsvFile('ukvi-audit-pack-index.csv', [
@@ -22,6 +71,52 @@ export default function UKVI() {
       { section: 'HR policies', status: 'Ready' },
     ])
     toast.success('Audit pack index exported')
+  }
+
+  const openWorkerForm = (record?: WorkerRecord, index?: number) => {
+    setWorkerForm(record ?? EMPTY_WORKER)
+    setEditingWorkerIndex(index ?? null)
+    setShowWorkerForm(true)
+  }
+
+  const saveWorker = () => {
+    if (!workerForm.name || !workerForm.role || !workerForm.cos || !workerForm.visaExpiry) {
+      toast.error('Complete the sponsored worker record before saving')
+      return
+    }
+    if (editingWorkerIndex === null) {
+      setWorkers((current) => [...current, workerForm])
+      toast.success('Sponsored worker saved')
+    } else {
+      setWorkers((current) => current.map((row, index) => index === editingWorkerIndex ? workerForm : row))
+      toast.success('Sponsored worker updated')
+    }
+    setShowWorkerForm(false)
+    setEditingWorkerIndex(null)
+    setWorkerForm(EMPTY_WORKER)
+  }
+
+  const openCosForm = (record?: CosRecord, index?: number) => {
+    setCosForm(record ?? EMPTY_COS)
+    setEditingCosIndex(index ?? null)
+    setShowCosForm(true)
+  }
+
+  const saveCos = () => {
+    if (!cosForm.cosRef || !cosForm.type) {
+      toast.error('Complete the CoS record before saving')
+      return
+    }
+    if (editingCosIndex === null) {
+      setCosRecords((current) => [...current, cosForm])
+      toast.success('CoS record saved')
+    } else {
+      setCosRecords((current) => current.map((row, index) => index === editingCosIndex ? cosForm : row))
+      toast.success('CoS record updated')
+    }
+    setShowCosForm(false)
+    setEditingCosIndex(null)
+    setCosForm(EMPTY_COS)
   }
 
   return (
@@ -44,8 +139,8 @@ export default function UKVI() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Licence Status" value="Active" change="A-rated sponsor" icon="L" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Sponsored Workers" value="1" change="Kwame Okafor" icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="CoS Available" value="5" change="Annual allocation" icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Sponsored Workers" value={String(workers.length)} change={workers[0]?.name ?? 'None'} icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="CoS Available" value={String(cosRecords.filter((row) => row.status === 'Available').length)} change="Annual allocation" icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
         <StatCard label="Reporting Duties" value="2" change="Actions overdue" changeUp={false} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
       </div>
 
@@ -118,7 +213,7 @@ export default function UKVI() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Sponsored Worker Register</div>
-            <Button onClick={() => toast.success('Sponsored worker intake opened')}>+ Add Sponsored Worker</Button>
+            <Button onClick={() => openWorkerForm()}>+ Add Sponsored Worker</Button>
           </div>
           <Panel noPadding>
             <DataTable
@@ -130,6 +225,7 @@ export default function UKVI() {
                 { key: 'visaExpiry', header: 'Visa Expiry' },
                 { key: 'rtw', header: 'RTW', render: (r) => <Badge variant={r.rtwV}>{r.rtw}</Badge> },
                 { key: 'status', header: 'Status', render: (r) => <Badge variant="green">{r.status}</Badge> },
+                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openWorkerForm(r, workers.findIndex((row) => row.name === r.name && row.cos === r.cos))}>View / Edit</Button> },
               ]}
               data={workers}
             />
@@ -141,7 +237,7 @@ export default function UKVI() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Certificate of Sponsorship Register</div>
-            <Button onClick={() => toast.success('CoS assignment workflow opened')}>+ Assign CoS</Button>
+            <Button onClick={() => openCosForm()}>+ Assign CoS</Button>
           </div>
           <Panel noPadding>
             <DataTable
@@ -151,11 +247,9 @@ export default function UKVI() {
                 { key: 'type', header: 'Type', render: (r) => <Badge variant="blue">{r.type}</Badge> },
                 { key: 'issued', header: 'Issued' },
                 { key: 'status', header: 'Status', render: (r) => <Badge variant={r.sV}>{r.status}</Badge> },
+                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openCosForm(r, cosRecords.findIndex((row) => row.cosRef === r.cosRef))}>View / Edit</Button> },
               ]}
-              data={[
-                { cosRef: 'CoS-2023-0041', worker: 'Kwame Okafor', type: 'Defined', issued: '15 May 2023', status: 'Used', sV: 'green' as const },
-                { cosRef: 'CoS-2024-0012', worker: 'Unassigned', type: 'Undefined', issued: '-', status: 'Available', sV: 'slate' as const },
-              ]}
+              data={cosRecords}
             />
           </Panel>
         </>
@@ -216,6 +310,60 @@ export default function UKVI() {
             ))}
           </div>
         </>
+      )}
+
+      {showWorkerForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 560 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
+              {editingWorkerIndex === null ? 'Add Sponsored Worker' : 'Edit Sponsored Worker'}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Worker Name" value={workerForm.name} onChange={(v) => setWorkerForm({ ...workerForm, name: v })} placeholder="Full name" />
+              <FormInput label="Role / SOC Code" value={workerForm.role} onChange={(v) => setWorkerForm({ ...workerForm, role: v })} placeholder="Community Worker / 3229" />
+              <FormInput label="CoS Reference" value={workerForm.cos} onChange={(v) => setWorkerForm({ ...workerForm, cos: v })} placeholder="CoS-2025-0001" />
+              <FormInput label="Start Date" value={workerForm.startDate} onChange={(v) => setWorkerForm({ ...workerForm, startDate: v })} placeholder="01 Jun 2025" />
+              <FormInput label="Visa Expiry" value={workerForm.visaExpiry} onChange={(v) => setWorkerForm({ ...workerForm, visaExpiry: v })} placeholder="31 Dec 2027" />
+              <FormInput label="RTW Status" as="select" value={workerForm.rtw} onChange={(v) => setWorkerForm({ ...workerForm, rtw: v, rtwV: v === 'Valid' ? 'green' : v === 'Expired' ? 'red' : 'amber' })}>
+                <option value="Valid">Valid</option>
+                <option value="Due Soon">Due Soon</option>
+                <option value="Expired">Expired</option>
+              </FormInput>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowWorkerForm(false); setEditingWorkerIndex(null); setWorkerForm(EMPTY_WORKER) }}>Cancel</Button>
+              <Button fullWidth onClick={saveWorker}>Save Worker</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCosForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
+              {editingCosIndex === null ? 'Assign CoS' : 'Edit CoS Record'}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="CoS Reference" value={cosForm.cosRef} onChange={(v) => setCosForm({ ...cosForm, cosRef: v })} placeholder="CoS-2025-0011" />
+              <FormInput label="Assigned To" value={cosForm.worker} onChange={(v) => setCosForm({ ...cosForm, worker: v })} placeholder="Worker name" />
+              <FormInput label="Type" as="select" value={cosForm.type} onChange={(v) => setCosForm({ ...cosForm, type: v })}>
+                <option value="Defined">Defined</option>
+                <option value="Undefined">Undefined</option>
+              </FormInput>
+              <FormInput label="Issued" value={cosForm.issued} onChange={(v) => setCosForm({ ...cosForm, issued: v })} placeholder="15 May 2025" />
+              <FormInput label="Status" as="select" value={cosForm.status} onChange={(v) => setCosForm({ ...cosForm, status: v, sV: v === 'Used' ? 'green' : v === 'Available' ? 'slate' : 'amber' })}>
+                <option value="Available">Available</option>
+                <option value="Used">Used</option>
+                <option value="Reserved">Reserved</option>
+              </FormInput>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowCosForm(false); setEditingCosIndex(null); setCosForm(EMPTY_COS) }}>Cancel</Button>
+              <Button fullWidth onClick={saveCos}>Save CoS</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

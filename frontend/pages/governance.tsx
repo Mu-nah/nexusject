@@ -1,28 +1,62 @@
 import { useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
-import { Alert, Badge, Button, DataTable, Panel, StatCard } from '@/components/ui'
+import { Alert, Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import toast from 'react-hot-toast'
 
+type TrusteeRecord = {
+  name: string
+  role: string
+  appointed: string
+  status: string
+  coi: string
+}
+
+const EMPTY_TRUSTEE: TrusteeRecord = {
+  name: '',
+  role: '',
+  appointed: '',
+  status: 'Pending induction',
+  coi: '',
+}
+
 export default function Governance() {
-  const [trustees, setTrustees] = useState([
+  const [trustees, setTrustees] = useState<TrusteeRecord[]>([
     { name: 'Dominic Ogbuagu', role: 'Director / CFO', appointed: '01 Apr 2022', status: 'Active', coi: 'None declared' },
     { name: 'Grace Okafor', role: 'Chair', appointed: '01 Apr 2022', status: 'Active', coi: 'None declared' },
     { name: 'Ahmed Al-Rashid', role: 'Secretary', appointed: '15 Jun 2022', status: 'Active', coi: 'None declared' },
   ])
   const [interestNote, setInterestNote] = useState('No conflicts declared. Board members should declare interests annually.')
+  const [showTrusteeForm, setShowTrusteeForm] = useState(false)
+  const [trusteeForm, setTrusteeForm] = useState<TrusteeRecord>(EMPTY_TRUSTEE)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
   const exportRegister = () => {
     downloadCsvFile('trustee-register.csv', trustees)
     toast.success('Governance register exported')
   }
 
-  const addTrustee = () => {
-    setTrustees((current) => [
-      ...current,
-      { name: 'New trustee', role: 'Board Member', appointed: new Date().toLocaleDateString('en-GB'), status: 'Pending induction', coi: 'Awaiting declaration' },
-    ])
-    toast.success('Trustee draft added')
+  const openTrusteeForm = (record?: TrusteeRecord, index?: number) => {
+    setTrusteeForm(record ?? EMPTY_TRUSTEE)
+    setEditingIndex(index ?? null)
+    setShowTrusteeForm(true)
+  }
+
+  const saveTrustee = () => {
+    if (!trusteeForm.name || !trusteeForm.role || !trusteeForm.appointed) {
+      toast.error('Complete the trustee record before saving')
+      return
+    }
+    if (editingIndex === null) {
+      setTrustees((current) => [...current, trusteeForm])
+      toast.success('Trustee saved')
+    } else {
+      setTrustees((current) => current.map((row, index) => index === editingIndex ? trusteeForm : row))
+      toast.success('Trustee updated')
+    }
+    setShowTrusteeForm(false)
+    setEditingIndex(null)
+    setTrusteeForm(EMPTY_TRUSTEE)
   }
 
   return (
@@ -32,7 +66,7 @@ export default function Governance() {
       actions={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={exportRegister}>Export Register</Button>
-          <Button onClick={addTrustee}>+ Add Trustee</Button>
+          <Button onClick={() => openTrusteeForm()}>+ Add Trustee</Button>
         </div>
       }
     >
@@ -48,14 +82,14 @@ export default function Governance() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginBottom: 14 }}>
-        <Panel title="Trustee / Director Register" titleIcon="TR" iconColor="#C9A84C" action={<Button small onClick={addTrustee}>+ Add Trustee</Button>}>
+        <Panel title="Trustee / Director Register" titleIcon="TR" iconColor="#C9A84C" action={<Button small onClick={() => openTrusteeForm()}>+ Add Trustee</Button>}>
           <DataTable
             columns={[
               { key: 'name', header: 'Name', render: (r) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{r.name}</span> },
               { key: 'role', header: 'Role', render: (r) => <Badge variant="slate">{r.role}</Badge> },
               { key: 'appointed', header: 'Appointed' },
               { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'Active' ? 'green' : 'amber'}>{r.status}</Badge> },
-              { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => toast.success(`${r.name}: ${r.coi}`)}>View</Button> },
+              { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openTrusteeForm(r, trustees.findIndex((row) => row.name === r.name && row.role === r.role))}>View / Edit</Button> },
             ]}
             data={trustees}
           />
@@ -110,6 +144,31 @@ export default function Governance() {
           </Button>
         </Panel>
       </div>
+
+      {showTrusteeForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
+              {editingIndex === null ? 'Add Trustee' : 'Edit Trustee'}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Full Name" value={trusteeForm.name} onChange={(v) => setTrusteeForm({ ...trusteeForm, name: v })} placeholder="Trustee name" />
+              <FormInput label="Role" value={trusteeForm.role} onChange={(v) => setTrusteeForm({ ...trusteeForm, role: v })} placeholder="Chair, Treasurer..." />
+              <FormInput label="Appointed" value={trusteeForm.appointed} onChange={(v) => setTrusteeForm({ ...trusteeForm, appointed: v })} placeholder="01 Apr 2022" />
+              <FormInput label="Status" as="select" value={trusteeForm.status} onChange={(v) => setTrusteeForm({ ...trusteeForm, status: v })}>
+                <option value="Pending induction">Pending induction</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </FormInput>
+            </div>
+            <FormInput label="Conflict of Interest Note" value={trusteeForm.coi} onChange={(v) => setTrusteeForm({ ...trusteeForm, coi: v })} placeholder="None declared" as="textarea" />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowTrusteeForm(false); setEditingIndex(null); setTrusteeForm(EMPTY_TRUSTEE) }}>Cancel</Button>
+              <Button fullWidth onClick={saveTrustee}>Save Trustee</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

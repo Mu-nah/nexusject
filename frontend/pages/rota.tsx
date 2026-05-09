@@ -1,12 +1,22 @@
 import { useMemo, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
-import { Badge, Button, DataTable, Panel, StatCard } from '@/components/ui'
+import { Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import toast from 'react-hot-toast'
 
 type Tab = 'rota' | 'timesheets' | 'absences'
 
-const INITIAL_ROTA = [
+type ShiftRecord = {
+  name: string
+  mon: string
+  tue: string
+  wed: string
+  thu: string
+  fri: string
+  total: string
+}
+
+const INITIAL_ROTA: ShiftRecord[] = [
   { name: 'Aisha Ibrahim', mon: '09:00-17:00', tue: '09:00-17:00', wed: 'OFF', thu: '09:00-17:00', fri: '09:00-17:00', total: '32h' },
   { name: 'Kwame Okafor', mon: '10:00-14:00', tue: '10:00-14:00', wed: '10:00-14:00', thu: 'OFF', fri: 'OFF', total: '12h' },
   { name: 'Jamilu Musa', mon: 'OFF', tue: '13:00-17:00', wed: '13:00-17:00', thu: '13:00-17:00', fri: '13:00-17:00', total: '16h' },
@@ -19,11 +29,24 @@ const INITIAL_TIMESHEETS = [
   { name: 'Aisha Ibrahim', week: 'W/E 08 Mar', scheduled: '32h', actual: '31.0h', overtime: '-', status: 'Approved', sV: 'green' as const },
 ]
 
+const EMPTY_SHIFT: ShiftRecord = {
+  name: '',
+  mon: 'OFF',
+  tue: 'OFF',
+  wed: 'OFF',
+  thu: 'OFF',
+  fri: 'OFF',
+  total: '',
+}
+
 export default function Rota() {
   const [tab, setTab] = useState<Tab>('rota')
   const [weekOffset, setWeekOffset] = useState(0)
   const [rota, setRota] = useState(INITIAL_ROTA)
   const [timesheets, setTimesheets] = useState(INITIAL_TIMESHEETS)
+  const [showShiftForm, setShowShiftForm] = useState(false)
+  const [shiftForm, setShiftForm] = useState<ShiftRecord>(EMPTY_SHIFT)
+  const [editingShiftIndex, setEditingShiftIndex] = useState<number | null>(null)
 
   const weekLabel = useMemo(() => {
     const base = new Date('2025-03-17T00:00:00')
@@ -36,12 +59,27 @@ export default function Rota() {
     toast.success('Timesheets exported')
   }
 
-  const addShift = () => {
-    setRota((current) => [
-      ...current,
-      { name: 'New team member', mon: '09:00-13:00', tue: 'OFF', wed: '09:00-13:00', thu: 'OFF', fri: '09:00-13:00', total: '12h' },
-    ])
-    toast.success('Shift template added to rota')
+  const openShiftForm = (record?: ShiftRecord, index?: number) => {
+    setShiftForm(record ?? EMPTY_SHIFT)
+    setEditingShiftIndex(index ?? null)
+    setShowShiftForm(true)
+  }
+
+  const saveShift = () => {
+    if (!shiftForm.name || !shiftForm.total) {
+      toast.error('Complete the shift record before saving')
+      return
+    }
+    if (editingShiftIndex === null) {
+      setRota((current) => [...current, shiftForm])
+      toast.success('Shift saved')
+    } else {
+      setRota((current) => current.map((row, index) => index === editingShiftIndex ? shiftForm : row))
+      toast.success('Shift updated')
+    }
+    setShowShiftForm(false)
+    setEditingShiftIndex(null)
+    setShiftForm(EMPTY_SHIFT)
   }
 
   const approveTimesheet = (name: string, week: string) => {
@@ -56,7 +94,7 @@ export default function Rota() {
       actions={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={exportTimesheets}>Export Timesheets</Button>
-          <Button onClick={addShift}>+ Add Shift</Button>
+          <Button onClick={() => openShiftForm()}>+ Add Shift</Button>
         </div>
       }
     >
@@ -100,7 +138,7 @@ export default function Rota() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button variant="ghost" onClick={() => setWeekOffset((value) => value - 1)}>Previous</Button>
               <Button variant="ghost" onClick={() => setWeekOffset((value) => value + 1)}>Next</Button>
-              <Button onClick={addShift}>+ Add Shift</Button>
+              <Button onClick={() => openShiftForm()}>+ Add Shift</Button>
             </div>
           </div>
           <Panel noPadding>
@@ -113,6 +151,7 @@ export default function Rota() {
                 { key: 'thu', header: 'Thu', render: (r) => <span style={{ fontSize: 11, color: r.thu === 'OFF' ? '#5C6B84' : '#C8D3E8', fontFamily: "'JetBrains Mono', monospace" }}>{r.thu}</span> },
                 { key: 'fri', header: 'Fri', render: (r) => <span style={{ fontSize: 11, color: r.fri === 'OFF' ? '#5C6B84' : '#C8D3E8', fontFamily: "'JetBrains Mono', monospace" }}>{r.fri}</span> },
                 { key: 'total', header: 'Total', render: (r) => <Badge variant="gold">{r.total}</Badge> },
+                { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openShiftForm(r, rota.findIndex((row) => row.name === r.name))}>Edit</Button> },
               ]}
               data={rota}
             />
@@ -160,6 +199,29 @@ export default function Rota() {
             ]}
           />
         </Panel>
+      )}
+
+      {showShiftForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 640 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>
+              {editingShiftIndex === null ? 'Add Shift' : 'Edit Shift'}
+            </div>
+            <FormInput label="Employee Name" value={shiftForm.name} onChange={(v) => setShiftForm({ ...shiftForm, name: v })} placeholder="Team member" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+              <FormInput label="Monday" value={shiftForm.mon} onChange={(v) => setShiftForm({ ...shiftForm, mon: v })} placeholder="09:00-17:00 or OFF" />
+              <FormInput label="Tuesday" value={shiftForm.tue} onChange={(v) => setShiftForm({ ...shiftForm, tue: v })} placeholder="09:00-17:00 or OFF" />
+              <FormInput label="Wednesday" value={shiftForm.wed} onChange={(v) => setShiftForm({ ...shiftForm, wed: v })} placeholder="09:00-17:00 or OFF" />
+              <FormInput label="Thursday" value={shiftForm.thu} onChange={(v) => setShiftForm({ ...shiftForm, thu: v })} placeholder="09:00-17:00 or OFF" />
+              <FormInput label="Friday" value={shiftForm.fri} onChange={(v) => setShiftForm({ ...shiftForm, fri: v })} placeholder="09:00-17:00 or OFF" />
+              <FormInput label="Weekly Total" value={shiftForm.total} onChange={(v) => setShiftForm({ ...shiftForm, total: v })} placeholder="32h" />
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowShiftForm(false); setEditingShiftIndex(null); setShiftForm(EMPTY_SHIFT) }}>Cancel</Button>
+              <Button fullWidth onClick={saveShift}>Save Shift</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )
