@@ -220,7 +220,7 @@ export default function Accounting() {
         <StatCard label="Expenditure YTD" value={gbp(summary?.expenses_ytd ?? 71880)} change="Against budget" accentColor="#f59e0b" />
       </div>
 
-      <div style={{ display: 'flex', gap: 2, background: '#1e293b', borderRadius: 8, padding: 3, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 2, background: 'var(--surface-muted)', borderRadius: 8, padding: 3, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -233,8 +233,8 @@ export default function Accounting() {
               cursor: 'pointer',
               border: 'none',
               fontFamily: 'DM Sans, sans-serif',
-              background: tab === t.id ? '#334155' : 'transparent',
-              color: tab === t.id ? '#f1f5f9' : '#64748b',
+              background: tab === t.id ? 'var(--bg4)' : 'transparent',
+              color: tab === t.id ? 'var(--heading)' : 'var(--mute)',
               transition: 'all 0.15s',
             }}
           >
@@ -255,7 +255,7 @@ export default function Accounting() {
                 iconColor={type === 'asset' ? '#34d399' : type === 'liability' ? '#f87171' : type === 'income' ? '#34d399' : '#fbbf24'}
               >
                 {filtered.length === 0 ? (
-                  <div style={{ color: '#475569', fontSize: 12, padding: '8px 0' }}>No {type} accounts</div>
+                  <div style={{ color: 'var(--mute)', fontSize: 12, padding: '8px 0' }}>No {type} accounts</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {filtered.map((acc: any, index: number) => (
@@ -268,12 +268,12 @@ export default function Accounting() {
                           gap: 12,
                           padding: '9px 0',
                           fontSize: 13,
-                          borderBottom: index < filtered.length - 1 ? '1px solid rgba(51,65,85,0.4)' : 'none',
+                          borderBottom: index < filtered.length - 1 ? '1px solid var(--line)' : 'none',
                         }}
                       >
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: '#475569', minWidth: 44 }}>{acc.code}</span>
-                          <span style={{ color: '#cbd5e1' }}>{acc.name}</span>
+                          <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'var(--mute)', minWidth: 44 }}>{acc.code}</span>
+                          <span style={{ color: 'var(--text)' }}>{acc.name}</span>
                         </div>
                         <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 500, color: acc.balance >= 0 ? '#34d399' : '#f87171' }}>
                           {gbp(acc.balance)}
@@ -298,7 +298,7 @@ export default function Accounting() {
             columns={[
               { key: 'reference', header: 'Ref', mono: true, render: (r) => <span style={{ color: '#34d399' }}>{r.reference}</span> },
               { key: 'date', header: 'Date', mono: true, render: (r) => new Date(r.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) },
-              { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{r.description}</span> },
+              { key: 'description', header: 'Description', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.description}</span> },
               { key: 'source', header: 'Source', render: (r) => <Badge variant="slate">{r.source ?? 'manual'}</Badge> },
               { key: 'total_debit', header: 'Debit', align: 'right', mono: true, render: (r) => gbp(Number(r.total_debit)) },
               { key: 'total_credit', header: 'Credit', align: 'right', mono: true, render: (r) => gbp(Number(r.total_credit)) },
@@ -321,7 +321,7 @@ export default function Accounting() {
                     <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 24, fontWeight: 600, color: '#34d399', letterSpacing: '-0.02em' }}>
                       {gbp(bank.balance)}
                     </div>
-                    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'DM Mono, monospace' }}>
+                    <div style={{ fontSize: 11, color: 'var(--mute)', fontFamily: 'DM Mono, monospace' }}>
                       {bank.bank_name} | Last synced: {bank.last_synced ? new Date(bank.last_synced).toLocaleDateString('en-GB') : 'Never'}
                     </div>
                   </div>
@@ -336,7 +336,7 @@ export default function Accounting() {
             ))}
             {mergedBankAccounts.length === 0 && (
               <Panel title="No bank accounts">
-                <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: 24, color: 'var(--mute)', fontSize: 13 }}>
                   Connect your bank account to enable reconciliation.
                 </div>
                 <Button fullWidth onClick={() => setShowBankForm(true)}>+ Add Bank Account</Button>
@@ -350,39 +350,39 @@ export default function Accounting() {
           <Panel title={selectedBank ? `${selectedBank.account_name} Activity` : 'Bank Activity'} titleIcon="T" iconColor="#C9A84C">
             {selectedBank ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 12.5, color: '#7A8BA8', lineHeight: 1.6 }}>
-                  Reviewing the latest imported activity for <strong style={{ color: '#E8EDF5' }}>{selectedBank.account_name}</strong>.
+                <div style={{ fontSize: 12.5, color: 'var(--mute2)', lineHeight: 1.6 }}>
+                  Reviewing the latest imported activity for <strong style={{ color: 'var(--heading)' }}>{selectedBank.account_name}</strong>.
                 </div>
-                <div style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ color: '#5C6B84' }}>Opening balance</span>
-                    <span style={{ color: '#C8D3E8', fontFamily: 'JetBrains Mono, monospace' }}>{gbp(Number(selectedBank.balance) - 1240)}</span>
+                <div style={{ background: 'var(--surface-strong-2)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ color: 'var(--mute)' }}>Opening balance</span>
+                    <span style={{ color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{gbp(Number(selectedBank.balance) - 1240)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ color: '#5C6B84' }}>Payroll batch</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ color: 'var(--mute)' }}>Payroll batch</span>
                     <span style={{ color: '#f87171', fontFamily: 'JetBrains Mono, monospace' }}>- {gbp(5520).replace('GBP ', '')}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ color: '#5C6B84' }}>Grant receipt</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ color: 'var(--mute)' }}>Grant receipt</span>
                     <span style={{ color: '#34d399', fontFamily: 'JetBrains Mono, monospace' }}>+ {gbp(8000).replace('GBP ', '')}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ color: '#5C6B84' }}>Closing balance</span>
-                    <span style={{ color: '#E8EDF5', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>{gbp(Number(selectedBank.balance))}</span>
+                    <span style={{ color: 'var(--mute)' }}>Closing balance</span>
+                    <span style={{ color: 'var(--heading)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>{gbp(Number(selectedBank.balance))}</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div style={{ color: '#64748b', fontSize: 13 }}>Select a bank account to review transactions and sync status.</div>
+              <div style={{ color: 'var(--mute)', fontSize: 13 }}>Select a bank account to review transactions and sync status.</div>
             )}
           </Panel>
         </div>
       )}
 
       {showNewAccount && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
-            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>New Account</div>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: 'var(--heading)', marginBottom: 20 }}>New Account</div>
             <FormInput label="Account Code" value={newAccount.code} onChange={(v) => setNewAccount({ ...newAccount, code: v })} placeholder="e.g. 5001" />
             <FormInput label="Account Name" value={newAccount.name} onChange={(v) => setNewAccount({ ...newAccount, name: v })} placeholder="e.g. Staff Training Costs" />
             <FormInput label="Type" value={newAccount.account_type} onChange={(v) => setNewAccount({ ...newAccount, account_type: v })} as="select">
@@ -408,9 +408,9 @@ export default function Accounting() {
       )}
 
       {showJournalEntry && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
-            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingEntryId ? 'Edit Journal Entry' : 'Post Journal Entry'}</div>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: 'var(--heading)', marginBottom: 20 }}>{editingEntryId ? 'Edit Journal Entry' : 'Post Journal Entry'}</div>
             <FormInput label="Reference" value={journalDraft.reference} onChange={(v) => setJournalDraft({ ...journalDraft, reference: v })} placeholder="e.g. JE-240509-01" />
             <FormInput label="Description" value={journalDraft.description} onChange={(v) => setJournalDraft({ ...journalDraft, description: v })} placeholder="e.g. Month end adjustment" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
@@ -426,9 +426,9 @@ export default function Accounting() {
       )}
 
       {showBankForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingBankId ? 'Edit Bank Account' : 'Add Bank Account'}</div>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: 'var(--heading)', marginBottom: 20 }}>{editingBankId ? 'Edit Bank Account' : 'Add Bank Account'}</div>
             <FormInput label="Account Name" value={bankDraft.account_name} onChange={(v) => setBankDraft({ ...bankDraft, account_name: v })} placeholder="Current Account" />
             <FormInput label="Bank Name" value={bankDraft.bank_name} onChange={(v) => setBankDraft({ ...bankDraft, bank_name: v })} placeholder="Barclays" />
             <FormInput label="Opening Balance" value={bankDraft.balance} onChange={(v) => setBankDraft({ ...bankDraft, balance: v })} type="number" placeholder="0.00" />
