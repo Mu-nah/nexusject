@@ -81,14 +81,7 @@ interface Props {
 export default function AppLayout({ children, title, subtitle, actions }: Props) {
   const router = useRouter()
   const { user, logout } = useAuthStore()
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark'
-    const attrTheme = document.documentElement.getAttribute('data-theme')
-    if (attrTheme === 'light' || attrTheme === 'dark') return attrTheme
-    const storedTheme = window.localStorage.getItem('nexus-theme')
-    if (storedTheme === 'light' || storedTheme === 'dark') return storedTheme
-    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-  })
+  const [theme, setTheme] = useState<'dark' | 'light' | null>(null)
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
@@ -115,11 +108,18 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
       setTheme(attrTheme)
       return
     }
-    document.documentElement.setAttribute('data-theme', theme)
+    const storedTheme = window.localStorage.getItem('nexus-theme')
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', storedTheme)
+      setTheme(storedTheme)
+      return
+    }
+    document.documentElement.setAttribute('data-theme', 'dark')
+    setTheme('dark')
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !theme) return
     document.documentElement.setAttribute('data-theme', theme)
     window.localStorage.setItem('nexus-theme', theme)
   }, [theme])
@@ -537,7 +537,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? '☀' : '☾'}
+              {theme === null ? '' : theme === 'dark' ? '☀' : '☾'}
             </button>
 
             {actions}
