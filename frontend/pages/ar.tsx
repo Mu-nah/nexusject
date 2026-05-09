@@ -170,12 +170,12 @@ export default function AR() {
         <StatCard label="Collected YTD" value="£38,200" change="↑ 22% vs prior year" changeUp icon="£" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 0, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 0, flexWrap: 'wrap' }}>
         {(['invoices', 'customers', 'aged', 'receipts', 'credit'] as Tab[]).map((section) => (
           <button key={section} onClick={() => setTab(section)} style={{
             padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 12.5,
             background: 'none', borderBottom: tab === section ? '2px solid #C9A84C' : '2px solid transparent',
-            color: tab === section ? '#E8C56A' : '#5C6B84', fontWeight: tab === section ? 600 : 400,
+            color: tab === section ? 'var(--gold)' : 'var(--mute)', fontWeight: tab === section ? 600 : 400,
             fontFamily: "'Instrument Sans', sans-serif", textTransform: 'capitalize',
           }}>
             {section === 'aged' ? 'Aged Debtors' : section === 'credit' ? 'Credit Control' : section}
@@ -186,9 +186,9 @@ export default function AR() {
       {tab === 'invoices' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Sales Invoices</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Sales Invoices</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <select value={filter} onChange={(event) => setFilter(event.target.value)} style={{ background: '#1C2230', border: '1px solid rgba(255,255,255,0.08)', color: '#C8D3E8', borderRadius: 7, padding: '6px 12px', fontSize: 12 }}>
+              <select value={filter} onChange={(event) => setFilter(event.target.value)} style={{ background: 'var(--surface-muted)', border: '1px solid var(--line2)', color: 'var(--text)', borderRadius: 7, padding: '6px 12px', fontSize: 12 }}>
                 <option value="all">All</option>
                 <option value="draft">Draft</option>
                 <option value="sent">Sent</option>
@@ -202,9 +202,9 @@ export default function AR() {
             <DataTable
               columns={[
                 { key: 'ref', header: 'Reference', mono: true },
-                { key: 'customer', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.customer}</span> },
+                { key: 'customer', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.customer}</span> },
                 { key: 'due', header: 'Due Date' },
-                { key: 'amount', header: 'Amount', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#C8D3E8' }}>{row.amount}</span> },
+                { key: 'amount', header: 'Amount', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{row.amount}</span> },
                 { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
                 {
                   key: 'actions',
@@ -226,7 +226,7 @@ export default function AR() {
       {tab === 'customers' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Customer Register</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Customer Register</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button onClick={() => openCustomerForm()}>+ Add Customer</Button>
             </div>
@@ -234,7 +234,7 @@ export default function AR() {
           <Panel noPadding>
             <DataTable
               columns={[
-                { key: 'name', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                { key: 'name', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.name}</span> },
                 { key: 'type', header: 'Type', render: (row) => <Badge variant="slate">{row.type}</Badge> },
                 { key: 'outstanding', header: 'Outstanding', align: 'right', mono: true },
                 { key: 'terms', header: 'Terms' },
@@ -264,7 +264,7 @@ export default function AR() {
           <Panel title="Aged Debtors Analysis" titleIcon="A" iconColor="#C9A84C" action={<Badge variant="slate">DSO calculated</Badge>}>
             <DataTable
               columns={[
-                { key: 'customer', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.customer}</span> },
+                { key: 'customer', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.customer}</span> },
                 { key: 'current', header: 'Current', align: 'right', mono: true },
                 { key: 'd30', header: '31-60d', align: 'right', mono: true },
                 { key: 'd60', header: '61-90d', align: 'right', mono: true },
@@ -280,14 +280,14 @@ export default function AR() {
       {tab === 'receipts' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Receipt Allocation</div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Receipt Allocation</div>
             <Button onClick={recordReceipt}>+ Record Receipt</Button>
           </div>
           <Panel noPadding>
             <DataTable
               columns={[
                 { key: 'date', header: 'Date', mono: true },
-                { key: 'customer', header: 'From', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.customer}</span> },
+                { key: 'customer', header: 'From', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.customer}</span> },
                 { key: 'ref', header: 'Invoice Ref', mono: true },
                 { key: 'amount', header: 'Amount', align: 'right', mono: true },
                 { key: 'status', header: 'Status', render: (row) => <Badge variant="green">{row.status}</Badge> },
@@ -307,7 +307,7 @@ export default function AR() {
           <Panel title="Credit Control Actions" titleIcon="C" iconColor="#FB8C00">
             <DataTable
               columns={[
-                { key: 'customer', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.customer}</span> },
+                { key: 'customer', header: 'Customer', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.customer}</span> },
                 { key: 'amount', header: 'Amount', align: 'right', mono: true },
                 { key: 'action', header: 'Action', render: (row) => <Badge variant={row.aVariant as any}>{row.action}</Badge> },
               ]}
@@ -323,11 +323,11 @@ export default function AR() {
               { step: '2nd Reminder', trigger: '14 days overdue', method: 'Email + Phone', color: '#FB8C00' },
               { step: 'Final Notice', trigger: '30 days overdue', method: 'Formal letter', color: '#F5365C' },
             ].map((step) => (
-              <div key={step.step} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div key={step.step} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: step.color, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 500, color: '#C8D3E8' }}>{step.step}</div>
-                  <div style={{ fontSize: 11, color: '#5C6B84' }}>{step.trigger} · {step.method}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)' }}>{step.step}</div>
+                  <div style={{ fontSize: 11, color: 'var(--mute)' }}>{step.trigger} · {step.method}</div>
                 </div>
               </div>
             ))}
@@ -336,9 +336,9 @@ export default function AR() {
       )}
 
       {showInvoiceForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingInvoiceRef ? 'Edit Invoice' : 'Create Invoice'}</div>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--heading)', marginBottom: 20 }}>{editingInvoiceRef ? 'Edit Invoice' : 'Create Invoice'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Invoice Reference" value={invoiceForm.ref} onChange={(v) => setInvoiceForm({ ...invoiceForm, ref: v })} placeholder="INV-0046" />
               <FormInput label="Customer" value={invoiceForm.customer} onChange={(v) => setInvoiceForm({ ...invoiceForm, customer: v })} placeholder="Customer name" />
@@ -360,9 +360,9 @@ export default function AR() {
       )}
 
       {showCustomerForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingCustomerName ? 'Edit Customer' : 'Add Customer'}</div>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--heading)', marginBottom: 20 }}>{editingCustomerName ? 'Edit Customer' : 'Add Customer'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Customer Name" value={customerForm.name} onChange={(v) => setCustomerForm({ ...customerForm, name: v })} placeholder="Customer name" />
               <FormInput label="Type" value={customerForm.type} onChange={(v) => setCustomerForm({ ...customerForm, type: v })} placeholder="Customer type" />
