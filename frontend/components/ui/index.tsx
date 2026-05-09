@@ -1,4 +1,6 @@
 import { ReactNode, CSSProperties, MouseEventHandler } from 'react'
+import toast from 'react-hot-toast'
+import { downloadPageSummary } from '@/lib/export'
 
 // ── StatCard ──────────────────────────────────────────────────────────────────
 interface StatCardProps {
@@ -121,6 +123,46 @@ interface ButtonProps {
 }
 
 export function Button({ children, onClick, variant = 'primary', disabled, fullWidth, small, type = 'button', style }: ButtonProps) {
+  const textLabel =
+    typeof children === 'string'
+      ? children
+      : Array.isArray(children)
+        ? children.map((child) => (typeof child === 'string' ? child : '')).join(' ').trim()
+        : ''
+
+  const handleClick: MouseEventHandler<HTMLButtonElement> = (event) => {
+    if (disabled) return
+    if (onClick) {
+      onClick(event)
+      return
+    }
+    if (type === 'submit') return
+
+    const label = textLabel.toLowerCase()
+    if (label.includes('export')) {
+      const rawPath = typeof window !== 'undefined' ? window.location.pathname.replace(/\//g, '-') : 'workspace'
+      const fileBase = rawPath.replace(/^-+/, '') || 'workspace'
+      downloadPageSummary(
+        `${fileBase}-export.txt`,
+        document.title || 'Workspace Export',
+        [
+          `Page: ${window.location.pathname}`,
+          'This export was generated from the current workspace screen.',
+          'A richer structured export for this module is still being connected.',
+        ]
+      )
+      toast.success('Page export downloaded')
+      return
+    }
+
+    if (label.includes('new') || label.includes('add') || label.includes('submit') || label.includes('change password') || label.includes('log')) {
+      toast('This workflow is being connected next.')
+      return
+    }
+
+    toast('This action is being connected next.')
+  }
+
   const base: CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: small ? '5px 10px' : '7px 14px',
@@ -139,7 +181,7 @@ export function Button({ children, onClick, variant = 'primary', disabled, fullW
     danger:  { background: 'rgba(245,54,92,0.12)',  color: '#F5365C', border: '1px solid rgba(245,54,92,0.3)' },
   }
   return (
-    <button type={type} onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>
+    <button type={type} onClick={handleClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>
       {children}
     </button>
   )

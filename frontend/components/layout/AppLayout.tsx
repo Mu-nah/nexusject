@@ -83,11 +83,11 @@ interface Props {
 export default function AppLayout({ children, title, subtitle, actions }: Props) {
   const router = useRouter()
   const { user, logout } = useAuthStore()
-  const [period, setPeriod] = useState<'MTD' | 'QTD' | 'YTD'>('YTD')
-  const navHrefs = useMemo(
-    () => Array.from(new Set(NAV.flatMap((section) => section.items.map((item) => item.href)))),
-    []
-  )
+  const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const navItems = useMemo(() => NAV.flatMap((section) => section.items), [])
+  const navHrefs = useMemo(() => Array.from(new Set(navItems.map((item) => item.href))), [navItems])
 
   useEffect(() => {
     navHrefs.forEach((href) => {
@@ -101,6 +101,27 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
     .join('')
     .slice(0, 2)
     .toUpperCase() ?? 'DO'
+
+  const quickResults = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    if (!needle) return []
+    return navItems
+      .filter((item) => item.label.toLowerCase().includes(needle) || item.href.toLowerCase().includes(needle))
+      .slice(0, 6)
+  }, [navItems, search])
+
+  const goToSearchResult = async (href: string) => {
+    setSearch('')
+    setSearchOpen(false)
+    await router.push(href)
+  }
+
+  const handleSearchSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (quickResults[0]) {
+      await goToSearchResult(quickResults[0].href)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0C0F14' }}>
@@ -167,7 +188,6 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            cursor: 'pointer',
           }}
         >
           <div
@@ -332,17 +352,18 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
       <main style={{ marginLeft: 256, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <div
           style={{
-            height: 60,
+            minHeight: 60,
             background: '#141820',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
             display: 'flex',
             alignItems: 'center',
-            padding: '0 22px',
+            padding: '12px 22px',
             gap: 12,
+            flexWrap: 'wrap',
             flexShrink: 0,
           }}
         >
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#E8EDF5', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
               {title}
             </div>
@@ -353,138 +374,88 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             )}
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: '#1C2230',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: 8,
-              padding: '6px 12px',
-              width: 220,
-            }}
-          >
-            <span style={{ color: '#5C6B84', fontSize: 13 }}>⌕</span>
-            <input
-              type="text"
-              placeholder="Search Nexus One..."
-              style={{
-                background: 'none',
-                border: 'none',
-                outline: 'none',
-                color: '#C8D3E8',
-                fontSize: 12.5,
-                width: '100%',
-                fontFamily: "'Instrument Sans', sans-serif",
-              }}
-            />
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', width: 260 }}>
+              <form onSubmit={handleSearchSubmit}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: '#1C2230',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 8,
+                    padding: '6px 12px',
+                  }}
+                >
+                  <span style={{ color: '#5C6B84', fontSize: 13 }}>⌕</span>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value)
+                      setSearchOpen(true)
+                    }}
+                    onFocus={() => setSearchOpen(true)}
+                    onBlur={() => window.setTimeout(() => setSearchOpen(false), 120)}
+                    placeholder="Jump to a page..."
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      outline: 'none',
+                      color: '#C8D3E8',
+                      fontSize: 12.5,
+                      width: '100%',
+                      fontFamily: "'Instrument Sans', sans-serif",
+                    }}
+                  />
+                </div>
+              </form>
 
-          <div style={{ display: 'flex', gap: 2, background: '#1C2230', borderRadius: 8, padding: 3 }}>
-            {(['MTD', 'QTD', 'YTD'] as const).map((value) => (
-              <div
-                key={value}
-                onClick={() => setPeriod(value)}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: '6px 14px',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  background: period === value ? '#232C3E' : 'transparent',
-                  color: period === value ? '#E8EDF5' : '#5C6B84',
-                  fontFamily: "'Instrument Sans', sans-serif",
-                  transition: '0.12s',
-                }}
-              >
-                {value}
-              </div>
-            ))}
-          </div>
-
-          <div
-            style={{
-              width: 52,
-              height: 26,
-              background: '#232C3E',
-              border: '1px solid rgba(255,255,255,0.10)',
-              borderRadius: 13,
-              cursor: 'pointer',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              padding: 3,
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: '50%',
-                background: '#C9A84C',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-              }}
-            >
-              ◐
+              {searchOpen && quickResults.length > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    right: 0,
+                    background: '#141820',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    boxShadow: '0 18px 45px rgba(0,0,0,0.35)',
+                    zIndex: 20,
+                  }}
+                >
+                  {quickResults.map((item) => (
+                    <button
+                      key={`${item.href}-${item.label}`}
+                      onMouseDown={() => goToSearchResult(item.href)}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#E8EDF5',
+                        cursor: 'pointer',
+                        padding: '10px 12px',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <span style={{ fontSize: 12.5 }}>{item.label}</span>
+                        <span style={{ fontSize: 10.5, color: '#5C6B84', fontFamily: "'JetBrains Mono', monospace" }}>
+                          {item.href}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {actions}
           </div>
-
-          {actions}
-
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              background: '#1C2230',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: 14,
-              color: '#7A8BA8',
-              position: 'relative',
-              flexShrink: 0,
-            }}
-          >
-            !
-            <div
-              style={{
-                position: 'absolute',
-                top: 6,
-                right: 6,
-                width: 6,
-                height: 6,
-                background: '#F5365C',
-                borderRadius: '50%',
-                border: '1.5px solid #141820',
-              }}
-            />
-          </div>
-
-          <button
-            style={{
-              background: '#C9A84C',
-              color: '#0C0F14',
-              fontSize: 12.5,
-              fontWeight: 500,
-              padding: '7px 14px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              border: 'none',
-              fontFamily: "'Instrument Sans', sans-serif",
-              flexShrink: 0,
-            }}
-          >
-            + New Entry
-          </button>
         </div>
 
         <div style={{ flex: 1, padding: 22, overflowY: 'auto', background: '#0C0F14' }}>{children}</div>
