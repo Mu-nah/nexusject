@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import AppLayout from '@/components/layout/AppLayout'
-import { Alert, Badge, Button, DataTable, Panel, StatCard } from '@/components/ui'
+import { Alert, Badge, Button, DataTable, EmptyState, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -15,7 +15,7 @@ const currency = (value: number) => `GBP ${value.toLocaleString()}`
 export default function Cashflow() {
   const [tab, setTab] = useState<Tab>('forecast')
   const [selectedScenario, setSelectedScenario] = useState<Scenario>('base')
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['planning-cashflow'],
     queryFn: api.getPlanningCashflow,
     staleTime: 60_000,
@@ -42,6 +42,7 @@ export default function Cashflow() {
 
   const summary = data?.summary
   const forecastRows = useMemo(() => data?.forecast ?? [], [data])
+  const errorMessage = (error as any)?.response?.data?.detail || (error as Error | undefined)?.message
 
   const exportForecast = () => {
     downloadCsvFile('cashflow-forecast.csv', forecastRows)
@@ -76,15 +77,21 @@ export default function Cashflow() {
         </div>
       }
     >
+      {isError && (
+        <Alert variant="error" icon="!">
+          <strong>Cash flow forecast could not load.</strong> {errorMessage || 'The backend may need a restart so the planning routes are available.'}
+        </Alert>
+      )}
+
       <Alert variant="gold" icon="$">
         <strong>13-week rolling cash forecast:</strong> this view now loads from the backend so the browser only renders the result instead of carrying the forecast logic on every route change.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Current Cash" value={summary ? currency(summary.current_cash) : 'Loading...'} change="As at today" icon="GBP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="13-Week Projected" value={summary ? currency(summary.projected_cash) : 'Loading...'} change="End of forecast period" icon="13W" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="Net Cash Movement" value={summary ? `${summary.net_movement >= 0 ? '+' : '-'}${currency(Math.abs(summary.net_movement))}` : 'Loading...'} change="Over 13 weeks" changeUp={(summary?.net_movement ?? 0) >= 0} icon="NET" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
-        <StatCard label="Runway" value={summary?.runway_months ? `${summary.runway_months} mo` : 'Loading...'} change="At current burn rate" icon="R" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Current Cash" value={summary ? currency(summary.current_cash) : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="As at today" icon="GBP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="13-Week Projected" value={summary ? currency(summary.projected_cash) : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="End of forecast period" icon="13W" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Net Cash Movement" value={summary ? `${summary.net_movement >= 0 ? '+' : '-'}${currency(Math.abs(summary.net_movement))}` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="Over 13 weeks" changeUp={(summary?.net_movement ?? 0) >= 0} icon="NET" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Runway" value={summary?.runway_months ? `${summary.runway_months} mo` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="At current burn rate" icon="R" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
@@ -120,10 +127,14 @@ export default function Cashflow() {
             <Button onClick={refreshForecast}>Refresh Forecast</Button>
           </div>
           <Panel title="Weekly Cash Position" titleIcon="CF" iconColor="#C9A84C">
-            {isLoading ? (
+            {isLoading || isFetching ? (
               <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8BA8', fontSize: 12.5 }}>
                 Loading forecast...
               </div>
+            ) : isError ? (
+              <EmptyState title="Forecast unavailable" description="Retry after restarting the backend if the planning route is not yet loaded." />
+            ) : forecastRows.length === 0 ? (
+              <EmptyState title="No forecast rows yet" description="Once transactions or seed data are available, the 13-week forecast will appear here." />
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={forecastRows}>
@@ -155,6 +166,11 @@ export default function Cashflow() {
               data={forecastRows}
             />
           </Panel>
+          {isError && (
+            <div style={{ marginTop: 14 }}>
+              <Button onClick={refreshForecast}>Retry Forecast</Button>
+            </div>
+          )}
         </>
       )}
 

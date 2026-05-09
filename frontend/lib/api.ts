@@ -331,6 +331,17 @@ class ApiClient {
     return (await this.client.get('/grants/programmes/list')).data
   }
 
+  async createProgramme(data: {
+    name: string
+    description?: string
+    total_budget?: number
+    target_participants?: number
+    start_date?: string
+    end_date?: string
+  }) {
+    return (await this.client.post('/grants/programmes', data)).data
+  }
+
   async getGrantsSummary() {
     return (await this.client.get('/grants/summary')).data
   }

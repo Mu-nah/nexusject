@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { useRouter } from 'next/router'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AppLayout from '@/components/layout/AppLayout'
-import { Panel, Badge, Button, DataTable, Alert, StatCard, FormInput } from '@/components/ui'
+import { Alert, Badge, Button, DataTable, EmptyState, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -20,17 +19,51 @@ type EmployeeRow = {
   dbs: string
 }
 
+type EmployeeForm = {
+  full_name: string
+  email: string
+  role_title: string
+  contract_type: string
+  gross_salary: string
+  start_date: string
+}
+
+const EMPTY_EMPLOYEE_FORM: EmployeeForm = {
+  full_name: '',
+  email: '',
+  role_title: '',
+  contract_type: 'full_time',
+  gross_salary: '',
+  start_date: new Date().toISOString().split('T')[0],
+}
+
 export default function HR() {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('employees')
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRow | null>(null)
   const [reviewName, setReviewName] = useState('')
   const [docName, setDocName] = useState('')
+  const [showEmployeeForm, setShowEmployeeForm] = useState(false)
+  const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(EMPTY_EMPLOYEE_FORM)
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['hr-workspace'],
     queryFn: api.getHrWorkspace,
     staleTime: 60_000,
+  })
+
+  const createEmployee = useMutation({
+    mutationFn: api.createEmployee,
+    onSuccess: async () => {
+      toast.success('Employee added')
+      setShowEmployeeForm(false)
+      setEmployeeForm(EMPTY_EMPLOYEE_FORM)
+      await queryClient.invalidateQueries({ queryKey: ['hr-workspace'] })
+      await queryClient.invalidateQueries({ queryKey: ['employees'] })
+    },
+    onError: (mutationError: any) => {
+      toast.error(mutationError?.response?.data?.detail ?? 'Failed to add employee')
+    },
   })
 
   const employees = data?.employees ?? []
@@ -40,8 +73,34 @@ export default function HR() {
   const reviewRows = data?.performance ?? []
   const contractRows = data?.contracts ?? []
   const summary = data?.summary
+  const errorMessage = (error as any)?.response?.data?.detail || (error as Error | undefined)?.message
 
   const exportEmployees = () => downloadCsvFile('hr-employees.csv', employees)
+
+  const openEmployeeForm = () => {
+    setEmployeeForm(EMPTY_EMPLOYEE_FORM)
+    setShowEmployeeForm(true)
+  }
+
+  const saveEmployee = () => {
+    if (!employeeForm.full_name.trim()) {
+      toast.error('Enter an employee name first')
+      return
+    }
+    if (!employeeForm.gross_salary.trim()) {
+      toast.error('Enter a salary amount first')
+      return
+    }
+
+    createEmployee.mutate({
+      full_name: employeeForm.full_name.trim(),
+      email: employeeForm.email.trim() || undefined,
+      role_title: employeeForm.role_title.trim() || undefined,
+      contract_type: employeeForm.contract_type,
+      gross_salary: Number(employeeForm.gross_salary),
+      start_date: employeeForm.start_date ? new Date(employeeForm.start_date).toISOString() : undefined,
+    })
+  }
 
   const approveLeave = async (id: number, name: string) => {
     await api.approveHrLeave(id)
@@ -94,22 +153,50 @@ export default function HR() {
       title="HR Management"
       subtitle="People & Workforce"
       actions={
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button variant="ghost" onClick={exportEmployees}>Export</Button>
-          <Button onClick={() => router.push('/payroll/new-employee')}>+ Add Employee</Button>
+          <Button onClick={openEmployeeForm}>+ Add Employee</Button>
         </div>
       }
     >
+      {isError && (
+        <Alert variant="error" icon="!">
+          <strong>HR records could not load.</strong> {errorMessage || 'The backend may need a restart so the latest HR routes are available.'}
+        </Alert>
+      )}
+
       <Alert variant="warning" icon="!">
         <strong>RTW Check Required:</strong> HR records now load from backend workspace tables, so renewals, leave approvals, and review scheduling no longer live in the client bundle.
       </Alert>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Total Headcount" value={String(summary?.headcount ?? 0)} change="Backend workforce register" icon="EMP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
         <StatCard label="RTW Expired" value={String(summary?.expired_rtw ?? 0)} change="Immediate action required" changeUp={false} icon="!" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
         <StatCard label="DBS Renewals Due" value={String(summary?.dbs_due ?? 0)} change="Within 90 days" icon="DBS" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
         <StatCard label="Open Vacancies" value={String(summary?.open_vacancies ?? 0)} change="Skills Hub + Outreach" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
       </div>
+
+      {showEmployeeForm && (
+        <Panel title="Add Employee" titleIcon="+" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <FormInput label="Full name" value={employeeForm.full_name} onChange={(value) => setEmployeeForm((current) => ({ ...current, full_name: value }))} placeholder="e.g. Sarah Johnson" />
+            <FormInput label="Email" value={employeeForm.email} onChange={(value) => setEmployeeForm((current) => ({ ...current, email: value }))} placeholder="sarah@workspace.com" type="email" />
+            <FormInput label="Role title" value={employeeForm.role_title} onChange={(value) => setEmployeeForm((current) => ({ ...current, role_title: value }))} placeholder="e.g. Youth Worker" />
+            <FormInput label="Contract type" value={employeeForm.contract_type} onChange={(value) => setEmployeeForm((current) => ({ ...current, contract_type: value }))} as="select">
+              <option value="full_time">Full Time</option>
+              <option value="part_time">Part Time</option>
+              <option value="casual">Casual</option>
+              <option value="volunteer">Volunteer</option>
+            </FormInput>
+            <FormInput label="Gross monthly salary" value={employeeForm.gross_salary} onChange={(value) => setEmployeeForm((current) => ({ ...current, gross_salary: value }))} type="number" placeholder="e.g. 1800" />
+            <FormInput label="Start date" value={employeeForm.start_date} onChange={(value) => setEmployeeForm((current) => ({ ...current, start_date: value }))} type="date" />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <Button variant="ghost" onClick={() => setShowEmployeeForm(false)}>Cancel</Button>
+            <Button onClick={saveEmployee} disabled={createEmployee.isPending}>{createEmployee.isPending ? 'Saving…' : 'Save Employee'}</Button>
+          </div>
+        </Panel>
+      )}
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
         {([
@@ -121,30 +208,47 @@ export default function HR() {
           { key: 'leave', label: 'Leave' },
           { key: 'performance', label: 'Performance' },
         ] as { key: Tab; label: string }[]).map((section) => (
-          <button key={section.key} onClick={() => setTab(section.key)} style={{
-            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 12.5,
-            background: 'none', borderBottom: tab === section.key ? '2px solid #C9A84C' : '2px solid transparent',
-            color: tab === section.key ? '#E8C56A' : '#5C6B84', fontWeight: tab === section.key ? 600 : 400,
-            fontFamily: "'Instrument Sans', sans-serif",
-          }}>{section.label}</button>
+          <button
+            key={section.key}
+            onClick={() => setTab(section.key)}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12.5,
+              background: 'none',
+              borderBottom: tab === section.key ? '2px solid #C9A84C' : '2px solid transparent',
+              color: tab === section.key ? '#E8C56A' : '#5C6B84',
+              fontWeight: tab === section.key ? 600 : 400,
+              fontFamily: "'Instrument Sans', sans-serif",
+            }}
+          >
+            {section.label}
+          </button>
         ))}
       </div>
 
       {tab === 'employees' && (
-        <div style={{ display: 'grid', gridTemplateColumns: selectedEmployee ? '1.45fr 0.8fr' : '1fr', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: selectedEmployee ? 'minmax(0, 1.45fr) minmax(260px, 0.8fr)' : '1fr', gap: 14 }}>
           <Panel noPadding>
-            <DataTable
-              columns={[
-                { key: 'name', header: 'Name', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
-                { key: 'role', header: 'Role' },
-                { key: 'dept', header: 'Department', render: (row) => <Badge variant="slate">{row.dept}</Badge> },
-                { key: 'type', header: 'Type', render: (row) => <Badge variant={row.type === 'FT' ? 'blue' : 'slate'}>{row.type}</Badge> },
-                { key: 'rtw', header: 'RTW', render: (row) => <Badge variant={row.rtw === 'Valid' ? 'green' : row.rtw === 'Due Soon' ? 'amber' : 'red'}>{row.rtw}</Badge> },
-                { key: 'dbs', header: 'DBS', render: (row) => <Badge variant={row.dbs === 'Enhanced' ? 'blue' : 'slate'}>{row.dbs}</Badge> },
-                { key: 'actions', header: '', render: (row) => <Button small variant="ghost" onClick={() => setSelectedEmployee(row as EmployeeRow)}>View</Button> },
-              ]}
-              data={employees}
-            />
+            {isLoading ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: '#5C6B84', fontSize: 13 }}>Loading HR records...</div>
+            ) : employees.length === 0 ? (
+              <EmptyState title="No employees yet" description="Add the first employee to populate HR, payroll, right-to-work, and document workflows." />
+            ) : (
+              <DataTable
+                columns={[
+                  { key: 'name', header: 'Name', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.name}</span> },
+                  { key: 'role', header: 'Role' },
+                  { key: 'dept', header: 'Department', render: (row) => <Badge variant="slate">{row.dept}</Badge> },
+                  { key: 'type', header: 'Type', render: (row) => <Badge variant={row.type === 'FT' ? 'blue' : 'slate'}>{row.type}</Badge> },
+                  { key: 'rtw', header: 'RTW', render: (row) => <Badge variant={row.rtw === 'Valid' ? 'green' : row.rtw === 'Due Soon' ? 'amber' : 'red'}>{row.rtw}</Badge> },
+                  { key: 'dbs', header: 'DBS', render: (row) => <Badge variant={row.dbs === 'Enhanced' ? 'blue' : 'slate'}>{row.dbs}</Badge> },
+                  { key: 'actions', header: '', render: (row) => <Button small variant="ghost" onClick={() => setSelectedEmployee(row as EmployeeRow)}>View</Button> },
+                ]}
+                data={employees}
+              />
+            )}
           </Panel>
 
           {selectedEmployee && (
@@ -165,11 +269,11 @@ export default function HR() {
 
       {tab === 'onboarding' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Onboarding Workflows</div>
-            <Button onClick={() => router.push('/payroll/new-employee')}>+ Start Onboarding</Button>
+            <Button onClick={openEmployeeForm}>+ Start Onboarding</Button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(260px, 1fr)', gap: 14 }}>
             <Panel title="Active Onboarding" titleIcon="ON" iconColor="#C9A84C">
               <div style={{ textAlign: 'center', padding: '32px 0', color: '#5C6B84', fontSize: 12.5 }}>
                 {summary?.onboarding_count ? `${summary.onboarding_count} onboarding workflows active.` : 'No active onboarding workflows.'}
@@ -230,7 +334,7 @@ export default function HR() {
 
       {tab === 'leave' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
             <StatCard label="Annual Leave Requests" value={String(leaveRows.filter((row: any) => row.status === 'Pending').length)} change="Pending approval" icon="LV" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
             <StatCard label="Sick Days YTD" value="8.5" change="Avg 0.7/employee" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
             <StatCard label="Leave Balance" value="124d" change="Across all staff" icon="BAL" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
@@ -255,9 +359,9 @@ export default function HR() {
 
       {tab === 'performance' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Performance Management</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 220 }}>
                 <FormInput value={reviewName} onChange={setReviewName} placeholder="Employee name" />
               </div>
@@ -281,9 +385,9 @@ export default function HR() {
 
       {tab === 'contracts' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: '#E8EDF5' }}>Contracts & HR Documents</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 240 }}>
                 <FormInput value={docName} onChange={setDocName} placeholder="Document title" />
               </div>
