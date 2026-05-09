@@ -87,6 +87,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   const [searchOpen, setSearchOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
 
   const navItems = useMemo(() => NAV.flatMap((section) => section.items), [])
 
@@ -100,6 +101,16 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
     window.addEventListener('resize', syncViewport)
     return () => window.removeEventListener('resize', syncViewport)
   }, [])
+
+  useEffect(() => {
+    const clearNavigation = () => setIsNavigating(false)
+    router.events.on('routeChangeComplete', clearNavigation)
+    router.events.on('routeChangeError', clearNavigation)
+    return () => {
+      router.events.off('routeChangeComplete', clearNavigation)
+      router.events.off('routeChangeError', clearNavigation)
+    }
+  }, [router.events])
 
   const initials = user?.full_name
     ?.split(' ')
@@ -117,9 +128,21 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   }, [navItems, search])
 
   const goToSearchResult = async (href: string) => {
+    if (isNavigating || router.pathname === href) {
+      setSearch('')
+      setSearchOpen(false)
+      setSidebarOpen(false)
+      return
+    }
+    setIsNavigating(true)
     setSearch('')
     setSearchOpen(false)
-    await router.push(href)
+    setSidebarOpen(false)
+    try {
+      await router.push(href)
+    } finally {
+      setIsNavigating(false)
+    }
   }
 
   const handleSearchSubmit = async (event: React.FormEvent) => {
@@ -252,7 +275,21 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                   : { background: 'rgba(201,168,76,0.12)', color: '#E8C56A' }
 
                 return (
-                  <Link key={`${item.label}-${item.href}`} href={item.href} prefetch={false} style={{ textDecoration: 'none' }} onClick={() => setSidebarOpen(false)}>
+                  <Link
+                    key={`${item.label}-${item.href}`}
+                    href={item.href}
+                    prefetch={false}
+                    style={{ textDecoration: 'none' }}
+                    onClick={(event) => {
+                      if (router.pathname === item.href || isNavigating) {
+                        event.preventDefault()
+                        setSidebarOpen(false)
+                        return
+                      }
+                      setIsNavigating(true)
+                      setSidebarOpen(false)
+                    }}
+                  >
                     <div
                       style={{
                         display: 'flex',

@@ -17,7 +17,7 @@ export default function Dashboard() {
   const { user } = useAuthStore()
 
   useEffect(() => {
-    if (!user) router.push('/login')
+    if (!user && router.pathname !== '/login') router.replace('/login')
   }, [user, router])
 
   const { data: summary } = useQuery({ queryKey: ['financial-summary'], queryFn: api.getFinancialSummary })
