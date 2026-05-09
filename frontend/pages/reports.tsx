@@ -245,6 +245,7 @@ export default function Reports() {
   const [viewerOpen, setViewerOpen] = useState(false)
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null)
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null)
+  const [showAllHistory, setShowAllHistory] = useState(false)
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
 
@@ -405,6 +406,11 @@ export default function Reports() {
     })
   }, [filterType, history, search])
 
+  const visibleHistory = useMemo(
+    () => (showAllHistory ? filteredHistory : filteredHistory.slice(0, 5)),
+    [filteredHistory, showAllHistory]
+  )
+
   return (
     <AppLayout title="Financial Reports" subtitle="Workspace library">
       <Alert variant="success" icon="AI">
@@ -427,7 +433,7 @@ export default function Reports() {
                 </div>
                 <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>{r.description}</div>
                 <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ minWidth: 180 }}>
-                  {generating === r.id ? 'Generating...' : 'Generate and Save'}
+                  {generating === r.id ? 'Generating...' : 'Generate'}
                 </Button>
               </div>
             </div>
@@ -458,11 +464,11 @@ export default function Reports() {
             </select>
           </div>
 
-          {filteredHistory.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#64748b' }}>Generate your first workspace report to start building the shared library.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {filteredHistory.map((rep) => {
+        {filteredHistory.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#64748b' }}>Generate your first workspace report to start building the shared library.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {visibleHistory.map((rep) => {
                 const isActive = report?.id === rep.id
                 return (
                   <button
@@ -519,6 +525,15 @@ export default function Reports() {
                   </button>
                 )
               })}
+              {filteredHistory.length > 5 && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowAllHistory((value) => !value)}
+                  style={{ justifyContent: 'center', marginTop: 4 }}
+                >
+                  {showAllHistory ? 'Show less' : `View more (${filteredHistory.length - 5})`}
+                </Button>
+              )}
             </div>
           )}
         </Panel>
