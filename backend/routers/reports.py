@@ -8,7 +8,7 @@ from backend.core.security import get_current_user
 from backend.models.report import ReportDocument
 from backend.models.user import Organisation, User
 from backend.services.email_service import send_report_share_email
-from backend.services.report_service import build_report_pdf_bytes, serialize_report
+from backend.services.report_service import build_report_pdf_bytes, serialize_report, serialize_report_summary
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -29,7 +29,7 @@ async def list_reports(
         .order_by(ReportDocument.created_at.desc())
         .all()
     )
-    return [serialize_report(report) for report in reports]
+    return [serialize_report_summary(report) for report in reports]
 
 
 @router.get("/{report_id}")

@@ -12,7 +12,7 @@ interface WorkspaceReport {
   title: string
   report_type: string
   period_label?: string | null
-  narrative: string
+  narrative?: string
   created_at: string
   share_token?: string
 }
@@ -251,7 +251,8 @@ export default function Reports() {
       const items = await api.listReports()
       setHistory(items)
       if (!report && items.length > 0 && !shareQuery) {
-        setReport(items[0])
+        const fullReport = await api.getReport(items[0].id)
+        setReport(fullReport)
       }
     } finally {
       setIsLoadingHistory(false)
@@ -395,7 +396,7 @@ export default function Reports() {
             <div style={{ display: 'flex', gap: 8 }}>
               <Button small variant="ghost" onClick={() => handleShare(report.id)}>Copy Share Link</Button>
               <Button small variant="ghost" onClick={() => handleDownloadPdf(report.id)}>Download PDF</Button>
-              <Button small onClick={() => router.push('/ai')}>Refine with AI</Button>
+                <Button small onClick={() => router.push('/ai')}>Refine with AI</Button>
             </div>
           }
         >
@@ -429,7 +430,7 @@ export default function Reports() {
             <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
           </div>
           <div style={{ background: '#0a0f1a', border: '1px solid #1e293b', borderRadius: 14, padding: '24px 28px', maxHeight: 680, overflowY: 'auto', fontFamily: 'Instrument Sans, sans-serif' }}>
-            {renderMarkdownReport(report.narrative)}
+            {renderMarkdownReport(report.narrative || '')}
           </div>
         </Panel>
       )}
@@ -462,7 +463,10 @@ export default function Reports() {
             {filteredHistory.map((rep, i) => (
               <div
                 key={rep.id}
-                onClick={() => setReport(rep)}
+                onClick={async () => {
+                  const fullReport = await api.getReport(rep.id)
+                  setReport(fullReport)
+                }}
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',

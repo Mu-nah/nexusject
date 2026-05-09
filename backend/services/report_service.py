@@ -63,6 +63,19 @@ def serialize_report(report: ReportDocument) -> dict:
     }
 
 
+def serialize_report_summary(report: ReportDocument) -> dict:
+    return {
+        "id": report.id,
+        "title": report.title,
+        "report_type": report.report_type,
+        "period_label": report.period_label,
+        "ai_generated": report.ai_generated,
+        "share_token": report.share_token,
+        "created_at": report.created_at.isoformat(),
+        "updated_at": report.updated_at.isoformat(),
+    }
+
+
 def _build_styles():
     styles = getSampleStyleSheet()
     return {
