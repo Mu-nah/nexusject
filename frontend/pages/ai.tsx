@@ -1,6 +1,7 @@
-import { Fragment, ReactNode, useEffect, useRef, useState } from 'react'
+import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import api from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -18,28 +19,19 @@ const QUICK_CHIPS = [
   'Summarise our grant portfolio status',
 ]
 
-const INITIAL_MESSAGE = `# Hello!
+const buildInitialMessage = (organisation?: string) => `# Hello
 
-Welcome to **Nexus One AI**. I have full context across Finance, HR, Operations, Compliance, and Governance for Harvest Touch CIC.
+Welcome to **Nexus One AI** for **${organisation || 'your workspace'}**.
 
----
+I can help with:
 
-## Quick Snapshot - 08 May 2026
+- finance and cash flow analysis
+- payroll and HR questions
+- grant and programme reporting
+- compliance and governance summaries
+- trustee and management reports
 
-| Metric | Status |
-| --- | --- |
-| Total Funds | **GBP 94,820** |
-| Cash (Current Account) | **GBP 64,320** |
-| Cash Runway | **17.2 months** |
-| Active Staff | **4 employees** |
-
-## Items Needing Attention
-
-- NLCF grant report due soon
-- Payroll submission is approaching deadline
-- Digital Inclusion programme is near full budget utilisation
-
-Ask me anything about finances, HR, grants, compliance, or operations.`
+Ask me a question below or use one of the quick prompts to get started.`
 
 function renderInline(text: string, isUser: boolean): ReactNode[] {
   const parts = text.split(/(\*\*.*?\*\*)/g)
@@ -61,6 +53,17 @@ function renderInline(text: string, isUser: boolean): ReactNode[] {
   })
 }
 
+function normaliseAssistantMarkdown(content: string): string {
+  return content
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/^\s*#+\s*$/gm, '')
+    .replace(/^\s{0,3}(#{1,6})([^ #\n])/gm, '$1 $2')
+    .replace(/^\s*[-*]\s*\*\*(.+?)\*\*:\s*(.+)$/gm, '- **$1:** $2')
+    .replace(/^\s*(\d+)\.\s*(.+)$/gm, '$1. $2')
+    .trim()
+}
+
 function parseTableRow(line: string): string[] {
   return line
     .split('|')
@@ -73,7 +76,7 @@ function isDividerRow(line: string): boolean {
 }
 
 function renderAssistantContent(content: string): ReactNode[] {
-  const lines = content.replace(/\r\n/g, '\n').split('\n')
+  const lines = normaliseAssistantMarkdown(content).split('\n')
   const elements: ReactNode[] = []
   let i = 0
 
@@ -225,6 +228,25 @@ function renderAssistantContent(content: string): ReactNode[] {
       continue
     }
 
+    if (/^\d+\.\s/.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s/, ''))
+        i += 1
+      }
+
+      elements.push(
+        <ol key={`ol-${i}`} style={{ margin: '8px 0 14px 18px', padding: 0, color: 'var(--text)' }}>
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex} style={{ marginBottom: 8, lineHeight: 1.7 }}>
+              {renderInline(item, false)}
+            </li>
+          ))}
+        </ol>
+      )
+      continue
+    }
+
     if (line.startsWith('>')) {
       const quoteLines: string[] = []
       while (i < lines.length && lines[i].trim().startsWith('>')) {
@@ -273,6 +295,28 @@ function renderAssistantContent(content: string): ReactNode[] {
       continue
     }
 
+    if (/^(warning|note|summary|status|recommendation|next steps?)\s*:/i.test(line)) {
+      const [label, ...rest] = line.split(':')
+      elements.push(
+        <div
+          key={`callout-${i}`}
+          style={{
+            margin: '12px 0 16px',
+            padding: '12px 14px',
+            borderLeft: '3px solid var(--gold)',
+            background: 'color-mix(in srgb, var(--gold) 12%, transparent)',
+            borderRadius: 8,
+            color: 'var(--text)',
+          }}
+        >
+          <strong style={{ color: 'var(--heading)' }}>{label.trim()}:</strong>{' '}
+          {renderInline(rest.join(':').trim(), false)}
+        </div>
+      )
+      i += 1
+      continue
+    }
+
     const paragraphLines: string[] = []
     while (i < lines.length) {
       const current = lines[i].trim()
@@ -307,7 +351,7 @@ function renderAssistantContent(content: string): ReactNode[] {
   return elements
 }
 
-function MessageBubble({ msg }: { msg: Message }) {
+function MessageBubble({ msg, userInitials }: { msg: Message; userInitials: string }) {
   const isUser = msg.role === 'user'
   return (
     <div
@@ -335,12 +379,12 @@ function MessageBubble({ msg }: { msg: Message }) {
           color: isUser ? 'var(--text)' : 'var(--ink-inverse)',
         }}
       >
-        {isUser ? 'DO' : 'AI'}
+        {isUser ? userInitials : 'AI'}
       </div>
       <div
         style={{
           padding: '14px 16px',
-          borderRadius: 12,
+          borderRadius: 16,
           maxWidth: 720,
           lineHeight: 1.65,
           fontSize: 13,
@@ -348,8 +392,9 @@ function MessageBubble({ msg }: { msg: Message }) {
           border: isUser ? 'none' : '1px solid var(--line2)',
           color: isUser ? 'var(--ink-inverse)' : 'var(--text)',
           fontWeight: isUser ? 500 : 400,
-          borderTopLeftRadius: isUser ? 12 : 3,
-          borderTopRightRadius: isUser ? 3 : 12,
+          borderTopLeftRadius: isUser ? 16 : 5,
+          borderTopRightRadius: isUser ? 5 : 16,
+          boxShadow: isUser ? 'none' : 'var(--shadow)',
         }}
       >
         {isUser ? <div style={{ lineHeight: 1.7 }}>{renderInline(msg.content, true)}</div> : <div>{renderAssistantContent(msg.content)}</div>}
@@ -407,15 +452,29 @@ function TypingIndicator() {
 }
 
 export default function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: INITIAL_MESSAGE,
-    },
-  ])
+  const { user } = useAuthStore()
+  const userInitials = useMemo(
+    () =>
+      user?.full_name
+        ?.split(' ')
+        .map((name) => name[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() || 'ME',
+    [user?.full_name]
+  )
+  const initialMessage = useMemo(() => buildInitialMessage(user?.organisation), [user?.organisation])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMessages((current) => {
+      if (current.length > 0) return current
+      return [{ role: 'assistant', content: initialMessage }]
+    })
+  }, [initialMessage])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -461,8 +520,8 @@ I'm temporarily unable to connect to the AI service. Please check your API key c
       `}</style>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)' }}>
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8 }}>
-          {messages.map((msg, index) => <MessageBubble key={index} msg={msg} />)}
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8 }}>
+          {messages.map((msg, index) => <MessageBubble key={index} msg={msg} userInitials={userInitials} />)}
           {isLoading && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
@@ -508,7 +567,7 @@ I'm temporarily unable to connect to the AI service. Please check your API key c
                   send()
                 }
               }}
-              placeholder="Ask anything about Harvest Touch finances..."
+              placeholder={`Ask anything about ${user?.organisation || 'your workspace'}...`}
               rows={1}
               style={{
                 flex: 1,

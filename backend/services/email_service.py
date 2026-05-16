@@ -1,14 +1,19 @@
 """
-Email Notification Service
-Sends transactional emails for: payslips, expense approvals, grant alerts, compliance deadlines
+Email notification service.
+
+Primary transport: Brevo SMTP API.
+Fallback transport: configured SMTP credentials.
 """
+import base64
 import logging
 import smtplib
+from datetime import datetime
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
 from typing import Optional
-from datetime import datetime
+
+import httpx
 
 from backend.core.settings import settings
 
@@ -42,15 +47,15 @@ def _build_html_email(subject: str, body_html: str, org_name: str) -> str:
 <body>
   <div class="container">
     <div class="header">
-      <h1>Realtouch Financial ERP</h1>
+      <h1>Nexus One</h1>
       <p>{org_name}</p>
     </div>
     <div class="body">
       {body_html}
     </div>
     <div class="footer">
-      This email was sent automatically by Realtouch Financial ERP. Do not reply to this message.
-      <br>© {datetime.now().year} Realtouch Global Ventures Ltd
+      This email was sent automatically by Nexus One. Do not reply to this message.
+      <br>&copy; {datetime.now().year} Nexus One
     </div>
   </div>
 </body>
@@ -58,41 +63,89 @@ def _build_html_email(subject: str, body_html: str, org_name: str) -> str:
 """
 
 
+def _send_via_brevo(
+    to: str,
+    subject: str,
+    html_content: str,
+    attachment_bytes: Optional[bytes] = None,
+    attachment_filename: Optional[str] = None,
+) -> bool:
+    payload = {
+        "sender": {
+            "name": settings.EMAIL_FROM_NAME,
+            "email": settings.EMAIL_FROM_ADDRESS or settings.SMTP_USER or "no-reply@nexusone.app",
+        },
+        "to": [{"email": to}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
+    if attachment_bytes and attachment_filename:
+        payload["attachment"] = [
+            {
+                "name": attachment_filename,
+                "content": base64.b64encode(attachment_bytes).decode("utf-8"),
+            }
+        ]
+
+    response = httpx.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "accept": "application/json",
+            "api-key": settings.BREVO_API_KEY,
+            "content-type": "application/json",
+        },
+        json=payload,
+        timeout=30.0,
+    )
+    response.raise_for_status()
+    return True
+
+
+def _send_via_smtp(
+    to: str,
+    subject: str,
+    html_content: str,
+    attachment_bytes: Optional[bytes] = None,
+    attachment_filename: Optional[str] = None,
+) -> bool:
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("SMTP not configured; email not sent to %s", to)
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{settings.EMAIL_FROM_NAME} <{settings.EMAIL_FROM_ADDRESS or settings.SMTP_USER}>"
+    msg["To"] = to
+    msg.attach(MIMEText(html_content, "html"))
+
+    if attachment_bytes and attachment_filename:
+        part = MIMEApplication(attachment_bytes, Name=attachment_filename)
+        part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
+        msg.attach(part)
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        server.starttls()
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.sendmail(settings.EMAIL_FROM_ADDRESS or settings.SMTP_USER, to, msg.as_string())
+    return True
+
+
 def send_email(
     to: str,
     subject: str,
     body_html: str,
-    org_name: str = "Harvest Touch CIC",
+    org_name: str = "Nexus One Workspace",
     attachment_bytes: Optional[bytes] = None,
     attachment_filename: Optional[str] = None,
 ) -> bool:
-    """Send an HTML email. Returns True on success, False on failure."""
-    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning("SMTP not configured — email not sent to %s", to)
-        return False
-
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Realtouch ERP <{settings.SMTP_USER}>"
-        msg["To"] = to
-
         html_content = _build_html_email(subject, body_html, org_name)
-        msg.attach(MIMEText(html_content, "html"))
-
-        if attachment_bytes and attachment_filename:
-            part = MIMEApplication(attachment_bytes, Name=attachment_filename)
-            part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
-            msg.attach(part)
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.SMTP_USER, to, msg.as_string())
-
+        if settings.BREVO_API_KEY:
+            _send_via_brevo(to, subject, html_content, attachment_bytes, attachment_filename)
+        else:
+            _send_via_smtp(to, subject, html_content, attachment_bytes, attachment_filename)
         logger.info("Email sent to %s: %s", to, subject)
         return True
-
     except Exception as e:
         logger.error("Failed to send email to %s: %s", to, e)
         return False
@@ -116,12 +169,7 @@ def send_workspace_invite_email(
     <p>If the button does not work, copy this link into your browser:</p>
     <p>{invite_link}</p>
     """
-    return send_email(
-        to=to_email,
-        subject=f"Workspace Invite - {org_name}",
-        body_html=body,
-        org_name=org_name,
-    )
+    return send_email(to=to_email, subject=f"Workspace Invite - {org_name}", body_html=body, org_name=org_name)
 
 
 def send_report_share_email(
@@ -151,8 +199,6 @@ def send_report_share_email(
     )
 
 
-# ── Templated emails ──────────────────────────────────────────────────────────
-
 def send_payslip_email(
     employee_email: str,
     employee_name: str,
@@ -160,18 +206,18 @@ def send_payslip_email(
     gross_pay: float,
     net_pay: float,
     pdf_bytes: Optional[bytes] = None,
-    org_name: str = "Harvest Touch CIC",
+    org_name: str = "Nexus One Workspace",
 ):
     body = f"""
     <p>Dear {employee_name},</p>
     <p>Please find your payslip for <strong>{period}</strong> below.</p>
-    <div class="stat-row"><span class="stat-label">Gross Pay</span><span class="stat-value">£{gross_pay:,.2f}</span></div>
-    <div class="stat-row"><span class="stat-label">Net Pay</span><span class="stat-value green">£{net_pay:,.2f}</span></div>
+    <div class="stat-row"><span class="stat-label">Gross Pay</span><span class="stat-value">GBP {gross_pay:,.2f}</span></div>
+    <div class="stat-row"><span class="stat-label">Net Pay</span><span class="stat-value green">GBP {net_pay:,.2f}</span></div>
     <p>If you have any questions, please contact your finance team.</p>
     """
     return send_email(
         to=employee_email,
-        subject=f"Your Payslip — {period}",
+        subject=f"Your Payslip - {period}",
         body_html=body,
         org_name=org_name,
         attachment_bytes=pdf_bytes,
@@ -186,23 +232,19 @@ def send_expense_decision_email(
     amount: float,
     decision: str,
     notes: Optional[str] = None,
-    org_name: str = "Harvest Touch CIC",
+    org_name: str = "Nexus One Workspace",
 ):
     colour = "green" if decision == "approved" else "red"
+    notes_html = f'<div class="stat-row"><span class="stat-label">Notes</span><span class="stat-value">{notes}</span></div>' if notes else ""
     body = f"""
     <p>Dear {claimant_name},</p>
     <p>Your expense claim has been <strong>{decision.upper()}</strong>.</p>
     <div class="stat-row"><span class="stat-label">Description</span><span class="stat-value">{description}</span></div>
-    <div class="stat-row"><span class="stat-label">Amount</span><span class="stat-value">£{amount:,.2f}</span></div>
+    <div class="stat-row"><span class="stat-label">Amount</span><span class="stat-value">GBP {amount:,.2f}</span></div>
     <div class="stat-row"><span class="stat-label">Decision</span><span class="stat-value {colour}">{decision.capitalize()}</span></div>
-    {f'<div class="stat-row"><span class="stat-label">Notes</span><span class="stat-value">{notes}</span></div>' if notes else ''}
+    {notes_html}
     """
-    return send_email(
-        to=claimant_email,
-        subject=f"Expense Claim {decision.capitalize()} — £{amount:,.2f}",
-        body_html=body,
-        org_name=org_name,
-    )
+    return send_email(to=claimant_email, subject=f"Expense Claim {decision.capitalize()} - GBP {amount:,.2f}", body_html=body, org_name=org_name)
 
 
 def send_grant_deadline_alert(
@@ -212,7 +254,7 @@ def send_grant_deadline_alert(
     due_date: str,
     days_remaining: int,
     amount_remaining: float,
-    org_name: str = "Harvest Touch CIC",
+    org_name: str = "Nexus One Workspace",
 ):
     urgency = "red" if days_remaining <= 7 else "amber"
     body = f"""
@@ -221,15 +263,9 @@ def send_grant_deadline_alert(
     <div class="stat-row"><span class="stat-label">Funder</span><span class="stat-value">{funder}</span></div>
     <div class="stat-row"><span class="stat-label">Report Due</span><span class="stat-value {urgency}">{due_date}</span></div>
     <div class="stat-row"><span class="stat-label">Days Remaining</span><span class="stat-value {urgency}">{days_remaining} days</span></div>
-    <div class="stat-row"><span class="stat-label">Remaining Budget</span><span class="stat-value">£{amount_remaining:,.2f}</span></div>
-    <a href="#" class="btn">Generate AI Report →</a>
+    <div class="stat-row"><span class="stat-label">Remaining Budget</span><span class="stat-value">GBP {amount_remaining:,.2f}</span></div>
     """
-    return send_email(
-        to=cfo_email,
-        subject=f"⚠ Grant Report Due in {days_remaining} Days — {grant_name}",
-        body_html=body,
-        org_name=org_name,
-    )
+    return send_email(to=cfo_email, subject=f"Grant Report Due in {days_remaining} Days - {grant_name}", body_html=body, org_name=org_name)
 
 
 def send_payroll_run_summary(
@@ -240,23 +276,18 @@ def send_payroll_run_summary(
     total_gross: float,
     total_net: float,
     total_employer_cost: float,
-    org_name: str = "Harvest Touch CIC",
+    org_name: str = "Nexus One Workspace",
 ):
     body = f"""
     <p>The payroll run for <strong>{period}</strong> has been completed.</p>
     <div class="stat-row"><span class="stat-label">Reference</span><span class="stat-value">{reference}</span></div>
     <div class="stat-row"><span class="stat-label">Employees Paid</span><span class="stat-value">{employee_count}</span></div>
-    <div class="stat-row"><span class="stat-label">Total Gross</span><span class="stat-value">£{total_gross:,.2f}</span></div>
-    <div class="stat-row"><span class="stat-label">Total Net Pay</span><span class="stat-value green">£{total_net:,.2f}</span></div>
-    <div class="stat-row"><span class="stat-label">Total Employer Cost</span><span class="stat-value amber">£{total_employer_cost:,.2f}</span></div>
+    <div class="stat-row"><span class="stat-label">Total Gross</span><span class="stat-value">GBP {total_gross:,.2f}</span></div>
+    <div class="stat-row"><span class="stat-label">Total Net Pay</span><span class="stat-value green">GBP {total_net:,.2f}</span></div>
+    <div class="stat-row"><span class="stat-label">Total Employer Cost</span><span class="stat-value amber">GBP {total_employer_cost:,.2f}</span></div>
     <p>Please submit the RTI filing to HMRC within 7 days of the pay date.</p>
     """
-    return send_email(
-        to=cfo_email,
-        subject=f"Payroll Run Complete — {period} ({reference})",
-        body_html=body,
-        org_name=org_name,
-    )
+    return send_email(to=cfo_email, subject=f"Payroll Run Complete - {period} ({reference})", body_html=body, org_name=org_name)
 
 
 def send_donation_receipt(
@@ -266,20 +297,17 @@ def send_donation_receipt(
     gift_aid_amount: float,
     campaign: Optional[str],
     payment_ref: str,
-    org_name: str = "Harvest Touch CIC",
+    org_name: str = "Nexus One Workspace",
 ):
+    campaign_html = f'<div class="stat-row"><span class="stat-label">Campaign</span><span class="stat-value">{campaign}</span></div>' if campaign else ""
+    gift_aid_html = f'<div class="stat-row"><span class="stat-label">Gift Aid Value</span><span class="stat-value">GBP {gift_aid_amount:,.2f}</span></div>' if gift_aid_amount > 0 else ""
     body = f"""
     <p>Dear {donor_name},</p>
-    <p>Thank you for your generous donation to {org_name}. Your contribution makes a real difference to the young people and communities we serve.</p>
-    <div class="stat-row"><span class="stat-label">Donation Amount</span><span class="stat-value green">£{amount:,.2f}</span></div>
-    {f'<div class="stat-row"><span class="stat-label">Gift Aid Value</span><span class="stat-value">£{gift_aid_amount:,.2f}</span></div>' if gift_aid_amount > 0 else ''}
-    {f'<div class="stat-row"><span class="stat-label">Campaign</span><span class="stat-value">{campaign}</span></div>' if campaign else ''}
+    <p>Thank you for your generous donation to {org_name}.</p>
+    <div class="stat-row"><span class="stat-label">Donation Amount</span><span class="stat-value green">GBP {amount:,.2f}</span></div>
+    {gift_aid_html}
+    {campaign_html}
     <div class="stat-row"><span class="stat-label">Reference</span><span class="stat-value">{payment_ref}</span></div>
     <p>This email serves as your donation receipt for tax purposes.</p>
     """
-    return send_email(
-        to=donor_email,
-        subject=f"Thank you for your donation — £{amount:,.2f}",
-        body_html=body,
-        org_name=org_name,
-    )
+    return send_email(to=donor_email, subject=f"Thank you for your donation - GBP {amount:,.2f}", body_html=body, org_name=org_name)

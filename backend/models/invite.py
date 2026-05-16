@@ -13,6 +13,7 @@ class WorkspaceInvite(Base):
     email = Column(String(255), nullable=False, index=True)
     full_name = Column(String(255), nullable=False)
     role = Column(String(50), default="viewer", nullable=False)
+    module_access = Column(String(255), nullable=False, default="finance,operations,people_hr,compliance")
     invite_token = Column(String(64), unique=True, nullable=False, index=True)
     invited_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     accepted = Column(Boolean, default=False)

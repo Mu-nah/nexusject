@@ -10,7 +10,7 @@ from backend.core.settings import settings
 from backend.core.database import init_db
 
 # Routers
-from backend.routers import auth, accounting, expenses, payroll, grants, donations, dashboard, ai, admin, reports, planning, ops
+from backend.routers import auth, accounting, expenses, payroll, grants, donations, dashboard, ai, admin, reports, planning, ops, platform
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -109,6 +109,8 @@ app.include_router(admin.router)
 app.include_router(reports.router)
 app.include_router(planning.router)
 app.include_router(ops.router)
+app.include_router(platform.router)
+app.include_router(platform.employee_router)
 
 
 # ── Health & Info ─────────────────────────────────────────────────────────────

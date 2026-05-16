@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+import re
 from io import BytesIO
 from typing import Iterable
 
@@ -45,9 +46,13 @@ def save_workspace_report(
         share_access_mode="anyone_with_link",
         allowed_email=None,
     )
-    db.add(report)
-    db.commit()
-    db.refresh(report)
+    try:
+        db.add(report)
+        db.commit()
+        db.refresh(report)
+    except Exception:
+        db.rollback()
+        raise
     return report
 
 
@@ -155,15 +160,51 @@ def _build_styles():
             firstLineIndent=-8,
             spaceAfter=5,
         ),
+        "table_header": ParagraphStyle(
+            "ReportTableHeader",
+            parent=styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=8.3,
+            leading=10.2,
+            textColor=colors.HexColor("#0F172A"),
+        ),
+        "table_cell": ParagraphStyle(
+            "ReportTableCell",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=8.3,
+            leading=10.6,
+            textColor=colors.HexColor("#1F2937"),
+        ),
     }
 
 
-def _escape_paragraph(text: str) -> str:
+def _strip_markdown(text: str) -> str:
+    cleaned = text.replace("\u00a0", " ")
+    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
+    cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
+    return cleaned.strip()
+
+
+def _normalise_markdown(content: str) -> str:
     return (
-        text.replace("&", "&amp;")
+        content.replace("\r\n", "\n")
+        .replace("\u00a0", " ")
+        .replace("â€“", "-")
+        .replace("â€”", "-")
+        .replace("Â£", "GBP ")
+        .replace("£", "GBP ")
+        .replace("â€¢", "•")
+    )
+
+
+def _escape_paragraph(text: str) -> str:
+    cleaned = _strip_markdown(text)
+    return (
+        cleaned.replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
-        .replace("**", "")
     )
 
 
@@ -177,8 +218,6 @@ def _is_divider_row(line: str) -> bool:
 
 
 def _parse_meta_segments(line: str) -> list[tuple[str, str]]:
-    import re
-
     markdown_matches = list(re.finditer(r"\*\*([^*]+?):\*\*\s*([^*]+?)(?=\s+\*\*[^*]+?:\*\*|$)", line))
     if len(markdown_matches) >= 2:
         return [(match.group(1).strip(), match.group(2).strip()) for match in markdown_matches]
@@ -190,14 +229,35 @@ def _parse_meta_segments(line: str) -> list[tuple[str, str]]:
     return []
 
 
+def _build_table_col_widths(rows: list[list[str]], available_width: float) -> list[float]:
+    if not rows or not rows[0]:
+        return []
+
+    widths: list[float] = []
+    col_count = len(rows[0])
+    min_ratio = 8
+    max_ratio = 28
+
+    for col_index in range(col_count):
+        max_len = max(
+            len(_strip_markdown(row[col_index])) if col_index < len(row) else min_ratio
+            for row in rows
+        )
+        widths.append(float(max(min_ratio, min(max_ratio, max_len + 2))))
+
+    total = sum(widths) or float(col_count)
+    return [available_width * (width / total) for width in widths]
+
+
 def build_report_pdf_bytes(title: str, narrative: str) -> bytes:
     styles = _build_styles()
     story = []
+    available_width = A4[0] - (1.6 * cm * 2)
 
     story.append(Paragraph(_escape_paragraph(title), styles["title"]))
     story.append(Spacer(1, 0.15 * cm))
 
-    lines = narrative.replace("\r\n", "\n").split("\n")
+    lines = _normalise_markdown(narrative).split("\n")
     i = 0
 
     while i < len(lines):
@@ -271,7 +331,20 @@ def build_report_pdf_bytes(title: str, narrative: str) -> bytes:
             ]
 
             if rows:
-                table = Table(rows, repeatRows=1)
+                col_widths = _build_table_col_widths(rows, available_width)
+                formatted_rows = []
+                for row_index, row in enumerate(rows):
+                    formatted_rows.append(
+                        [
+                            Paragraph(
+                                _escape_paragraph(cell),
+                                styles["table_header"] if row_index == 0 else styles["table_cell"],
+                            )
+                            for cell in row
+                        ]
+                    )
+
+                table = Table(formatted_rows, repeatRows=1, colWidths=col_widths)
                 table.setStyle(
                     TableStyle(
                         [
@@ -279,8 +352,6 @@ def build_report_pdf_bytes(title: str, narrative: str) -> bytes:
                             ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
                             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                             ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                            ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-                            ("LEADING", (0, 0), (-1, -1), 11),
                             ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
                             ("VALIGN", (0, 0), (-1, -1), "TOP"),
                             ("LEFTPADDING", (0, 0), (-1, -1), 6),
@@ -309,6 +380,15 @@ def build_report_pdf_bytes(title: str, narrative: str) -> bytes:
                 i += 1
             for bullet in bullet_lines:
                 story.append(Paragraph(f"• {_escape_paragraph(bullet)}", styles["bullet"]))
+            continue
+
+        if re.match(r"^\d+\.\s", line):
+            numbered_lines = []
+            while i < len(lines) and re.match(r"^\d+\.\s", lines[i].strip()):
+                numbered_lines.append(lines[i].strip())
+                i += 1
+            for numbered in numbered_lines:
+                story.append(Paragraph(_escape_paragraph(numbered), styles["bullet"]))
             continue
 
         paragraph_lines = []

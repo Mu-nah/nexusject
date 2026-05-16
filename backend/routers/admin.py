@@ -12,13 +12,66 @@ from pydantic import BaseModel, EmailStr
 
 from backend.core.database import get_db
 from backend.core.security import get_current_user, require_role
-from backend.models.user import User, Organisation
+from backend.models.employee import Employee
 from backend.models.invite import WorkspaceInvite
+from backend.models.ops import (
+    HrContractDocument,
+    HrDbsRecord,
+    HrLeaveRequest,
+    HrPerformanceReview,
+    HrRightToWorkRecord,
+    Trustee,
+    UkviCosRecord,
+    UkviDuty,
+    UkviWorker,
+    Volunteer,
+    VolunteerAgreement,
+    VolunteerHour,
+)
+from backend.models.user import User, Organisation
 from backend.services.email_service import send_workspace_invite_email
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 require_admin = require_role("owner", "admin")
+DEFAULT_MODULE_ACCESS = ["finance", "operations", "people_hr", "compliance"]
+AVAILABLE_MODULE_ACCESS = set(DEFAULT_MODULE_ACCESS)
+
+
+def _normalise_module_access(values: Optional[List[str]]) -> list[str]:
+    if values == []:
+        return []
+    cleaned = []
+    source = DEFAULT_MODULE_ACCESS if values is None else values
+    for value in source:
+        token = value.strip().lower()
+        if token in AVAILABLE_MODULE_ACCESS and token not in cleaned:
+            cleaned.append(token)
+    return cleaned
+
+
+def _module_access_string(values: Optional[List[str]]) -> str:
+    return ",".join(_normalise_module_access(values))
+
+
+def _module_access_list(raw: Optional[str]) -> list[str]:
+    if raw == "":
+        return []
+    return _normalise_module_access(raw.split(",") if raw else DEFAULT_MODULE_ACCESS)
+
+
+def _normalise_role(role: Optional[str]) -> str:
+    cleaned = (role or "").strip().lower().replace(" ", "_")
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Role is required")
+    return cleaned
+
+
+def _user_name_map(db: Session, organisation_id: int) -> dict[int, str]:
+    return {
+        user.id: user.full_name
+        for user in db.query(User).filter(User.organisation_id == organisation_id).all()
+    }
 
 
 class OrgCreate(BaseModel):
@@ -37,6 +90,13 @@ class UserInvite(BaseModel):
     email: EmailStr
     full_name: str
     role: str = "viewer"
+    module_access: List[str] = DEFAULT_MODULE_ACCESS.copy()
+
+
+class UserAccessUpdate(BaseModel):
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    module_access: Optional[List[str]] = None
 
 
 class OrgUpdate(BaseModel):
@@ -105,6 +165,82 @@ async def get_workspace(
         "is_active": org.is_active,
         "created_at": org.created_at.isoformat(),
         "updated_at": org.updated_at.isoformat() if org.updated_at else None,
+    }
+
+
+@router.post("/workspace/cleanup-demo-data")
+async def cleanup_workspace_demo_data(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    org_id = current_user.organisation_id
+    deleted: dict[str, int] = {}
+
+    volunteer_names = ["Sarah Adebayo", "Michael Osei", "Fatima Al-Hassan", "Peter Nwosu"]
+    trustee_names = ["Dominic Ogbuagu", "Grace Okafor", "Ahmed Al-Rashid"]
+    employee_names = ["Dominic Ogbuagu", "Aisha Ibrahim", "Kwame Okafor", "Jamilu Musa"]
+
+    deleted["volunteers"] = db.query(Volunteer).filter(
+        Volunteer.organisation_id == org_id,
+        Volunteer.name.in_(volunteer_names),
+    ).delete(synchronize_session=False)
+    deleted["volunteer_hours"] = db.query(VolunteerHour).filter(
+        VolunteerHour.organisation_id == org_id,
+        VolunteerHour.volunteer_name.in_(volunteer_names),
+    ).delete(synchronize_session=False)
+    deleted["volunteer_agreements"] = db.query(VolunteerAgreement).filter(
+        VolunteerAgreement.organisation_id == org_id,
+        VolunteerAgreement.name.in_(volunteer_names),
+    ).delete(synchronize_session=False)
+    deleted["trustees"] = db.query(Trustee).filter(
+        Trustee.organisation_id == org_id,
+        Trustee.name.in_(trustee_names),
+    ).delete(synchronize_session=False)
+    deleted["ukvi_workers"] = db.query(UkviWorker).filter(
+        UkviWorker.organisation_id == org_id,
+        UkviWorker.name == "Kwame Okafor",
+        UkviWorker.cos == "CoS-2023-0041",
+    ).delete(synchronize_session=False)
+    deleted["ukvi_cos_records"] = db.query(UkviCosRecord).filter(
+        UkviCosRecord.organisation_id == org_id,
+        UkviCosRecord.cos_ref.in_(["CoS-2023-0041", "CoS-2024-0012"]),
+    ).delete(synchronize_session=False)
+    deleted["ukvi_duties"] = db.query(UkviDuty).filter(
+        UkviDuty.organisation_id == org_id,
+        UkviDuty.duty.in_(["RTW Check Renewal", "Absence Report", "Annual Confirmation of Accuracy"]),
+    ).delete(synchronize_session=False)
+    deleted["hr_rtw_records"] = db.query(HrRightToWorkRecord).filter(
+        HrRightToWorkRecord.organisation_id == org_id,
+        HrRightToWorkRecord.name.in_(employee_names),
+    ).delete(synchronize_session=False)
+    deleted["hr_dbs_records"] = db.query(HrDbsRecord).filter(
+        HrDbsRecord.organisation_id == org_id,
+        HrDbsRecord.name.in_(employee_names),
+    ).delete(synchronize_session=False)
+    deleted["hr_leave_requests"] = db.query(HrLeaveRequest).filter(
+        HrLeaveRequest.organisation_id == org_id,
+        HrLeaveRequest.name.in_(["Kwame Okafor", "Aisha Ibrahim"]),
+    ).delete(synchronize_session=False)
+    deleted["hr_performance_reviews"] = db.query(HrPerformanceReview).filter(
+        HrPerformanceReview.organisation_id == org_id,
+        HrPerformanceReview.name.in_(["Aisha Ibrahim", "Kwame Okafor", "Jamilu Musa"]),
+    ).delete(synchronize_session=False)
+    deleted["hr_contract_documents"] = db.query(HrContractDocument).filter(
+        HrContractDocument.organisation_id == org_id,
+        HrContractDocument.name.in_(["Dominic Ogbuagu", "Aisha Ibrahim", "Kwame Okafor"]),
+    ).delete(synchronize_session=False)
+    deleted["employees"] = db.query(Employee).filter(
+        Employee.organisation_id == org_id,
+        Employee.employee_number.in_(["EMP-0001", "EMP-0002", "EMP-0003", "EMP-0004"]),
+        Employee.full_name.in_(employee_names),
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
+    return {
+        "workspace_id": org_id,
+        "deleted": deleted,
+        "total_deleted": sum(deleted.values()),
     }
 
 
@@ -190,6 +326,7 @@ async def deactivate_organisation(
 async def list_all_users(
     organisation_id: Optional[int] = None,
     role: Optional[str] = None,
+    invited_by_me: bool = False,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -200,6 +337,17 @@ async def list_all_users(
         q = q.filter(User.organisation_id == organisation_id)
     if role:
         q = q.filter(User.role == role)
+    if invited_by_me:
+        invite_emails = [
+            row[0]
+            for row in db.query(WorkspaceInvite.email)
+            .filter(
+                WorkspaceInvite.organisation_id == current_user.organisation_id,
+                WorkspaceInvite.invited_by == current_user.id,
+            )
+            .all()
+        ]
+        q = q.filter((User.id == current_user.id) | (User.email.in_(invite_emails)))
     users = q.order_by(User.full_name).all()
     return [
         {
@@ -210,6 +358,7 @@ async def list_all_users(
             "organisation_id": u.organisation_id,
             "organisation_name": db.query(Organisation.name).filter(Organisation.id == u.organisation_id).scalar(),
             "is_active": u.is_active,
+            "module_access": _module_access_list(u.module_access),
             "last_login": u.last_login.isoformat() if u.last_login else None,
             "created_at": u.created_at.isoformat(),
         }
@@ -237,7 +386,8 @@ async def invite_user(
         organisation_id=current_user.organisation_id,
         email=data.email,
         full_name=data.full_name,
-        role=data.role,
+        role=_normalise_role(data.role),
+        module_access=_module_access_string(data.module_access),
         invite_token=secrets.token_urlsafe(24),
         invited_by=current_user.id,
     )
@@ -262,6 +412,8 @@ async def invite_user(
         "invite_token": invite.invite_token,
         "invite_link": invite_link,
         "message": "Invite created and emailed.",
+        "module_access": _module_access_list(invite.module_access),
+        "invited_by": invite.invited_by,
     }
 
 
@@ -270,9 +422,13 @@ async def list_invites(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    name_map = _user_name_map(db, current_user.organisation_id)
     invites = (
         db.query(WorkspaceInvite)
-        .filter(WorkspaceInvite.organisation_id == current_user.organisation_id)
+        .filter(
+            WorkspaceInvite.organisation_id == current_user.organisation_id,
+            WorkspaceInvite.invited_by == current_user.id,
+        )
         .order_by(WorkspaceInvite.created_at.desc())
         .all()
     )
@@ -283,6 +439,9 @@ async def list_invites(
             "full_name": invite.full_name,
             "role": invite.role,
             "accepted": invite.accepted,
+            "invited_by": invite.invited_by,
+            "invited_by_name": name_map.get(invite.invited_by, "Unknown"),
+            "module_access": _module_access_list(invite.module_access),
             "created_at": invite.created_at.isoformat(),
             "accepted_at": invite.accepted_at.isoformat() if invite.accepted_at else None,
         }
@@ -295,6 +454,7 @@ async def access_monitor(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    name_map = _user_name_map(db, current_user.organisation_id)
     users = (
         db.query(User)
         .filter(User.organisation_id == current_user.organisation_id)
@@ -322,6 +482,7 @@ async def access_monitor(
                 "email": user.email,
                 "role": user.role,
                 "is_active": user.is_active,
+                "module_access": _module_access_list(user.module_access),
                 "last_login": user.last_login.isoformat() if user.last_login else None,
                 "created_at": user.created_at.isoformat(),
             }
@@ -334,6 +495,9 @@ async def access_monitor(
                 "email": invite.email,
                 "role": invite.role,
                 "accepted": invite.accepted,
+                "invited_by": invite.invited_by,
+                "invited_by_name": name_map.get(invite.invited_by, "Unknown"),
+                "module_access": _module_access_list(invite.module_access),
                 "created_at": invite.created_at.isoformat(),
                 "accepted_at": invite.accepted_at.isoformat() if invite.accepted_at else None,
             }
@@ -349,17 +513,47 @@ async def update_user_role(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    valid_roles = {"owner", "cfo", "finance_manager", "programme_manager", "hr_manager", "compliance_manager", "admin", "viewer"}
-    if role not in valid_roles:
-        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
-
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.role = role
+    user.role = _normalise_role(role)
     db.commit()
-    return {"user_id": user_id, "new_role": role}
+    return {"user_id": user_id, "new_role": user.role}
+
+
+@router.patch("/users/{user_id}/access")
+async def update_user_access(
+    user_id: int,
+    data: UserAccessUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id, User.organisation_id == current_user.organisation_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.id == current_user.id and data.is_active is False:
+        raise HTTPException(status_code=400, detail="Cannot deactivate your own account")
+
+    if data.role is not None:
+        user.role = _normalise_role(data.role)
+
+    if data.is_active is not None:
+        user.is_active = data.is_active
+
+    if data.module_access is not None:
+        user.module_access = _module_access_string(data.module_access)
+
+    db.commit()
+    db.refresh(user)
+    return {
+        "user_id": user.id,
+        "role": user.role,
+        "is_active": user.is_active,
+        "module_access": _module_access_list(user.module_access),
+        "updated": True,
+    }
 
 
 @router.delete("/users/{user_id}")

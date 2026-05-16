@@ -86,21 +86,7 @@ async def planning_cashflow(
                 }
             )
     else:
-        weekly_rows = [
-            {"week": "W1", "inflow": 15000, "outflow": 6200, "balance": 84320},
-            {"week": "W2", "inflow": 2400, "outflow": 5800, "balance": 80920},
-            {"week": "W3", "inflow": 8500, "outflow": 6100, "balance": 83320},
-            {"week": "W4", "inflow": 4850, "outflow": 7200, "balance": 80970},
-            {"week": "W5", "inflow": 1200, "outflow": 5900, "balance": 76270},
-            {"week": "W6", "inflow": 12000, "outflow": 6400, "balance": 81870},
-            {"week": "W7", "inflow": 3100, "outflow": 5800, "balance": 79170},
-            {"week": "W8", "inflow": 900, "outflow": 6200, "balance": 73870},
-            {"week": "W9", "inflow": 6000, "outflow": 5900, "balance": 73970},
-            {"week": "W10", "inflow": 2500, "outflow": 6100, "balance": 70370},
-            {"week": "W11", "inflow": 15000, "outflow": 7400, "balance": 77970},
-            {"week": "W12", "inflow": 1800, "outflow": 5800, "balance": 73970},
-            {"week": "W13", "inflow": 4200, "outflow": 6200, "balance": 71970},
-        ]
+        weekly_rows = []
 
     forecast_rows = [
         {
@@ -110,7 +96,6 @@ async def planning_cashflow(
         for row in weekly_rows
     ]
 
-    lowest = min(forecast_rows, key=lambda row: row["balance"])
     avg_monthly_burn = (
         db.query(func.sum(Transaction.amount))
         .filter(
@@ -130,23 +115,25 @@ async def planning_cashflow(
         "Keep a minimum reserve equal to three months of payroll.",
     ]
 
+    lowest = min(forecast_rows, key=lambda row: row["balance"]) if forecast_rows else None
+
     return {
         "summary": {
-            "current_cash": round(forecast_rows[0]["balance"], 2),
-            "projected_cash": round(forecast_rows[-1]["balance"], 2),
-            "net_movement": round(forecast_rows[-1]["balance"] - forecast_rows[0]["balance"], 2),
+            "current_cash": round(forecast_rows[0]["balance"], 2) if forecast_rows else 0,
+            "projected_cash": round(forecast_rows[-1]["balance"], 2) if forecast_rows else 0,
+            "net_movement": round(forecast_rows[-1]["balance"] - forecast_rows[0]["balance"], 2) if forecast_rows else 0,
             "avg_monthly_burn": avg_monthly_burn,
-            "runway_months": round(forecast_rows[-1]["balance"] / max(avg_monthly_burn, 1), 1) if avg_monthly_burn > 0 else None,
-            "lowest_week": lowest["week"],
-            "lowest_balance": round(lowest["balance"], 2),
+            "runway_months": round(forecast_rows[-1]["balance"] / max(avg_monthly_burn, 1), 1) if avg_monthly_burn > 0 and forecast_rows else None,
+            "lowest_week": lowest["week"] if lowest else None,
+            "lowest_balance": round(lowest["balance"], 2) if lowest else 0,
         },
         "forecast": forecast_rows,
         "scenario_copy": {
-            "optimistic": "Optimistic outlook: receivables clear to plan and the next grant milestone lands within the month, easing summer cash pressure.",
-            "base": "Base case: current commitments remain manageable, but runway stays sensitive to grant timing and slower debtor collection.",
-            "stress": "Stress test: a delayed grant drawdown and continued overhead pressure would compress runway quickly, so management action should start now.",
+            "optimistic": "Add income and expense data to generate a tailored optimistic scenario.",
+            "base": "Base case scenarios will appear once this workspace has transaction history.",
+            "stress": "Stress test scenarios will appear once this workspace has transaction history.",
         },
-        "recommendations": recommendations,
+        "recommendations": recommendations if forecast_rows else ["Add transactions to unlock a live 13-week cashflow forecast."],
     }
 
 
@@ -192,13 +179,7 @@ async def planning_budgets(
                 }
             )
     else:
-        categories = [
-            {"category": "Staff Costs", "budget": 58200, "actual": 54600, "variance": 3600, "variantPct": 6.2},
-            {"category": "Programme Delivery", "budget": 24000, "actual": 26400, "variance": -2400, "variantPct": -10.0},
-            {"category": "Overheads", "budget": 14800, "actual": 13900, "variance": 900, "variantPct": 6.1},
-            {"category": "Marketing", "budget": 4200, "actual": 5100, "variance": -900, "variantPct": -21.4},
-            {"category": "Training and CPD", "budget": 2800, "actual": 2200, "variance": 600, "variantPct": 21.4},
-        ]
+        categories = []
 
     programmes = (
         db.query(Programme)
@@ -224,19 +205,14 @@ async def planning_budgets(
                 }
             )
     else:
-        departments = [
-            {"dept": "Youth Connect", "allocated": "GBP 38,000", "spent": "GBP 31,200", "remaining": "GBP 6,800", "pct": 82},
-            {"dept": "Skills Hub", "allocated": "GBP 28,500", "spent": "GBP 24,100", "remaining": "GBP 4,400", "pct": 85},
-            {"dept": "Community Outreach", "allocated": "GBP 18,000", "spent": "GBP 12,600", "remaining": "GBP 5,400", "pct": 70},
-            {"dept": "Core Ops", "allocated": "GBP 19,500", "spent": "GBP 17,800", "remaining": "GBP 1,700", "pct": 91},
-        ]
+        departments = []
 
     total_budget = round(sum(item["budget"] for item in categories), 2)
     total_spent = round(sum(item["actual"] for item in categories), 2)
     remaining = round(total_budget - total_spent, 2)
 
-    worst = min(categories, key=lambda item: item["variantPct"])
-    best = max(categories, key=lambda item: item["variantPct"])
+    worst = min(categories, key=lambda item: item["variantPct"]) if categories else None
+    best = max(categories, key=lambda item: item["variantPct"]) if categories else None
 
     variance_rows = [
         {
@@ -281,7 +257,7 @@ async def planning_budgets(
         "departments": departments,
         "variance_rows": variance_rows,
         "forecast_rows": forecast_rows,
-        "budget_note": "Budget checkpoint saved. Department leads can now review their current allocations and flagged variances.",
-        "variance_narrative": f"Largest pressure point: {worst['category']} is over plan, while {best['category']} is currently under budget and can absorb limited rephasing.",
+        "budget_note": "Add transactions or programme budgets to populate this planning view." if not categories and not departments else "Budget checkpoint saved. Department leads can now review their current allocations and flagged variances.",
+        "variance_narrative": f"Largest pressure point: {worst['category']} is over plan, while {best['category']} is currently under budget and can absorb limited rephasing." if worst and best else "Variance insight will appear once this workspace has budget and spend data.",
         "periods": ["YTD", "Q1", "Q2", "Q3", "Q4"],
     }

@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from pydantic import field_validator
 
 class Settings(BaseSettings):
     # App
@@ -39,7 +40,19 @@ class Settings(BaseSettings):
     # AI
     ANTHROPIC_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
-    AI_MODEL: str = "claude-sonnet-4-6"
+    AI_MODEL: str = "claude-sonnet-4-20250514"
+    OPENAI_FALLBACK_MODEL: str = "gpt-4o-mini"
+    AI_ENABLE_OPENAI_FALLBACK: bool = True
+
+    # Brevo email
+    BREVO_API_KEY: Optional[str] = None
+    EMAIL_FROM_ADDRESS: Optional[str] = None
+    EMAIL_FROM_NAME: str = "Nexus One"
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_OAUTH_REDIRECT_URI: Optional[str] = None
 
     # Payments
     STRIPE_SECRET_KEY: Optional[str] = None
@@ -64,8 +77,22 @@ class Settings(BaseSettings):
     MULTI_TENANT: bool = True
     DEFAULT_TENANT_SLUG: str = "harvest-touch"
 
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return True
+        text = str(value).strip().lower()
+        if text in {"1", "true", "yes", "on", "debug", "development"}:
+            return True
+        if text in {"0", "false", "no", "off", "release", "prod", "production"}:
+            return False
+        return bool(value)
+
     class Config:
-        env_file = ".env"
+        env_file = (".env", "backend/.env")
         case_sensitive = True
         extra = "ignore"
 

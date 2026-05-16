@@ -1,73 +1,83 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { useAuthStore } from '@/lib/store'
+import { useQuery } from '@tanstack/react-query'
+import { Moon, Sun } from 'lucide-react'
+
+import api from '@/lib/api'
+import { DashboardPeriodMode, useAuthStore, useUiStore } from '@/lib/store'
+
+type ModuleKey = 'finance' | 'operations' | 'people_hr' | 'compliance' | 'system' | 'overview'
 
 type NavItem = {
   label: string
   href: string
   icon: string
+  module: ModuleKey
   badge?: string
   badgeGold?: boolean
   badgeRed?: boolean
+  adminOnly?: boolean
 }
 
 type NavSection = {
   section: string
+  module: ModuleKey
   items: NavItem[]
 }
 
-const NAV: NavSection[] = [
+const BASE_NAV: NavSection[] = [
   {
     section: 'Overview',
+    module: 'overview',
     items: [
-      { label: 'Executive Dashboard', href: '/dashboard', icon: '◇' },
-      { label: 'AI Intelligence', href: '/ai', icon: '✦', badge: 'Live', badgeGold: true },
+      { label: 'Executive Dashboard', href: '/dashboard', icon: 'O', module: 'overview' },
+      { label: 'AI Intelligence', href: '/ai', icon: 'AI', module: 'overview', badge: 'Live', badgeGold: true },
     ],
   },
   {
     section: 'Finance',
+    module: 'finance',
     items: [
-      { label: 'Accounting', href: '/accounting', icon: '⊞' },
-      { label: 'Expenses', href: '/expenses', icon: '⊟', badge: '4', badgeRed: true },
-      { label: 'Donations', href: '/donations', icon: '♡' },
-      { label: 'Financial Reports', href: '/reports', icon: '≡' },
-      { label: 'AR & Invoicing', href: '/ar', icon: '⊛' },
-      { label: 'AP & Suppliers', href: '/ap', icon: '⊜' },
-      { label: 'VAT & MTD', href: '/vat', icon: '%' },
-      { label: 'Budgets & FP&A', href: '/budgets', icon: '◫' },
-      { label: 'Cash Flow Forecast', href: '/cashflow', icon: '⟳' },
+      { label: 'Accounting', href: '/accounting', icon: 'AC', module: 'finance' },
+      { label: 'Expenses', href: '/expenses', icon: 'EX', module: 'finance' },
+      { label: 'Donations', href: '/donations', icon: 'DN', module: 'finance' },
+      { label: 'Financial Reports', href: '/reports', icon: 'FR', module: 'finance' },
+      { label: 'AR & Invoicing', href: '/ar', icon: 'AR', module: 'finance' },
+      { label: 'AP & Suppliers', href: '/ap', icon: 'AP', module: 'finance' },
+      { label: 'VAT & MTD', href: '/vat', icon: 'VT', module: 'finance' },
+      { label: 'Budgets & FP&A', href: '/budgets', icon: 'BD', module: 'finance' },
+      { label: 'Cash Flow Forecast', href: '/cashflow', icon: 'CF', module: 'finance' },
     ],
   },
   {
     section: 'Operations',
+    module: 'operations',
     items: [
-      { label: 'Grant Management', href: '/grants', icon: '⊕', badge: '3', badgeGold: true },
-      { label: 'Programmes', href: '/programmes', icon: '◉' },
+      { label: 'Grant Management', href: '/grants', icon: 'GR', module: 'operations' },
+      { label: 'Programmes', href: '/programmes', icon: 'PR', module: 'operations' },
     ],
   },
   {
     section: 'People & HR',
+    module: 'people_hr',
     items: [
-      { label: 'Payroll', href: '/payroll', icon: '↻' },
-      { label: 'HR Management', href: '/hr', icon: '⊠' },
-      { label: 'Volunteers', href: '/volunteers', icon: '♡' },
-      { label: 'Rota & Timesheets', href: '/rota', icon: '◷' },
-      { label: 'UKVI & Sponsorship', href: '/ukvi', icon: '◎', badge: '!', badgeRed: true },
+      { label: 'Payroll', href: '/payroll', icon: 'PY', module: 'people_hr' },
+      { label: 'HR Management', href: '/hr', icon: 'HR', module: 'people_hr' },
+      { label: 'Volunteers', href: '/volunteers', icon: 'VO', module: 'people_hr' },
+      { label: 'Rota & Timesheets', href: '/rota', icon: 'RT', module: 'people_hr' },
+      { label: 'UKVI & Sponsorship', href: '/ukvi', icon: 'UK', module: 'people_hr', badge: '!', badgeRed: true },
     ],
   },
   {
     section: 'Compliance & Governance',
+    module: 'compliance',
     items: [
-      { label: 'Compliance Hub', href: '/compliance', icon: '◎', badge: '6', badgeRed: true },
-      { label: 'GDPR & Data', href: '/gdpr', icon: '▣' },
-      { label: 'Governance', href: '/governance', icon: '⌘' },
-      { label: 'Security & 2FA', href: '/security', icon: '▦' },
+      { label: 'Compliance Hub', href: '/compliance', icon: 'CP', module: 'compliance' },
+      { label: 'GDPR & Data', href: '/gdpr', icon: 'GD', module: 'compliance' },
+      { label: 'Governance', href: '/governance', icon: 'GV', module: 'compliance' },
+      { label: 'Security & 2FA', href: '/security', icon: 'SC', module: 'compliance' },
     ],
-  },
-  {
-    section: 'System',
-    items: [{ label: 'Workspace Admin', href: '/admin', icon: '⚙', badge: 'SA', badgeGold: true }],
   },
 ]
 
@@ -78,21 +88,102 @@ interface Props {
   actions?: ReactNode
 }
 
+const normalizeModules = (modules?: string[]) => {
+  const list = modules?.filter(Boolean) ?? []
+  return new Set(list.length ? list : ['finance', 'operations', 'people_hr', 'compliance'])
+}
+
+const roleLabel = (role?: string) => {
+  if (!role) return 'viewer'
+  return role === 'owner' ? 'admin' : role.replace(/_/g, ' ')
+}
+
 export default function AppLayout({ children, title, subtitle, actions }: Props) {
   const router = useRouter()
   const { user, logout } = useAuthStore()
+  const { dashboardPeriodMode, setDashboardPeriodMode } = useUiStore()
   const [theme, setTheme] = useState<'dark' | 'light' | null>(null)
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [isCompact, setIsCompact] = useState(false)
+  const [isTablet, setIsTablet] = useState(false)
+  const [isPhone, setIsPhone] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
 
-  const navItems = useMemo(() => NAV.flatMap((section) => section.items), [])
+  const isWorkspaceAdmin = user?.role === 'owner' || user?.role === 'admin'
+  const allowedModules = normalizeModules(user?.module_access)
+
+  const { data: expenseSummary } = useQuery({
+    queryKey: ['layout-expense-summary'],
+    queryFn: api.getExpenseSummary,
+    enabled: allowedModules.has('finance'),
+    staleTime: 30000,
+  })
+  const { data: grantsSummary } = useQuery({
+    queryKey: ['layout-grants-summary'],
+    queryFn: api.getGrantsSummary,
+    enabled: allowedModules.has('operations'),
+    staleTime: 30000,
+  })
+  const { data: accessMonitor } = useQuery({
+    queryKey: ['layout-access-monitor'],
+    queryFn: api.getAccessMonitor,
+    enabled: isWorkspaceAdmin,
+    staleTime: 30000,
+  })
+
+  const navSections = useMemo(() => {
+    const pendingExpenses = Number(expenseSummary?.pending_count ?? 0)
+    const activeGrants = Number(grantsSummary?.active_grants ?? 0)
+    const urgentCompliance = 0
+
+    const sections = BASE_NAV
+      .filter((section) => section.module === 'overview' || allowedModules.has(section.module))
+      .map((section) => ({
+        ...section,
+        items: section.items.map((item) => {
+          if (item.href === '/expenses') {
+            return {
+              ...item,
+              badge: pendingExpenses > 0 ? String(pendingExpenses) : undefined,
+              badgeRed: pendingExpenses > 0,
+              badgeGold: false,
+            }
+          }
+          if (item.href === '/grants') {
+            return {
+              ...item,
+              badge: activeGrants > 0 ? String(activeGrants) : undefined,
+              badgeGold: activeGrants > 0,
+              badgeRed: false,
+            }
+          }
+          if (item.href === '/compliance') {
+            return {
+              ...item,
+              badge: urgentCompliance > 0 ? String(urgentCompliance) : undefined,
+              badgeRed: urgentCompliance > 0,
+              badgeGold: false,
+            }
+          }
+          return item
+        }),
+      }))
+
+    return sections
+  }, [accessMonitor?.summary?.pending_invites, allowedModules, expenseSummary?.pending_count, grantsSummary?.active_grants, isWorkspaceAdmin])
+
+  const navItems = useMemo(() => navSections.flatMap((section) => section.items), [navSections])
 
   useEffect(() => {
     const syncViewport = () => {
+      const width = window.innerWidth
+      const phone = width < 760
+      const tablet = width < 1360
       const compact = window.innerWidth < 1120
+      setIsPhone(phone)
+      setIsTablet(tablet)
       setIsCompact(compact)
       if (!compact) setSidebarOpen(false)
     }
@@ -176,6 +267,12 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   }
 
   const toggleTheme = () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+  const periodOptions: Array<{ value: DashboardPeriodMode; label: string }> = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'wtd', label: 'WTD' },
+    { value: 'qtd', label: 'QTD' },
+    { value: 'ytd', label: 'YTD' },
+  ]
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
@@ -221,7 +318,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             >
               N1
             </div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--heading)', letterSpacing: '-0.3px' }}>Nexus One</div>
               <div
                 style={{
@@ -240,7 +337,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
 
         <div
           style={{
-            margin: '9px 12px',
+            margin: '9px 12px 6px',
             background: 'var(--bg3)',
             border: '1px solid var(--line)',
             borderRadius: 8,
@@ -273,11 +370,11 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
           >
             {user?.organisation ?? 'Workspace'}
           </div>
-          <span style={{ fontSize: 9, color: 'var(--mute)' }}>⌄</span>
+          <span style={{ fontSize: 9, color: 'var(--mute)' }}>V</span>
         </div>
 
         <nav style={{ flex: 1, padding: '4px 0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
-          {NAV.map(({ section, items }) => (
+          {navSections.map(({ section, items }) => (
             <div key={section} style={{ paddingTop: 4 }}>
               <div
                 style={{
@@ -344,18 +441,36 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                           }}
                         />
                       )}
-                      <span style={{ width: 16, fontSize: 13, flexShrink: 0, opacity: isActive ? 1 : 0.8, textAlign: 'center' }}>{item.icon}</span>
-                      <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{item.label}</span>
+                      <span
+                        style={{
+                          width: 22,
+                          minWidth: 22,
+                          fontSize: 10,
+                          flexShrink: 0,
+                          opacity: isActive ? 1 : 0.9,
+                          textAlign: 'center',
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        {item.icon}
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{item.label}</span>
                       {item.badge && (
                         <span
                           style={{
                             ...badgeStyle,
                             fontSize: 9.5,
-                            fontWeight: 600,
+                            fontWeight: 700,
                             padding: '2px 6px',
-                            borderRadius: 10,
+                            borderRadius: 999,
                             fontFamily: "'JetBrains Mono', monospace",
                             flexShrink: 0,
+                            minWidth: 20,
+                            maxWidth: 46,
+                            textAlign: 'center',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
                           }}
                         >
                           {item.badge}
@@ -370,7 +485,8 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
         </nav>
 
         <div style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
-          <div onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', borderRadius: 8, cursor: 'pointer' }}>
+          <div style={{ padding: '7px 10px', borderRadius: 8, background: 'var(--bg3)', border: '1px solid var(--line)' }}>
+            <div onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
             <div
               style={{
                 width: 30,
@@ -390,12 +506,52 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user?.full_name ?? 'Dominic Ogbuagu'}
+                {user?.full_name ?? 'Workspace User'}
               </div>
               <div style={{ fontSize: 10, color: 'var(--gold)', fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase' }}>
-                {user?.role?.replace('_', ' ') ?? 'owner'}
+                {roleLabel(user?.role)}
               </div>
             </div>
+            </div>
+            {isWorkspaceAdmin && (
+              <Link href="/admin" style={{ textDecoration: 'none' }}>
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: '1px solid var(--line)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    color: router.pathname === '/admin' ? 'var(--gold2)' : 'var(--mute2)',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--heading)' }}>Workspace Admin</div>
+                    <div style={{ fontSize: 10, color: 'var(--mute)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Users, access, invites
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      background: 'var(--gold-bg)',
+                      color: 'var(--gold2)',
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      minWidth: 24,
+                      textAlign: 'center',
+                      borderRadius: 999,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {accessMonitor?.summary?.pending_invites ?? 'AD'}
+                  </span>
+                </div>
+              </Link>
+            )}
           </div>
         </div>
       </aside>
@@ -408,7 +564,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             borderBottom: '1px solid var(--line)',
             display: 'flex',
             alignItems: 'center',
-            padding: '12px 22px',
+            padding: isPhone ? '12px 14px' : '12px 22px',
             gap: 12,
             flexWrap: 'wrap',
             flexShrink: 0,
@@ -429,7 +585,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                   flexShrink: 0,
                 }}
               >
-                ☰
+                MENU
               </button>
             )}
             <div style={{ minWidth: 0 }}>
@@ -442,8 +598,23 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap', width: isCompact ? '100%' : 'auto' }}>
-            <div style={{ position: 'relative', width: isCompact ? '100%' : 260, flex: isCompact ? '1 1 100%' : undefined }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isPhone
+                ? '1fr'
+                : isCompact
+                  ? 'minmax(0, 1fr) auto'
+                  : isTablet
+                    ? 'minmax(220px, 1fr) auto auto'
+                    : 'minmax(240px, 280px) auto auto',
+              alignItems: 'center',
+              gap: 10,
+              marginLeft: 'auto',
+              width: isCompact ? '100%' : 'auto',
+            }}
+          >
+            <div style={{ position: 'relative', width: '100%', minWidth: 0 }}>
               <form onSubmit={handleSearchSubmit}>
                 <div
                   style={{
@@ -456,7 +627,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                     padding: '6px 12px',
                   }}
                 >
-                  <span style={{ color: 'var(--mute)', fontSize: 13 }}>⌕</span>
+                  <span style={{ color: 'var(--mute)', fontSize: 13 }}>GO</span>
                   <input
                     type="text"
                     value={search}
@@ -520,27 +691,94 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={toggleTheme}
+            <div
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                border: '1px solid var(--line2)',
-                background: 'var(--bg3)',
-                color: 'var(--heading)',
-                cursor: 'pointer',
-                flexShrink: 0,
-                fontSize: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isPhone ? 'space-between' : 'flex-start',
+                gap: 10,
+                minWidth: 0,
+                width: isPhone ? '100%' : 'auto',
+                overflowX: isPhone ? 'auto' : 'visible',
               }}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === null ? '' : theme === 'dark' ? '☀' : '☾'}
-            </button>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: 4,
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 12,
+                  flexWrap: 'nowrap',
+                  minWidth: 0,
+                  flex: isPhone ? 1 : '0 1 auto',
+                  overflowX: 'auto',
+                }}
+              >
+                {periodOptions.map((option) => {
+                  const active = dashboardPeriodMode === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setDashboardPeriodMode(option.value)}
+                      style={{
+                        border: 'none',
+                        background: active ? 'var(--gold)' : 'transparent',
+                        color: active ? 'var(--ink-inverse)' : 'var(--mute2)',
+                        borderRadius: 8,
+                        padding: isPhone ? '8px 8px' : isCompact ? '8px 9px' : '8px 10px',
+                        fontSize: isPhone ? 11 : 11.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        fontFamily: "'Instrument Sans', sans-serif",
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
 
-            {actions}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                style={{
+                  width: 42,
+                  height: 42,
+                  minWidth: 42,
+                  borderRadius: 12,
+                  border: '1px solid var(--line2)',
+                  background: 'var(--bg3)',
+                  color: 'var(--heading)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                }}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === null ? null : theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: isPhone ? 'stretch' : isCompact ? 'flex-end' : 'flex-end',
+                minWidth: 0,
+                width: isPhone ? '100%' : 'auto',
+              }}
+            >
+              {actions}
+            </div>
           </div>
         </div>
 

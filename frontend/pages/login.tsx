@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, useState } from 'react'
+import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
@@ -7,9 +7,15 @@ const ORG_TYPES = ['Company', 'Charity / NGO', 'CIC / Nonprofit', 'School / Trai
 const COUNTRIES = ['United Kingdom', 'Nigeria', 'United States', 'Ghana', 'Kenya', 'South Africa']
 const CURRENCIES = ['GBP', 'NGN', 'USD', 'EUR']
 
+declare global {
+  interface Window {
+    google?: any
+  }
+}
+
 export default function Login() {
   const router = useRouter()
-  const { login, register, acceptInvite, isLoading } = useAuthStore()
+  const { login, googleAuth, register, acceptInvite, isLoading } = useAuthStore()
   const inviteToken = typeof router.query.invite === 'string' ? router.query.invite : ''
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('dominic@harvesttouch.org.uk')
@@ -19,6 +25,24 @@ export default function Login() {
   const [organisationType, setOrganisationType] = useState(ORG_TYPES[0])
   const [country, setCountry] = useState(COUNTRIES[0])
   const [currency, setCurrency] = useState('GBP')
+  const [googleReady, setGoogleReady] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.google?.accounts?.oauth2) {
+      setGoogleReady(true)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => setGoogleReady(true)
+    document.body.appendChild(script)
+    return () => {
+      document.body.removeChild(script)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +69,48 @@ export default function Login() {
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || (mode === 'login' ? 'Invalid email or password' : 'Signup failed'))
     }
+  }
+
+  const handleGoogleSignIn = async () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    const redirectUri = 'postmessage'
+
+    if (!clientId) {
+      toast.error('Google client ID is not configured')
+      return
+    }
+    if (!window.google?.accounts?.oauth2) {
+      toast.error('Google sign-in is still loading')
+      return
+    }
+
+    const codeClient = window.google.accounts.oauth2.initCodeClient({
+      client_id: clientId,
+      scope: 'openid email profile',
+      ux_mode: 'popup',
+      callback: async (response: any) => {
+        if (!response?.code) {
+          toast.error('Google authorisation failed')
+          return
+        }
+        try {
+          await googleAuth({
+            code: response.code,
+            redirect_uri: redirectUri,
+            organisation_name: mode === 'signup' ? organisationName : undefined,
+            organisation_type: organisationType,
+            country,
+            currency,
+          })
+          toast.success(mode === 'signup' ? 'Workspace created with Google' : 'Signed in with Google')
+          router.push('/dashboard')
+        } catch (err: any) {
+          toast.error(err?.response?.data?.detail || 'Google sign-in failed')
+        }
+      },
+    })
+
+    codeClient.requestCode()
   }
 
   return (
@@ -210,6 +276,39 @@ export default function Login() {
             >
               {isLoading ? (mode === 'login' ? 'Signing in...' : 'Creating workspace...') : (mode === 'login' ? 'Sign In' : 'Create Workspace')}
             </button>
+
+            {!inviteToken && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 14px' }}>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                  <div style={{ fontSize: 10.5, color: '#5C6B84', fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Or continue with
+                  </div>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading || !googleReady}
+                  style={{
+                    width: '100%',
+                    padding: '11px',
+                    background: '#1C2230',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 8,
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: '#E8EDF5',
+                    cursor: isLoading || !googleReady ? 'wait' : 'pointer',
+                    opacity: isLoading || !googleReady ? 0.7 : 1,
+                    marginBottom: 4,
+                  }}
+                >
+                  {googleReady ? (mode === 'login' ? 'Sign In with Google' : 'Create Workspace with Google') : 'Loading Google...'}
+                </button>
+              </>
+            )}
           </form>
 
           {mode === 'login' && !inviteToken && (

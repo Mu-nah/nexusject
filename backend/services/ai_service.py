@@ -6,7 +6,6 @@ Uses Claude claude-sonnet-4-20250514 via Anthropic SDK (server-side only — key
 import json
 import logging
 from datetime import datetime
-from decimal import Decimal
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -42,6 +41,106 @@ Your capabilities:
 - Answer ANY question about this organisation's finances, HR, operations, or compliance
 
 IMPORTANT: Always use the actual data provided. Give specific numbers, dates, and actionable recommendations. Write in professional UK English. For reports, use proper headings and structure. Always use GBP (£)."""
+
+
+def _extract_response_text(response) -> str:
+    content = getattr(response, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list) and content:
+        first = content[0]
+        if hasattr(first, "text"):
+            return first.text
+    if hasattr(response, "output_text"):
+        return response.output_text
+    return str(response)
+
+
+def _has_real_secret(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    text = value.strip()
+    if not text:
+        return False
+    placeholder_markers = (
+        "your-",
+        "sk-your-",
+        "replace-me",
+        "example",
+        "test-key",
+    )
+    lowered = text.lower()
+    return not any(marker in lowered for marker in placeholder_markers)
+
+
+def _call_anthropic(messages: list, system: Optional[str], max_tokens: int) -> str:
+    import anthropic
+    from backend.core.settings import settings
+
+    if not _has_real_secret(settings.ANTHROPIC_API_KEY):
+        raise RuntimeError("Anthropic API key is missing or still set to a placeholder value")
+
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    response = client.messages.create(
+        model=settings.AI_MODEL or "claude-sonnet-4-20250514",
+        max_tokens=max_tokens,
+        system=system,
+        messages=messages,
+    )
+    return _extract_response_text(response)
+
+
+def _call_openai(messages: list, system: Optional[str], max_tokens: int) -> str:
+    from openai import OpenAI
+    from backend.core.settings import settings
+
+    if not _has_real_secret(settings.OPENAI_API_KEY):
+        raise RuntimeError("OpenAI fallback API key is missing or still set to a placeholder value")
+
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    payload_messages = []
+    if system:
+        payload_messages.append({"role": "system", "content": system})
+    payload_messages.extend(messages)
+    response = client.chat.completions.create(
+        model=settings.OPENAI_FALLBACK_MODEL,
+        messages=payload_messages,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content or ""
+
+
+def _call_llm(messages: list, system: Optional[str], max_tokens: int) -> str:
+    from backend.core.settings import settings
+
+    primary_error = None
+    fallback_error = None
+
+    if _has_real_secret(settings.ANTHROPIC_API_KEY):
+        try:
+            return _call_anthropic(messages, system, max_tokens)
+        except Exception as exc:
+            primary_error = exc
+            logger.warning(f"Anthropic call failed, attempting OpenAI fallback: {exc}")
+    elif settings.ANTHROPIC_API_KEY:
+        logger.warning("Anthropic API key is present but appears to be a placeholder; skipping Claude")
+
+    if settings.AI_ENABLE_OPENAI_FALLBACK and _has_real_secret(settings.OPENAI_API_KEY):
+        try:
+            return _call_openai(messages, system, max_tokens)
+        except Exception as exc:
+            fallback_error = exc
+            logger.error(f"OpenAI fallback failed: {exc}")
+    elif settings.AI_ENABLE_OPENAI_FALLBACK and settings.OPENAI_API_KEY:
+        logger.warning("OpenAI API key is present but appears to be a placeholder; skipping fallback")
+
+    if primary_error and fallback_error:
+        raise RuntimeError(f"Claude failed: {primary_error}. OpenAI fallback failed: {fallback_error}")
+    if primary_error:
+        raise RuntimeError(f"Claude failed and no usable OpenAI fallback is configured: {primary_error}")
+    if fallback_error:
+        raise RuntimeError(f"OpenAI fallback failed: {fallback_error}")
+    raise RuntimeError("No usable AI provider is configured. Set a valid ANTHROPIC_API_KEY for Claude or a valid OPENAI_API_KEY for fallback.")
 
 
 async def get_financial_context(db: Session, org_id: int) -> dict:
@@ -163,6 +262,7 @@ async def get_financial_context(db: Session, org_id: int) -> dict:
         }
 
     except Exception as e:
+        db.rollback()
         logger.error(f"Error building financial context: {e}")
         return {"error": "Could not retrieve live data", "note": str(e)}
 
@@ -245,21 +345,9 @@ async def ai_assistant_chat(
 ) -> str:
     """Main AI assistant — routes message to Claude with full org context."""
     try:
-        import anthropic
-        from backend.core.settings import settings
-
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         system = _format_system_prompt(financial_context, org_name)
         messages = conversation_history + [{"role": "user", "content": message}]
-
-        response = client.messages.create(
-            model=settings.AI_MODEL,
-            max_tokens=4096,
-            system=system,
-            messages=messages,
-        )
-
-        return response.content[0].text
+        return _call_llm(messages, system, 4096)
 
     except Exception as e:
         logger.error(f"AI assistant error: {e}")
@@ -275,8 +363,6 @@ async def generate_grant_report(
 ) -> dict:
     """Generate a complete AI-powered grant report."""
     try:
-        import anthropic
-        from backend.core.settings import settings
         from backend.models.grant import Grant, GrantSpending
 
         grant = db.query(Grant).filter(Grant.id == grant_id).first()
@@ -293,8 +379,6 @@ async def generate_grant_report(
         for s in spending:
             cat = s.category or "other"
             spending_summary[cat] = spending_summary.get(cat, 0) + float(s.amount)
-
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
         prompt = f"""Generate a professional interim grant report for {org_name}.
 
@@ -316,17 +400,11 @@ Write a 400–600 word report including:
 
 Use professional charity sector language. UK English."""
 
-        response = client.messages.create(
-            model=settings.AI_MODEL,
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
         return {
             "grant_name": grant.name,
             "funder": grant.funder,
             "period": f"{period_start.strftime('%d %b %Y')} – {period_end.strftime('%d %b %Y')}",
-            "narrative": response.content[0].text,
+            "narrative": _call_llm([{"role": "user", "content": prompt}], None, 2000),
             "financial_summary": spending_summary,
             "total_spent": sum(spending_summary.values()),
             "generated_at": datetime.utcnow().isoformat(),
@@ -346,13 +424,8 @@ async def generate_cashflow_forecast(
 ) -> dict:
     """AI-powered cashflow forecast."""
     try:
-        import anthropic
-        from backend.core.settings import settings
-
         context = await get_financial_context(db, org_id)
         system = _format_system_prompt(context, org_name)
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-
         prompt = f"""Generate a detailed {months_ahead}-month cash flow forecast for {org_name}.
 
 Using the live financial data in your context, provide:
@@ -365,16 +438,9 @@ Using the live financial data in your context, provide:
 
 Be specific with £ amounts. Present in a clear table format."""
 
-        response = client.messages.create(
-            model=settings.AI_MODEL,
-            max_tokens=3000,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
         return {
             "forecast_months": months_ahead,
-            "narrative": response.content[0].text,
+            "narrative": _call_llm([{"role": "user", "content": prompt}], system, 3000),
             "generated_at": datetime.utcnow().isoformat(),
         }
 

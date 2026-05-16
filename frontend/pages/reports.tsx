@@ -1,7 +1,7 @@
 import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import AppLayout from '@/components/layout/AppLayout'
-import { Alert, Badge, Button, Panel } from '@/components/ui'
+import { Badge, Button, Panel } from '@/components/ui'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
 
@@ -27,25 +27,22 @@ const REPORTS = [
     description: 'Quarterly summary for board meeting. Includes income, expenditure, reserves, and risk register.',
     badge: 'Quarterly',
     badgeVariant: 'blue' as const,
-    aiPowered: true,
   },
   {
     id: 'grant' as ReportType,
     icon: 'GRANT',
     title: 'Grant Funder Report',
-    description: 'Narrative plus financial breakdown for NLCF, GMCA, or Rochdale SLA. Pre-filled from live data.',
+    description: 'Narrative plus financial breakdown for NLCF, GMCA, or Rochdale SLA.',
     badge: 'Due soon',
     badgeVariant: 'red' as const,
-    aiPowered: true,
   },
   {
     id: 'charity_commission' as ReportType,
     icon: 'AR',
     title: 'Charity Commission AR',
-    description: 'Annual return-style governance and grants review generated from workspace data.',
+    description: 'Annual return-style governance and grants review for filing preparation.',
     badge: 'Annual',
     badgeVariant: 'slate' as const,
-    aiPowered: true,
   },
   {
     id: 'management_accounts' as ReportType,
@@ -54,7 +51,6 @@ const REPORTS = [
     description: 'Monthly financial summary for internal management use, saved to the workspace history.',
     badge: 'Monthly',
     badgeVariant: 'amber' as const,
-    aiPowered: true,
   },
 ]
 
@@ -70,6 +66,17 @@ function renderInline(text: string): ReactNode[] {
     }
     return <Fragment key={index}>{part}</Fragment>
   })
+}
+
+function normaliseReportMarkdown(content: string): string {
+  return content
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/^\s*#+\s*$/gm, '')
+    .replace(/^\s{0,3}(#{1,6})([^ #\n])/gm, '$1 $2')
+    .replace(/^\s*[-*]\s*\*\*(.+?)\*\*:\s*(.+)$/gm, '- **$1:** $2')
+    .replace(/^\s*(\d+)\.\s*(.+)$/gm, '$1. $2')
+    .trim()
 }
 
 function parseTableRow(line: string): string[] {
@@ -104,7 +111,7 @@ function parseMetaSegments(line: string): Array<{ label: string; value: string }
 }
 
 function buildPreviewMarkdown(markdown: string): string {
-  const normalized = markdown.replace(/\r\n/g, '\n').trim()
+  const normalized = normaliseReportMarkdown(markdown)
   if (!normalized) return ''
 
   const lines = normalized.split('\n')
@@ -113,7 +120,7 @@ function buildPreviewMarkdown(markdown: string): string {
 }
 
 function renderMarkdownReport(markdown: string): ReactNode[] {
-  const lines = markdown.replace(/\r\n/g, '\n').split('\n')
+  const lines = normaliseReportMarkdown(markdown).split('\n')
   const elements: ReactNode[] = []
   let i = 0
 
@@ -293,6 +300,43 @@ function renderMarkdownReport(markdown: string): ReactNode[] {
       continue
     }
 
+    if (/^\d+\.\s/.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s/, ''))
+        i += 1
+      }
+      elements.push(
+        <ol key={`ol-${i}`} style={{ margin: '10px 0 18px 18px', padding: 0, color: 'var(--text)' }}>
+          {items.map((item, itemIndex) => <li key={itemIndex} style={{ marginBottom: 8, lineHeight: 1.7 }}>{renderInline(item)}</li>)}
+        </ol>
+      )
+      continue
+    }
+
+    if (/^(warning|note|summary|status|recommendation|next steps?|action)\s*:/i.test(line)) {
+      const [label, ...rest] = line.split(':')
+      elements.push(
+        <div
+          key={`callout-${i}`}
+          style={{
+            margin: '16px 0 20px',
+            padding: '14px 16px',
+            borderLeft: '3px solid var(--gold)',
+            background: 'color-mix(in srgb, var(--gold) 10%, transparent)',
+            borderRadius: 10,
+            color: 'var(--text)',
+            lineHeight: 1.7,
+          }}
+        >
+          <strong style={{ color: 'var(--heading)' }}>{label.trim()}:</strong>{' '}
+          {renderInline(rest.join(':').trim())}
+        </div>
+      )
+      i += 1
+      continue
+    }
+
     const paragraphLines: string[] = []
     while (i < lines.length) {
       const current = lines[i].trim()
@@ -336,6 +380,7 @@ export default function Reports() {
   const [sharedAccessError, setSharedAccessError] = useState('')
   const [isLoadingShared, setIsLoadingShared] = useState(false)
   const [hasAuthToken, setHasAuthToken] = useState(false)
+  const [sharedLoadError, setSharedLoadError] = useState('')
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
   const sharedEmailQuery = typeof router.query.email === 'string' ? router.query.email : ''
@@ -377,6 +422,9 @@ export default function Reports() {
         setShareAccessMode(fullReport.share_access_mode === 'specific_email' ? 'specific_email' : 'anyone_with_link')
         setShareEmail(fullReport.allowed_email || '')
       }
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      toast.error(detail || 'Could not load saved reports')
     } finally {
       setIsLoadingHistory(false)
     }
@@ -400,16 +448,17 @@ export default function Reports() {
   }
 
   useEffect(() => {
-    if (shareQuery && !hasAuthToken) return
+    if (shareQuery) return
     loadHistory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shareQuery, hasAuthToken])
+  }, [shareQuery])
 
   useEffect(() => {
     if (!shareQuery) return
     setIsLoadingShared(true)
     setSharedAccessError('')
     setSharedAccessRequired(false)
+    setSharedLoadError('')
     api.getSharedReport(shareQuery, sharedEmailQuery || undefined)
       .then((shared) => {
         setReport(shared)
@@ -428,7 +477,7 @@ export default function Reports() {
           setSharedAccessError('This shared report is restricted to a specific email address.')
           return
         }
-        toast.error('Shared report not found')
+        setSharedLoadError('This shared report could not be opened.')
       })
       .finally(() => setIsLoadingShared(false))
   }, [shareQuery, sharedEmailQuery])
@@ -452,12 +501,17 @@ export default function Reports() {
 
       if (saved) {
         setReport(saved)
+        setHistory((current) => {
+          const next = [saved, ...current.filter((item) => item.id !== saved!.id)]
+          return next
+        })
         setViewerOpen(true)
         toast.success('Report saved to workspace')
-        await loadHistory()
+        loadHistory().catch(() => null)
       }
-    } catch {
-      toast.error('Report generation failed - check your AI API key')
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail || error?.message
+      toast.error(detail || 'Report generation failed - check your AI API key')
     } finally {
       setGenerating(null)
     }
@@ -474,6 +528,31 @@ export default function Reports() {
       URL.revokeObjectURL(url)
     } catch {
       toast.error('PDF download failed')
+    }
+  }
+
+  const handleDownloadSharedPdf = async () => {
+    if (!shareQuery) return
+    try {
+      const res = await api.downloadSharedReportPdf(shareQuery, sharedEmailQuery || sharedAccessEmail || undefined)
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${(report?.title || 'shared-report').replace(/\s+/g, '-').toLowerCase()}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      if (detail === 'email_required' || detail === 'email_not_allowed') {
+        setSharedAccessRequired(true)
+        setSharedAccessError(
+          detail === 'email_not_allowed'
+            ? 'That email does not have access to this shared report.'
+            : 'Enter the allowed email address to download this PDF.'
+        )
+        return
+      }
+      toast.error('Shared PDF download failed')
     }
   }
 
@@ -514,7 +593,7 @@ export default function Reports() {
         recipient_name: shareName.trim(),
         access_mode: shareAccessMode,
       })
-      toast.success(res.sent ? 'Report emailed successfully' : 'SMTP not configured - email not sent')
+      toast.success(res.sent ? 'Report email sent with PDF and secure link' : 'Email provider not configured - email not sent')
       setShareModalOpen(false)
     } catch {
       toast.error('Email share failed')
@@ -602,12 +681,143 @@ export default function Reports() {
     [filteredHistory, showAllHistory]
   )
 
+  if (shareQuery) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background:
+            'radial-gradient(circle at top right, color-mix(in srgb, var(--gold) 10%, transparent), transparent 30%), linear-gradient(180deg, var(--bg) 0%, var(--bg3) 100%)',
+          color: 'var(--text)',
+        }}
+      >
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+            borderBottom: '1px solid var(--line)',
+            background: 'color-mix(in srgb, var(--bg2) 88%, transparent)',
+            backdropFilter: 'blur(14px)',
+          }}
+        >
+          <div style={{ maxWidth: 1180, margin: '0 auto', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, var(--gold), var(--gold3))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-inverse)', fontWeight: 700, boxShadow: 'var(--shadow)' }}>
+                N1
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--heading)' }}>Nexus One</div>
+                <div style={{ fontSize: 11, color: 'var(--mute2)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Secure shared document</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="ghost" onClick={handleDownloadSharedPdf} disabled={!report}>
+                Download PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '26px 20px 42px' }}>
+          {isLoadingShared && (
+            <Panel>
+              <div style={{ fontSize: 14, color: 'var(--mute2)' }}>Loading shared report...</div>
+            </Panel>
+          )}
+
+          {!isLoadingShared && sharedAccessRequired && !report && (
+            <Panel>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--heading)', marginBottom: 8 }}>Restricted Shared Report</div>
+              <div style={{ fontSize: 13.5, color: 'var(--mute2)', lineHeight: 1.7, marginBottom: 14 }}>
+                This shared report is limited to a specific email address. Enter that email to open the document.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) auto', gap: 10 }}>
+                <input
+                  value={sharedAccessEmail}
+                  onChange={(e) => setSharedAccessEmail(e.target.value)}
+                  placeholder="Allowed email address"
+                  style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
+                />
+                <Button onClick={handleSharedAccessSubmit} disabled={isLoadingShared}>
+                  {isLoadingShared ? 'Checking...' : 'Open Report'}
+                </Button>
+              </div>
+              {sharedAccessError && <div style={{ fontSize: 12.5, color: 'var(--red)', marginTop: 10 }}>{sharedAccessError}</div>}
+            </Panel>
+          )}
+
+          {!isLoadingShared && sharedLoadError && !report && (
+            <Panel>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--heading)', marginBottom: 8 }}>Report unavailable</div>
+              <div style={{ fontSize: 13.5, color: 'var(--mute2)' }}>{sharedLoadError}</div>
+            </Panel>
+          )}
+
+          {report && (
+            <div style={{ display: 'grid', gap: 18 }}>
+              <div
+                style={{
+                  display: 'block',
+                  padding: '20px 22px',
+                  borderRadius: 20,
+                  border: '1px solid var(--line2)',
+                  background: 'linear-gradient(180deg, color-mix(in srgb, var(--gold) 6%, var(--bg2)), var(--bg2))',
+                  boxShadow: 'var(--shadow)',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 30, fontWeight: 700, color: 'var(--heading)', marginBottom: 10, letterSpacing: '-0.03em' }}>{report.title}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Badge variant="green">Shared document</Badge>
+                    <Badge variant="slate">{report.report_type.replace(/_/g, ' ')}</Badge>
+                    {report.period_label && <Badge variant="blue">{report.period_label}</Badge>}
+                    <Badge variant="slate">
+                      {new Date(report.created_at).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Badge>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--mute2)', lineHeight: 1.7, marginTop: 12, maxWidth: 720 }}>
+                    This document was shared from Nexus One. You can review it online here or download the PDF copy using the action on the right.
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: 24,
+                  background: 'linear-gradient(180deg, color-mix(in srgb, var(--bg2) 92%, white), var(--bg3))',
+                  border: '1px solid var(--line2)',
+                  boxShadow: 'var(--shadow)',
+                }}
+              >
+                <div
+                  style={{
+                    maxWidth: 980,
+                    margin: '0 auto',
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--line2)',
+                    borderRadius: 20,
+                    padding: 'clamp(18px, 3vw, 32px)',
+                    boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
+                  }}
+                >
+                  {fullReportElements}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <AppLayout title="Financial Reports" subtitle="Workspace library">
-      <Alert variant="success" icon="AI">
-        AI-generated reports are saved to the workspace library. Open them in the report viewer, share them, download PDF copies, or remove older versions from history.
-      </Alert>
-
       {shareQuery && sharedAccessRequired && !report && (
         <Panel style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--heading)', marginBottom: 8 }}>Restricted Shared Report</div>
@@ -641,7 +851,6 @@ export default function Reports() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                   <div style={{ fontWeight: 600, color: 'var(--heading)', fontSize: 16 }}>{r.title}</div>
                   <Badge variant={r.badgeVariant}>{r.badge}</Badge>
-                  {r.aiPowered && <Badge variant="green">Workspace AI</Badge>}
                 </div>
                 <div style={{ fontSize: 12.5, color: 'var(--mute2)', lineHeight: 1.6, marginBottom: 18, flex: 1 }}>{r.description}</div>
                 <Button onClick={() => generate(r.id)} disabled={generating === r.id} style={{ alignSelf: 'flex-start', paddingInline: 16 }}>
@@ -805,7 +1014,7 @@ export default function Reports() {
 
             <div style={{ display: 'grid', gap: 12, padding: 22 }}>
               <div style={{ fontSize: 13, color: 'var(--mute2)', lineHeight: 1.7 }}>
-                Choose who can open this report before copying the link or emailing it.
+                Set the access rule for the shared link, then send the report directly to a recipient by email if needed.
               </div>
               <select
                 value={shareAccessMode}
@@ -815,22 +1024,37 @@ export default function Reports() {
                 <option value="anyone_with_link">Anyone with link</option>
                 <option value="specific_email">Specific email only</option>
               </select>
-              <input
-                value={shareName}
-                onChange={(e) => setShareName(e.target.value)}
-                placeholder="Recipient name"
-                style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
-              />
-              <input
-                value={shareEmail}
-                onChange={(e) => setShareEmail(e.target.value)}
-                placeholder={shareAccessMode === 'specific_email' ? 'Allowed / recipient email' : 'Recipient email (optional for link)'}
-                style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
-              />
+              {shareAccessMode === 'specific_email' && (
+                <input
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="Allowed email address"
+                  style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
+                />
+              )}
+              <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line2)', background: 'var(--bg3)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--heading)', marginBottom: 10 }}>Share via Email</div>
+                <div style={{ fontSize: 12.5, color: 'var(--mute2)', lineHeight: 1.6, marginBottom: 10 }}>
+                  This sends the PDF and the secure report link to the recipient&apos;s email.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                  <input
+                    value={shareName}
+                    onChange={(e) => setShareName(e.target.value)}
+                    placeholder="Recipient name"
+                    style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
+                  />
+                  <input
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    placeholder="Recipient email"
+                    style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
+                  />
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <Button variant="ghost" onClick={() => setShareModalOpen(false)}>Cancel</Button>
-                <Button variant="ghost" onClick={() => handleShare(shareTarget.id)}>Copy Share Link</Button>
-                <Button onClick={() => handleEmailShare(shareTarget.id)}>Email PDF</Button>
+                <Button onClick={() => handleEmailShare(shareTarget.id)}>Share via Email</Button>
               </div>
             </div>
           </div>
@@ -872,29 +1096,55 @@ export default function Reports() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, padding: '16px 22px', borderBottom: '1px solid var(--line)', background: 'var(--bg3)' }}>
-              <select
-                value={shareAccessMode}
-                onChange={(e) => setShareAccessMode(e.target.value as 'anyone_with_link' | 'specific_email')}
-                style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
-              >
-                <option value="anyone_with_link">Anyone with link</option>
-                <option value="specific_email">Specific email only</option>
-              </select>
-              <input
-                value={shareName}
-                onChange={(e) => setShareName(e.target.value)}
-                placeholder="Recipient name"
-                style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
-              />
-              <input
-                value={shareEmail}
-                onChange={(e) => setShareEmail(e.target.value)}
-                placeholder={shareAccessMode === 'specific_email' ? 'Allowed / recipient email' : 'Recipient email'}
-                style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 10, padding: '10px 12px', color: 'var(--text2)' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button onClick={() => handleEmailShare(report.id)}>Email PDF</Button>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '16px 22px',
+                borderBottom: '1px solid var(--line)',
+                background: 'var(--bg3)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 11.5, color: 'var(--mute2)', whiteSpace: 'nowrap' }}>Link access</div>
+                <select
+                  value={shareAccessMode}
+                  onChange={(e) => setShareAccessMode(e.target.value as 'anyone_with_link' | 'specific_email')}
+                  style={{
+                    width: 180,
+                    maxWidth: '100%',
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--line2)',
+                    borderRadius: 10,
+                    padding: '10px 12px',
+                    color: 'var(--text2)',
+                  }}
+                >
+                  <option value="anyone_with_link">Anyone with link</option>
+                  <option value="specific_email">Specific email only</option>
+                </select>
+                {shareAccessMode === 'specific_email' && (
+                  <input
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    placeholder="Allowed email address"
+                    style={{
+                      width: 240,
+                      maxWidth: '100%',
+                      background: 'var(--bg2)',
+                      border: '1px solid var(--line2)',
+                      borderRadius: 10,
+                      padding: '10px 12px',
+                      color: 'var(--text2)',
+                    }}
+                  />
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+                <Button onClick={() => openShareDialog(report)}>Share via Email</Button>
               </div>
             </div>
 

@@ -45,8 +45,10 @@ def auth_headers(client):
         "email": "test.cfo@harvesttouch.org.uk",
         "full_name": "Test CFO",
         "password": "TestPass1234!",
-        "role": "cfo",
-        "organisation_slug": "test-org",
+        "organisation_name": "Test Org",
+        "organisation_type": "CIC",
+        "country": "United Kingdom",
+        "currency": "GBP",
     })
     res = client.post("/auth/login", data={
         "username": "test.cfo@harvesttouch.org.uk",
@@ -80,8 +82,10 @@ class TestAuth:
             "email": "newuser@test.com",
             "full_name": "New User",
             "password": "Password123!",
-            "role": "viewer",
-            "organisation_slug": "test-org",
+            "organisation_name": "New User Org",
+            "organisation_type": "Company",
+            "country": "United Kingdom",
+            "currency": "GBP",
         })
         assert res.status_code == 201
         assert "access_token" in res.json()
@@ -91,13 +95,19 @@ class TestAuth:
             "email": "dup@test.com",
             "full_name": "Dup User",
             "password": "Password123!",
-            "organisation_slug": "test-org",
+            "organisation_name": "Dup Org",
+            "organisation_type": "Company",
+            "country": "United Kingdom",
+            "currency": "GBP",
         })
         res = client.post("/auth/register", json={
             "email": "dup@test.com",
             "full_name": "Dup User 2",
             "password": "Password123!",
-            "organisation_slug": "test-org",
+            "organisation_name": "Dup Org Two",
+            "organisation_type": "Company",
+            "country": "United Kingdom",
+            "currency": "GBP",
         })
         assert res.status_code == 400
 
@@ -117,11 +127,75 @@ class TestAuth:
         assert res.status_code == 200
         data = res.json()
         assert data["email"] == "test.cfo@harvesttouch.org.uk"
-        assert data["role"] == "cfo"
+        assert data["role"] == "owner"
 
     def test_me_no_token(self, client):
         res = client.get("/auth/me")
         assert res.status_code == 401
+
+    def test_google_auth_signup(self, client, monkeypatch):
+        class FakeResponse:
+            def __init__(self, status_code, payload):
+                self.status_code = status_code
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        def fake_post(url, data=None, timeout=None):
+            assert "oauth2.googleapis.com/token" in url
+            return FakeResponse(200, {"access_token": "google-access-token"})
+
+        def fake_get(url, headers=None, timeout=None):
+            assert "userinfo" in url
+            return FakeResponse(200, {
+                "sub": "google-sub-123",
+                "email": "google.user@example.com",
+                "name": "Google User",
+            })
+
+        monkeypatch.setattr("backend.routers.auth.settings.GOOGLE_CLIENT_ID", "client-id")
+        monkeypatch.setattr("backend.routers.auth.settings.GOOGLE_CLIENT_SECRET", "client-secret")
+        monkeypatch.setattr("backend.routers.auth.httpx.post", fake_post)
+        monkeypatch.setattr("backend.routers.auth.httpx.get", fake_get)
+
+        res = client.post("/auth/google", json={
+            "code": "auth-code",
+            "redirect_uri": "http://localhost:3000/auth/google/callback",
+            "organisation_name": "Google Org",
+        })
+        assert res.status_code == 200
+        assert "access_token" in res.json()
+        assert res.json()["email"] == "google.user@example.com"
+
+
+class TestWorkspaceCleanup:
+    def test_cleanup_demo_data_endpoint(self, client, auth_headers):
+        from backend.models.employee import Employee
+        from backend.models.ops import Volunteer, VolunteerHour, VolunteerAgreement, Trustee
+        from backend.models.user import User
+
+        db = TestingSessionLocal()
+        try:
+            user = db.query(User).filter(User.email == "test.cfo@harvesttouch.org.uk").first()
+            assert user is not None
+            org_id = user.organisation_id
+
+            db.add(Volunteer(organisation_id=org_id, name="Sarah Adebayo", role="Youth Mentor", programme="Youth Connect", hours="8h/wk", dbs="Enhanced", status="Active"))
+            db.add(VolunteerHour(organisation_id=org_id, volunteer_name="Sarah Adebayo", week="W/E 15 Mar", logged="8.5h", approved="8.5h", value="GBP 97.75", status="Approved"))
+            db.add(VolunteerAgreement(organisation_id=org_id, name="Sarah Adebayo", issued="01 Sep 2023", signed="03 Sep 2023", expires="Sep 2025", status="Active"))
+            db.add(Trustee(organisation_id=org_id, name="Dominic Ogbuagu", role="Director / CFO", appointed="01 Apr 2022", status="Active", coi="None declared"))
+            db.add(Employee(organisation_id=org_id, employee_number="EMP-0001", full_name="Dominic Ogbuagu", role_title="CFO / Director", contract_type="full_time", gross_salary=1800, is_active=True))
+            db.commit()
+        finally:
+            db.close()
+
+        res = client.post("/admin/workspace/cleanup-demo-data", headers=auth_headers)
+        assert res.status_code == 200
+        payload = res.json()
+        assert payload["total_deleted"] >= 5
+        assert payload["deleted"]["volunteers"] >= 1
+        assert payload["deleted"]["employees"] >= 1
 
 
 # ── Payroll Calculator (unit tests — no DB needed) ────────────────────────────
@@ -164,13 +238,14 @@ class TestPayrollCalculator:
 
     def test_pension_calculation(self):
         from backend.services.payroll_calculator import calculate_pension
-        emp_pension, er_pension = calculate_pension(
+        emp_pension, er_pension, assessment = calculate_pension(
             Decimal("2000"),
             employee_rate=Decimal("5.0"),
             employer_rate=Decimal("3.0"),
         )
         assert emp_pension > 0
         assert er_pension > 0
+        assert assessment["eligible"] is True
         assert emp_pension > er_pension  # Employee contributes more
 
     def test_employer_ni_secondary_threshold(self):
@@ -195,12 +270,35 @@ class TestPayrollCalculator:
     def test_zero_pension_below_qualifying(self):
         from backend.services.payroll_calculator import calculate_pension
         # Below lower qualifying earnings threshold (£6,240 annual = £520/month)
-        emp, er = calculate_pension(Decimal("400"))
-        assert emp == Decimal("0")
-        assert er == Decimal("0")
+        emp, er, assessment = calculate_pension(Decimal("400"))
+        assert emp == Decimal("0.00")
+        assert er == Decimal("0.00")
+        assert assessment["eligible"] is False
 
 
 # ── Accounting ────────────────────────────────────────────────────────────────
+
+    def test_scottish_tax_calculation(self):
+        from backend.services.payroll_calculator import calculate_monthly_paye
+        scottish = calculate_monthly_paye(Decimal("45000"), tax_code="S1257L")
+        rest_uk = calculate_monthly_paye(Decimal("45000"), tax_code="1257L")
+        assert scottish != rest_uk
+
+    def test_student_loan_plan_1_and_postgraduate(self):
+        from backend.services.payroll_calculator import calculate_payslip
+        result = calculate_payslip(
+            "Loan Employee",
+            gross_monthly=3000.0,
+            student_loan_plan="plan1",
+            postgraduate_loan=True,
+        )
+        assert result.student_loan > Decimal("0.00")
+        assert result.postgraduate_loan > Decimal("0.00")
+
+    def test_director_ni_supported(self):
+        from backend.services.payroll_calculator import calculate_payslip
+        result = calculate_payslip("Director", gross_monthly=4000.0, director_ni=True)
+        assert result.employee_ni > Decimal("0.00")
 
 class TestAccounting:
     def test_list_accounts_authenticated(self, client, auth_headers):
@@ -357,10 +455,106 @@ class TestPayrollAPI:
         assert res.status_code == 200
         assert isinstance(res.json(), list)
 
+    def test_run_lock_submit_and_bacs(self, client, auth_headers):
+        client.post("/payroll/employees", headers=auth_headers, json={
+            "full_name": "Run Employee",
+            "email": "run.emp@test.com",
+            "role_title": "Analyst",
+            "national_insurance": "ZZ999999Y",
+            "tax_code": "1257L",
+            "ni_category": "A",
+            "contract_type": "full_time",
+            "gross_salary": 2500.0,
+            "pension_enrolled": True,
+            "student_loan_plan": "plan2",
+        })
+        run_res = client.post("/payroll/run", headers=auth_headers, json={
+            "period_start": "2025-03-01T00:00:00",
+            "period_end": "2025-03-31T23:59:59",
+            "pay_date": "2025-03-28T00:00:00",
+            "tax_period": 12,
+            "tax_year": "2024-25",
+        })
+        assert run_res.status_code == 201
+        run_id = run_res.json()["id"]
+        assert run_res.json()["status"] == "draft"
+
+        lock_res = client.post(f"/payroll/runs/{run_id}/lock", headers=auth_headers, json={})
+        assert lock_res.status_code == 200
+        assert lock_res.json()["status"] == "locked"
+
+        fps_res = client.post(f"/payroll/runs/{run_id}/submit-fps", headers=auth_headers)
+        assert fps_res.status_code == 200
+        assert fps_res.json()["type"] == "FPS"
+
+        bacs_res = client.get(f"/payroll/runs/{run_id}/bacs", headers=auth_headers)
+        assert bacs_res.status_code == 200
+        assert "HDR" in bacs_res.text
+
     def test_payroll_summary(self, client, auth_headers):
         res = client.get("/payroll/summary", headers=auth_headers)
         assert res.status_code == 200
         assert "active_employees" in res.json()
+
+
+class TestIntegrations:
+    def test_brevo_email_send(self, monkeypatch):
+        from backend.services.email_service import send_email
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+        captured = {}
+
+        def fake_post(url, headers=None, json=None, timeout=None):
+            captured["url"] = url
+            captured["headers"] = headers
+            captured["json"] = json
+            return FakeResponse()
+
+        monkeypatch.setattr("backend.services.email_service.settings.BREVO_API_KEY", "brevo-test-key")
+        monkeypatch.setattr("backend.services.email_service.settings.EMAIL_FROM_ADDRESS", "noreply@example.com")
+        monkeypatch.setattr("backend.services.email_service.httpx.post", fake_post)
+
+        sent = send_email(
+            to="recipient@example.com",
+            subject="Test Email",
+            body_html="<p>Hello</p>",
+            org_name="Test Org",
+        )
+        assert sent is True
+        assert captured["url"] == "https://api.brevo.com/v3/smtp/email"
+        assert captured["json"]["to"][0]["email"] == "recipient@example.com"
+
+    def test_openai_fallback_when_anthropic_fails(self, monkeypatch):
+        from backend.services.ai_service import _call_llm
+
+        monkeypatch.setattr("backend.core.settings.settings.ANTHROPIC_API_KEY", "anthropic-key", raising=False)
+        monkeypatch.setattr("backend.core.settings.settings.OPENAI_API_KEY", "openai-key", raising=False)
+        monkeypatch.setattr("backend.core.settings.settings.AI_ENABLE_OPENAI_FALLBACK", True, raising=False)
+
+        def fail_anthropic(messages, system, max_tokens):
+            raise RuntimeError("Anthropic unavailable")
+
+        def use_openai(messages, system, max_tokens):
+            return "OpenAI fallback response"
+
+        monkeypatch.setattr("backend.services.ai_service._call_anthropic", fail_anthropic)
+        monkeypatch.setattr("backend.services.ai_service._call_openai", use_openai)
+
+        result = _call_llm([{"role": "user", "content": "hello"}], "system", 100)
+        assert result == "OpenAI fallback response"
+
+    def test_placeholder_keys_are_not_treated_as_configured(self, monkeypatch):
+        from backend.services.ai_service import _call_llm
+
+        monkeypatch.setattr("backend.core.settings.settings.ANTHROPIC_API_KEY", "sk-your-anthropic-key-here", raising=False)
+        monkeypatch.setattr("backend.core.settings.settings.OPENAI_API_KEY", "sk-your-openai-key-here", raising=False)
+        monkeypatch.setattr("backend.core.settings.settings.AI_ENABLE_OPENAI_FALLBACK", True, raising=False)
+
+        with pytest.raises(RuntimeError, match="No usable AI provider is configured"):
+            _call_llm([{"role": "user", "content": "hello"}], "system", 100)
 
 
 # ── Donations ─────────────────────────────────────────────────────────────────
@@ -470,3 +664,90 @@ class TestOCRService:
         assert result.day == 15
         assert result.month == 3
         assert result.year == 2025
+class TestPlatform:
+    def test_regulatory_frameworks(self, client, auth_headers):
+        res = client.get("/platform/regulatory-frameworks", headers=auth_headers)
+        assert res.status_code == 200
+        jurisdictions = {item["jurisdiction"] for item in res.json()}
+        assert "UK" in jurisdictions
+        assert "Nigeria" in jurisdictions
+
+    def test_update_workspace_regulatory_settings(self, client, auth_headers):
+        res = client.post("/platform/workspace/regulatory", headers=auth_headers, json={
+            "countries_of_operation": ["GB", "NG"],
+            "active_regulatory_framework": "UK",
+        })
+        assert res.status_code == 200
+        assert res.json()["countries_of_operation"] == ["GB", "NG"]
+
+    def test_create_api_key(self, client, auth_headers):
+        res = client.post("/platform/api-keys", headers=auth_headers, json={
+            "name": "Payroll Integration",
+            "scopes": ["employees:read", "payroll_runs:write"],
+            "expires_in_days": 30,
+        })
+        assert res.status_code == 201
+        assert res.json()["api_key"].startswith("nx1_")
+
+    def test_create_webhook(self, client, auth_headers):
+        res = client.post("/platform/webhooks", headers=auth_headers, json={
+            "target_url": "https://example.com/webhooks/nexus",
+            "events": ["payroll.finalised", "leave.approved"],
+        })
+        assert res.status_code == 201
+        assert "signing_secret" in res.json()
+
+    def test_employee_portal_notifications_and_payslips(self, client, auth_headers):
+        from backend.models.employee import Employee
+        from backend.models.user import User
+
+        employee_res = client.post("/payroll/employees", headers=auth_headers, json={
+            "full_name": "Portal Employee",
+            "email": "test.cfo@harvesttouch.org.uk",
+            "role_title": "Portal User",
+            "national_insurance": "ZZ999999X",
+            "tax_code": "1257L",
+            "contract_type": "full_time",
+            "gross_salary": 2200.0,
+            "pension_enrolled": True,
+        })
+        assert employee_res.status_code == 201
+        employee_id = employee_res.json()["id"]
+
+        db = TestingSessionLocal()
+        try:
+            employee = db.query(Employee).filter(Employee.id == employee_id).first()
+            user = db.query(User).filter(User.email == "test.cfo@harvesttouch.org.uk").first()
+            employee.user_id = user.id
+            db.commit()
+        finally:
+            db.close()
+
+        note_res = client.post("/platform/employee-notifications", headers=auth_headers, json={
+            "employee_id": employee_id,
+            "title": "Payslip Available",
+            "message": "Your monthly payslip is ready to download.",
+            "category": "payroll",
+        })
+        assert note_res.status_code == 201
+
+        run_res = client.post("/payroll/run", headers=auth_headers, json={
+            "period_start": "2025-04-01T00:00:00",
+            "period_end": "2025-04-30T23:59:59",
+            "pay_date": "2025-04-28T00:00:00",
+            "tax_period": 1,
+            "tax_year": "2025-26",
+        })
+        assert run_res.status_code == 201
+
+        me_res = client.get("/employee-portal/me", headers=auth_headers)
+        assert me_res.status_code == 200
+        assert me_res.json()["id"] == employee_id
+
+        notifications_res = client.get("/employee-portal/notifications", headers=auth_headers)
+        assert notifications_res.status_code == 200
+        assert len(notifications_res.json()) >= 1
+
+        payslips_res = client.get("/employee-portal/payslips", headers=auth_headers)
+        assert payslips_res.status_code == 200
+        assert len(payslips_res.json()) >= 1

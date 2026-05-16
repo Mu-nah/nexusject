@@ -26,129 +26,6 @@ from backend.models.user import User
 router = APIRouter(prefix="/ops", tags=["Operations"])
 
 
-def _seed_volunteers(db: Session, org_id: int) -> None:
-    if db.query(Volunteer).filter(Volunteer.organisation_id == org_id).count():
-        return
-    db.add_all(
-        [
-            Volunteer(organisation_id=org_id, name="Sarah Adebayo", role="Youth Mentor", programme="Youth Connect", hours="8h/wk", dbs="Enhanced", status="Active"),
-            Volunteer(organisation_id=org_id, name="Michael Osei", role="Skills Trainer", programme="Skills Hub", hours="4h/wk", dbs="Enhanced", status="Active"),
-            Volunteer(organisation_id=org_id, name="Fatima Al-Hassan", role="Admin Support", programme="Core Ops", hours="6h/wk", dbs="Basic", status="Active"),
-            Volunteer(organisation_id=org_id, name="Peter Nwosu", role="Event Support", programme="Community", hours="2h/wk", dbs="Enhanced", status="Inactive"),
-        ]
-    )
-    db.add_all(
-        [
-            VolunteerHour(organisation_id=org_id, volunteer_name="Sarah Adebayo", week="W/E 15 Mar", logged="8.5h", approved="8.5h", value="GBP 97.75", status="Approved"),
-            VolunteerHour(organisation_id=org_id, volunteer_name="Michael Osei", week="W/E 15 Mar", logged="4.0h", approved="4.0h", value="GBP 46.00", status="Approved"),
-            VolunteerHour(organisation_id=org_id, volunteer_name="Fatima Al-Hassan", week="W/E 15 Mar", logged="6.0h", approved="-", value="GBP 69.00", status="Pending"),
-            VolunteerHour(organisation_id=org_id, volunteer_name="Sarah Adebayo", week="W/E 08 Mar", logged="8.0h", approved="8.0h", value="GBP 92.00", status="Approved"),
-        ]
-    )
-    db.add_all(
-        [
-            VolunteerAgreement(organisation_id=org_id, name="Sarah Adebayo", issued="01 Sep 2023", signed="03 Sep 2023", expires="Sep 2025", status="Active"),
-            VolunteerAgreement(organisation_id=org_id, name="Michael Osei", issued="01 Jan 2024", signed="05 Jan 2024", expires="Jan 2026", status="Active"),
-            VolunteerAgreement(organisation_id=org_id, name="Fatima Al-Hassan", issued="01 Jun 2023", signed="08 Jun 2023", expires="Jun 2025", status="Due Renewal"),
-            VolunteerAgreement(organisation_id=org_id, name="Peter Nwosu", issued="01 Mar 2023", signed="02 Mar 2023", expires="Mar 2025", status="Expired"),
-        ]
-    )
-    db.commit()
-
-
-def _seed_governance(db: Session, org_id: int) -> None:
-    if db.query(Trustee).filter(Trustee.organisation_id == org_id).count():
-        return
-    db.add_all(
-        [
-            Trustee(organisation_id=org_id, name="Dominic Ogbuagu", role="Director / CFO", appointed="01 Apr 2022", status="Active", coi="None declared"),
-            Trustee(organisation_id=org_id, name="Grace Okafor", role="Chair", appointed="01 Apr 2022", status="Active", coi="None declared"),
-            Trustee(organisation_id=org_id, name="Ahmed Al-Rashid", role="Secretary", appointed="15 Jun 2022", status="Active", coi="None declared"),
-        ]
-    )
-    db.commit()
-
-
-def _seed_ukvi(db: Session, org_id: int) -> None:
-    if db.query(UkviWorker).filter(UkviWorker.organisation_id == org_id).count():
-        return
-    db.add(UkviWorker(organisation_id=org_id, name="Kwame Okafor", role="Community Worker / 3229", cos="CoS-2023-0041", start_date="01 Jun 2023", visa_expiry="31 Dec 2026", rtw="Due Soon", status="Active"))
-    db.add_all(
-        [
-            UkviCosRecord(organisation_id=org_id, cos_ref="CoS-2023-0041", worker="Kwame Okafor", type="Defined", issued="15 May 2023", status="Used"),
-            UkviCosRecord(organisation_id=org_id, cos_ref="CoS-2024-0012", worker="Unassigned", type="Undefined", issued="-", status="Available"),
-        ]
-    )
-    db.add_all(
-        [
-            UkviDuty(organisation_id=org_id, duty="RTW Check Renewal", trigger="J. Musa BRP expired", deadline="Immediate", status="Overdue", latest_note="Awaiting updated documentation."),
-            UkviDuty(organisation_id=org_id, duty="Absence Report", trigger="K. Okafor - 11 consecutive days", deadline="Within 10 working days", status="Due", latest_note="Follow-up in progress."),
-            UkviDuty(organisation_id=org_id, duty="Annual Confirmation of Accuracy", trigger="Annual requirement", deadline="Jun 2025", status="Upcoming", latest_note="Next annual declaration pending."),
-        ]
-    )
-    db.commit()
-
-
-def _seed_hr(db: Session, org_id: int) -> None:
-    if not db.query(Employee).filter(Employee.organisation_id == org_id).count():
-        db.add_all(
-            [
-                Employee(organisation_id=org_id, employee_number="EMP-0001", full_name="Dominic Ogbuagu", role_title="CFO / Director", contract_type="full_time", gross_salary=1800, is_active=True),
-                Employee(organisation_id=org_id, employee_number="EMP-0002", full_name="Aisha Ibrahim", role_title="Programme Manager", contract_type="full_time", gross_salary=1600, is_active=True),
-                Employee(organisation_id=org_id, employee_number="EMP-0003", full_name="Kwame Okafor", role_title="Community Worker", contract_type="part_time", gross_salary=1200, is_active=True),
-                Employee(organisation_id=org_id, employee_number="EMP-0004", full_name="Jamilu Musa", role_title="Finance Assistant", contract_type="part_time", gross_salary=950, is_active=True),
-            ]
-        )
-
-    if not db.query(HrRightToWorkRecord).filter(HrRightToWorkRecord.organisation_id == org_id).count():
-        db.add_all(
-            [
-                HrRightToWorkRecord(organisation_id=org_id, name="Dominic Ogbuagu", doc_type="British Passport", checked="01 Sep 2022", expires="N/A", status="Valid"),
-                HrRightToWorkRecord(organisation_id=org_id, name="Aisha Ibrahim", doc_type="British Passport", checked="01 Mar 2023", expires="N/A", status="Valid"),
-                HrRightToWorkRecord(organisation_id=org_id, name="Kwame Okafor", doc_type="BRP Card", checked="01 Jun 2023", expires="31 Dec 2026", status="Due Soon"),
-                HrRightToWorkRecord(organisation_id=org_id, name="Jamilu Musa", doc_type="BRP Card", checked="01 Jan 2023", expires="01 Jan 2025", status="Expired"),
-            ]
-        )
-
-    if not db.query(HrDbsRecord).filter(HrDbsRecord.organisation_id == org_id).count():
-        db.add_all(
-            [
-                HrDbsRecord(organisation_id=org_id, name="Dominic Ogbuagu", level="Enhanced", issued="01 Sep 2022", renewal="Sep 2025", status="Valid"),
-                HrDbsRecord(organisation_id=org_id, name="Aisha Ibrahim", level="Enhanced", issued="01 Mar 2023", renewal="Mar 2026", status="Valid"),
-                HrDbsRecord(organisation_id=org_id, name="Kwame Okafor", level="Enhanced", issued="01 Jun 2022", renewal="Jun 2025", status="Due Soon"),
-                HrDbsRecord(organisation_id=org_id, name="Jamilu Musa", level="Basic", issued="01 Jan 2023", renewal="Jan 2026", status="Valid"),
-            ]
-        )
-
-    if not db.query(HrLeaveRequest).filter(HrLeaveRequest.organisation_id == org_id).count():
-        db.add_all(
-            [
-                HrLeaveRequest(organisation_id=org_id, name="Kwame Okafor", leave_type="Annual Leave", date_from="28 Apr", date_to="02 May", days="5", status="Pending"),
-                HrLeaveRequest(organisation_id=org_id, name="Aisha Ibrahim", leave_type="Annual Leave", date_from="14 Apr", date_to="17 Apr", days="4", status="Approved"),
-            ]
-        )
-
-    if not db.query(HrPerformanceReview).filter(HrPerformanceReview.organisation_id == org_id).count():
-        db.add_all(
-            [
-                HrPerformanceReview(organisation_id=org_id, name="Aisha Ibrahim", reviewer="D. Ogbuagu", review_type="Quarterly", due="30 Apr 2025", status="Scheduled"),
-                HrPerformanceReview(organisation_id=org_id, name="Kwame Okafor", reviewer="A. Ibrahim", review_type="Probation", due="15 May 2025", status="Scheduled"),
-                HrPerformanceReview(organisation_id=org_id, name="Jamilu Musa", reviewer="D. Ogbuagu", review_type="Annual", due="01 Feb 2025", status="Completed"),
-            ]
-        )
-
-    if not db.query(HrContractDocument).filter(HrContractDocument.organisation_id == org_id).count():
-        db.add_all(
-            [
-                HrContractDocument(organisation_id=org_id, name="Dominic Ogbuagu", doc_type="Employment Contract", issued="01 Apr 2022", expires="Permanent", status="Active"),
-                HrContractDocument(organisation_id=org_id, name="Aisha Ibrahim", doc_type="Employment Contract", issued="01 Mar 2023", expires="Permanent", status="Active"),
-                HrContractDocument(organisation_id=org_id, name="Kwame Okafor", doc_type="Fixed Term Contract", issued="01 Jun 2023", expires="31 May 2025", status="Due"),
-            ]
-        )
-
-    db.commit()
-
-
 class VolunteerPayload(BaseModel):
     name: str
     role: str
@@ -224,7 +101,6 @@ async def get_volunteers(
     db: Session = Depends(get_db),
 ):
     org_id = current_user.organisation_id
-    _seed_volunteers(db, org_id)
     volunteers = db.query(Volunteer).filter(Volunteer.organisation_id == org_id).order_by(Volunteer.created_at.asc()).all()
     hours = db.query(VolunteerHour).filter(VolunteerHour.organisation_id == org_id).order_by(VolunteerHour.created_at.desc()).all()
     agreements = db.query(VolunteerAgreement).filter(VolunteerAgreement.organisation_id == org_id).order_by(VolunteerAgreement.created_at.asc()).all()
@@ -299,14 +175,13 @@ async def update_volunteer_hours(hour_id: int, data: VolunteerHourPayload, curre
 @router.get("/governance")
 async def get_governance(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org_id = current_user.organisation_id
-    _seed_governance(db, org_id)
     trustees = db.query(Trustee).filter(Trustee.organisation_id == org_id).order_by(Trustee.created_at.asc()).all()
     return {
         "summary": {
             "trustee_count": len(trustees),
             "conflicts_declared": sum(1 for item in trustees if item.coi and item.coi.lower() != "none declared"),
-            "board_meetings": 4,
-            "cic_report_due": "31 Jan",
+            "board_meetings": 0,
+            "cic_report_due": None,
         },
         "interest_note": "No conflicts declared. Board members should declare interests annually.",
         "trustees": [
@@ -339,7 +214,6 @@ async def update_trustee(trustee_id: int, data: TrusteePayload, current_user: Us
 @router.get("/ukvi")
 async def get_ukvi(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org_id = current_user.organisation_id
-    _seed_ukvi(db, org_id)
     workers = db.query(UkviWorker).filter(UkviWorker.organisation_id == org_id).order_by(UkviWorker.created_at.asc()).all()
     cos_records = db.query(UkviCosRecord).filter(UkviCosRecord.organisation_id == org_id).order_by(UkviCosRecord.created_at.asc()).all()
     duties = db.query(UkviDuty).filter(UkviDuty.organisation_id == org_id).order_by(UkviDuty.created_at.asc()).all()
@@ -421,7 +295,6 @@ async def report_ukvi_duty(duty_id: int, note: Optional[str] = None, current_use
 @router.get("/hr")
 async def get_hr_workspace(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org_id = current_user.organisation_id
-    _seed_hr(db, org_id)
 
     employees = db.query(Employee).filter(Employee.organisation_id == org_id, Employee.is_active == True).order_by(Employee.full_name.asc()).all()
     rtw_records = db.query(HrRightToWorkRecord).filter(HrRightToWorkRecord.organisation_id == org_id).order_by(HrRightToWorkRecord.name.asc()).all()
@@ -455,7 +328,7 @@ async def get_hr_workspace(current_user: User = Depends(get_current_user), db: S
             "headcount": len(employee_rows),
             "expired_rtw": sum(1 for item in rtw_records if item.status == "Expired"),
             "dbs_due": sum(1 for item in dbs_records if item.status == "Due Soon"),
-            "open_vacancies": 2,
+            "open_vacancies": 0,
             "onboarding_count": 0,
         },
         "employees": employee_rows,

@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 export function useFinancialSummary() {
   return useQuery({
     queryKey: ['financial-summary'],
-    queryFn: api.getFinancialSummary,
+    queryFn: () => api.getFinancialSummary(),
     refetchInterval: 5 * 60 * 1000, // refresh every 5 minutes
   })
 }
@@ -29,7 +29,7 @@ export function useGrantsDashboard() {
 export function useDonationsDashboard() {
   return useQuery({
     queryKey: ['donations-dashboard'],
-    queryFn: api.getDonationsDashboard,
+    queryFn: () => api.getDonationsDashboard(),
   })
 }
 

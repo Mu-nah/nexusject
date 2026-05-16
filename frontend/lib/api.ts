@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
+import type { DashboardPeriodMode } from '@/lib/store'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -52,6 +53,19 @@ class ApiClient {
     return res.data
   }
 
+  async googleAuth(data: {
+    code: string
+    redirect_uri?: string
+    organisation_name?: string
+    organisation_type?: string
+    country?: string
+    currency?: string
+  }) {
+    const res = await this.client.post('/auth/google', data)
+    localStorage.setItem('erp_token', res.data.access_token)
+    return res.data
+  }
+
   async register(data: {
     email: string
     full_name: string
@@ -76,8 +90,8 @@ class ApiClient {
     return (await this.client.get('/auth/me')).data
   }
 
-  async listAdminUsers() {
-    return (await this.client.get('/admin/users')).data
+  async listAdminUsers(params?: { invited_by_me?: boolean }) {
+    return (await this.client.get('/admin/users', { params })).data
   }
 
   async getWorkspace() {
@@ -106,8 +120,16 @@ class ApiClient {
     return (await this.client.get('/admin/access-monitor')).data
   }
 
-  async inviteWorkspaceUser(data: { email: string; full_name: string; role: string }) {
+  async cleanupWorkspaceDemoData() {
+    return (await this.client.post('/admin/workspace/cleanup-demo-data')).data
+  }
+
+  async inviteWorkspaceUser(data: { email: string; full_name: string; role: string; module_access?: string[] }) {
     return (await this.client.post('/admin/users/invite', data)).data
+  }
+
+  async updateWorkspaceUserAccess(userId: number, data: { role?: string; is_active?: boolean; module_access?: string[] }) {
+    return (await this.client.patch(`/admin/users/${userId}/access`, data)).data
   }
 
   logout() {
@@ -116,8 +138,8 @@ class ApiClient {
   }
 
   // ── Dashboard ───────────────────────────────────────────────────────────────
-  async getFinancialSummary() {
-    return (await this.client.get('/dashboard/financial-summary')).data
+  async getFinancialSummary(periodMode: DashboardPeriodMode = 'normal') {
+    return (await this.client.get('/dashboard/financial-summary', { params: { period_mode: periodMode } })).data
   }
 
   async getCashflow(months = 12) {
@@ -132,8 +154,8 @@ class ApiClient {
     return (await this.client.get('/dashboard/programme-cost')).data
   }
 
-  async getDonationsDashboard() {
-    return (await this.client.get('/dashboard/donations')).data
+  async getDonationsDashboard(periodMode: DashboardPeriodMode = 'normal') {
+    return (await this.client.get('/dashboard/donations', { params: { period_mode: periodMode } })).data
   }
 
   async getPlanningCashflow() {
@@ -414,7 +436,7 @@ class ApiClient {
   }
 
   async listReports() {
-    return (await this.client.get('/reports')).data
+    return (await this.client.get('/reports', { timeout: 90000 })).data
   }
 
   async getReport(reportId: number) {
@@ -429,6 +451,13 @@ class ApiClient {
     return (await this.client.get(`/reports/shared/${shareToken}`, {
       params: email ? { email } : undefined,
     })).data
+  }
+
+  async downloadSharedReportPdf(shareToken: string, email?: string) {
+    return await this.client.get(`/reports/shared/${shareToken}/pdf`, {
+      params: email ? { email } : undefined,
+      responseType: 'blob',
+    })
   }
 
   async createShareLink(reportId: number, data?: { access_mode?: 'anyone_with_link' | 'specific_email'; allowed_email?: string }) {

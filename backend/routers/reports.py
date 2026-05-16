@@ -31,6 +31,32 @@ def _build_share_url(base_url: str, share_token: str, email: str | None = None) 
     return url
 
 
+def _get_shared_report_or_403(
+    db: Session,
+    share_token: str,
+    email: str | None = None,
+) -> ReportDocument:
+    report = (
+        db.query(ReportDocument)
+        .filter(ReportDocument.share_token == share_token)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Shared report not found")
+
+    access_mode = getattr(report, "share_access_mode", "anyone_with_link")
+    allowed_email = (getattr(report, "allowed_email", None) or "").strip().lower()
+
+    if access_mode == "specific_email":
+        provided_email = (email or "").strip().lower()
+        if not provided_email:
+            raise HTTPException(status_code=403, detail="email_required")
+        if allowed_email and provided_email != allowed_email:
+            raise HTTPException(status_code=403, detail="email_not_allowed")
+
+    return report
+
+
 @router.get("")
 async def list_reports(
     current_user: User = Depends(get_current_user),
@@ -92,27 +118,24 @@ async def get_shared_report(
     email: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    report = (
-        db.query(ReportDocument)
-        .filter(
-            ReportDocument.share_token == share_token,
-        )
-        .first()
-    )
-    if not report:
-        raise HTTPException(status_code=404, detail="Shared report not found")
-
-    access_mode = getattr(report, "share_access_mode", "anyone_with_link")
-    allowed_email = (getattr(report, "allowed_email", None) or "").strip().lower()
-
-    if access_mode == "specific_email":
-        provided_email = (email or "").strip().lower()
-        if not provided_email:
-            raise HTTPException(status_code=403, detail="email_required")
-        if allowed_email and provided_email != allowed_email:
-            raise HTTPException(status_code=403, detail="email_not_allowed")
-
+    report = _get_shared_report_or_403(db, share_token, email)
     return serialize_report(report)
+
+
+@router.get("/shared/{share_token}/pdf")
+async def download_shared_report_pdf(
+    share_token: str,
+    email: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    report = _get_shared_report_or_403(db, share_token, email)
+    pdf_bytes = build_report_pdf_bytes(report.title, report.narrative)
+    filename = f"{report.title.lower().replace(' ', '-')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{report_id}/share")
