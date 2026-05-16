@@ -588,15 +588,16 @@ export default function Reports() {
       return
     }
     try {
-      const res = await api.emailShareReport(reportId, {
+      await api.emailShareReport(reportId, {
         email: shareEmail.trim(),
         recipient_name: shareName.trim(),
         access_mode: shareAccessMode,
       })
-      toast.success(res.sent ? 'Report email sent with PDF and secure link' : 'Email provider not configured - email not sent')
+      toast.success('Report email sent with PDF and secure link')
       setShareModalOpen(false)
-    } catch {
-      toast.error('Email share failed')
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail || error?.message
+      toast.error(detail || 'Email share failed')
     }
   }
 

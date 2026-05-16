@@ -112,6 +112,13 @@ class OrgUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+def _blank_to_none(value):
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return trimmed if trimmed else None
+    return value
+
+
 # ── Organisations ─────────────────────────────────────────────────────────────
 
 @router.get("/organisations")
@@ -255,7 +262,10 @@ async def update_workspace(
         raise HTTPException(status_code=404, detail="Organisation not found")
 
     for field, value in data.model_dump(exclude_none=True).items():
-        setattr(org, field, value)
+        normalised = _blank_to_none(value)
+        if field in {"name", "legal_type", "currency"} and normalised is None:
+            continue
+        setattr(org, field, normalised)
     org.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(org)

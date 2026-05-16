@@ -217,10 +217,11 @@ async def get_ukvi(current_user: User = Depends(get_current_user), db: Session =
     workers = db.query(UkviWorker).filter(UkviWorker.organisation_id == org_id).order_by(UkviWorker.created_at.asc()).all()
     cos_records = db.query(UkviCosRecord).filter(UkviCosRecord.organisation_id == org_id).order_by(UkviCosRecord.created_at.asc()).all()
     duties = db.query(UkviDuty).filter(UkviDuty.organisation_id == org_id).order_by(UkviDuty.created_at.asc()).all()
+    has_ukvi_records = bool(workers or cos_records or duties)
 
     return {
         "summary": {
-            "licence_status": "Active",
+            "licence_status": "Active" if has_ukvi_records else "Not recorded",
             "sponsored_workers": len(workers),
             "cos_available": sum(1 for item in cos_records if item.status == "Available"),
             "reporting_duties": sum(1 for item in duties if item.status in ["Overdue", "Due"]),

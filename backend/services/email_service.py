@@ -20,6 +20,14 @@ from backend.core.settings import settings
 logger = logging.getLogger(__name__)
 
 
+class EmailDeliveryError(Exception):
+    pass
+
+
+def email_delivery_configured() -> bool:
+    return bool(settings.BREVO_API_KEY or (settings.SMTP_USER and settings.SMTP_PASSWORD))
+
+
 def _build_html_email(subject: str, body_html: str, org_name: str) -> str:
     return f"""
 <!DOCTYPE html>
@@ -142,13 +150,20 @@ def send_email(
         html_content = _build_html_email(subject, body_html, org_name)
         if settings.BREVO_API_KEY:
             _send_via_brevo(to, subject, html_content, attachment_bytes, attachment_filename)
-        else:
+        elif settings.SMTP_USER and settings.SMTP_PASSWORD:
             _send_via_smtp(to, subject, html_content, attachment_bytes, attachment_filename)
+        else:
+            raise EmailDeliveryError("Email delivery is not configured on the server.")
         logger.info("Email sent to %s: %s", to, subject)
         return True
     except Exception as e:
         logger.error("Failed to send email to %s: %s", to, e)
-        return False
+        if isinstance(e, EmailDeliveryError):
+            raise
+        message = str(e).strip() or "Unknown email delivery error"
+        raise EmailDeliveryError(
+            f"Email delivery failed. Check the configured sender address and provider credentials. Provider response: {message}"
+        ) from e
 
 
 def send_workspace_invite_email(

@@ -34,6 +34,11 @@ const toggleModule = (current: string[], moduleKey: string) =>
 
 const prettifyRole = (role: string) => (role === 'owner' ? 'admin' : role.replace(/_/g, ' '))
 
+const cleanOptional = (value: string) => {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
 function ModulePicker({
   value,
   onChange,
@@ -148,7 +153,17 @@ export default function Admin() {
   const saveWorkspace = async () => {
     setSavingWorkspace(true)
     try {
-      await api.updateWorkspace(workspaceForm)
+      await api.updateWorkspace({
+        name: workspaceForm.name.trim(),
+        legal_type: workspaceForm.legal_type,
+        email: cleanOptional(workspaceForm.email),
+        phone: cleanOptional(workspaceForm.phone),
+        address: cleanOptional(workspaceForm.address),
+        country: cleanOptional(workspaceForm.country),
+        currency: workspaceForm.currency,
+        charity_number: cleanOptional(workspaceForm.charity_number),
+        companies_house_number: cleanOptional(workspaceForm.companies_house_number),
+      })
       toast.success('Workspace updated')
       await load()
     } catch (err: any) {

@@ -7,7 +7,7 @@ from backend.core.database import get_db
 from backend.core.security import get_current_user
 from backend.models.report import ReportDocument
 from backend.models.user import Organisation, User
-from backend.services.email_service import send_report_share_email
+from backend.services.email_service import EmailDeliveryError, send_report_share_email
 from backend.services.report_service import build_report_pdf_bytes, serialize_report, serialize_report_summary
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -208,16 +208,25 @@ async def email_share_report(
 
     share_url = _build_share_url(base_url, report.share_token, report.allowed_email if report.share_access_mode == "specific_email" else None)
     pdf_bytes = build_report_pdf_bytes(report.title, report.narrative)
-    sent = send_report_share_email(
-        to_email=data.email,
-        recipient_name=data.recipient_name,
-        sender_name=current_user.full_name,
-        org_name=organisation.name if organisation else "Workspace",
-        report_title=report.title,
-        share_link=share_url,
-        pdf_bytes=pdf_bytes,
-    )
-    return {"sent": sent, "share_url": share_url, "share_access_mode": report.share_access_mode, "allowed_email": report.allowed_email}
+    try:
+        send_report_share_email(
+            to_email=data.email,
+            recipient_name=data.recipient_name,
+            sender_name=current_user.full_name,
+            org_name=organisation.name if organisation else "Workspace",
+            report_title=report.title,
+            share_link=share_url,
+            pdf_bytes=pdf_bytes,
+        )
+    except EmailDeliveryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {
+        "sent": True,
+        "share_url": share_url,
+        "share_access_mode": report.share_access_mode,
+        "allowed_email": report.allowed_email,
+    }
 
 
 @router.get("/{report_id}/pdf")
