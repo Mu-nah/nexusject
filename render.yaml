@@ -60,7 +60,7 @@ services:
     plan: starter
     rootDir: frontend
     buildCommand: npm ci && npm run build
-    startCommand: npm run start
+    startCommand: npm run start:render
     envVars:
       - key: NEXT_PUBLIC_API_URL
         sync: false
