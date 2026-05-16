@@ -42,6 +42,7 @@ export default function Cashflow() {
 
   const summary = data?.summary
   const forecastRows = useMemo(() => data?.forecast ?? [], [data])
+  const hasForecastData = forecastRows.length > 0
   const errorMessage = (error as any)?.response?.data?.detail || (error as Error | undefined)?.message
 
   const exportForecast = () => {
@@ -89,9 +90,9 @@ export default function Cashflow() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Current Cash" value={summary ? currency(summary.current_cash) : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="As at today" icon="GBP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="13-Week Projected" value={summary ? currency(summary.projected_cash) : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="End of forecast period" icon="13W" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="Net Cash Movement" value={summary ? `${summary.net_movement >= 0 ? '+' : '-'}${currency(Math.abs(summary.net_movement))}` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="Over 13 weeks" changeUp={(summary?.net_movement ?? 0) >= 0} icon="NET" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
-        <StatCard label="Runway" value={summary?.runway_months ? `${summary.runway_months} mo` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change="At current burn rate" icon="R" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="13-Week Projected" value={summary && hasForecastData ? currency(summary.projected_cash) : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change={hasForecastData ? 'End of rolling view' : 'No live forecast rows yet'} icon="13W" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Net Cash Movement" value={summary && hasForecastData ? `${summary.net_movement >= 0 ? '+' : '-'}${currency(Math.abs(summary.net_movement))}` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change={hasForecastData ? 'Across the rolling period' : 'No posted movement yet'} changeUp={(summary?.net_movement ?? 0) >= 0} icon="NET" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Runway" value={summary?.runway_months ? `${summary.runway_months} mo` : isLoading || isFetching ? 'Loading...' : 'Unavailable'} change={summary?.runway_months ? 'At current burn rate' : 'Runway needs cash and expense data'} icon="R" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
@@ -134,7 +135,7 @@ export default function Cashflow() {
             ) : isError ? (
               <EmptyState title="Forecast unavailable" description="Please refresh the page or try again shortly." />
             ) : forecastRows.length === 0 ? (
-              <EmptyState title="No forecast rows yet" description="Once transactions or seed data are available, the 13-week forecast will appear here." />
+              <EmptyState title="No forecast rows yet" description="Add bank balances and posted transactions to unlock this 13-week cashflow view." />
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={forecastRows}>
@@ -179,9 +180,9 @@ export default function Cashflow() {
             <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)', marginBottom: 14 }}>Cash Flow Scenarios</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
             {[
-              { key: 'optimistic', label: 'Optimistic', color: '#2DCE89', endBalance: summary ? currency(summary.projected_cash + 12000) : 'GBP 0', desc: 'Receivables clear on time and the next grant milestone lands in the next cycle.' },
-              { key: 'base', label: 'Base Case', color: '#C9A84C', endBalance: summary ? currency(summary.projected_cash) : 'GBP 0', desc: 'Current trajectory continues with expected payment timing and normal collection.' },
-              { key: 'stress', label: 'Stress Test', color: '#F5365C', endBalance: summary ? currency(Math.max(summary.projected_cash - 18000, 0)) : 'GBP 0', desc: 'Grant timing slips and discretionary spend is not rephased in time.' },
+              { key: 'optimistic', label: 'Optimistic', color: '#2DCE89', endBalance: hasForecastData ? 'Scenario not modelled' : 'Unavailable', desc: 'Use this view to test whether stronger collection and smoother income timing would improve liquidity.' },
+              { key: 'base', label: 'Base Case', color: '#C9A84C', endBalance: hasForecastData && summary ? currency(summary.projected_cash) : 'Unavailable', desc: 'This reflects the current workspace cash position and the recorded movement already posted.' },
+              { key: 'stress', label: 'Stress Test', color: '#F5365C', endBalance: hasForecastData ? 'Scenario not modelled' : 'Unavailable', desc: 'Use this scenario to test how delayed income or unplanned spend could affect liquidity.' },
             ].map((scenario) => (
               <Panel key={scenario.key} style={{ border: selectedScenario === scenario.key ? `2px solid ${scenario.color}` : `2px solid ${scenario.color}22` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: scenario.color, fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
@@ -190,7 +191,9 @@ export default function Cashflow() {
                 <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 32, color: scenario.color, letterSpacing: '-0.03em', marginBottom: 4 }}>
                   {scenario.endBalance}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--mute)', marginBottom: 12 }}>13-week closing outlook</div>
+                <div style={{ fontSize: 12, color: 'var(--mute)', marginBottom: 12 }}>
+                  {scenario.key === 'base' && hasForecastData ? 'Based on posted movement' : 'Scenario note'}
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--mute2)', lineHeight: 1.6, marginBottom: 14 }}>{scenario.desc}</div>
                 <Button small variant={selectedScenario === scenario.key ? 'primary' : 'ghost'} onClick={() => setSelectedScenario(scenario.key as Scenario)}>
                   {selectedScenario === scenario.key ? 'Selected' : 'Use Scenario'}

@@ -10,7 +10,7 @@ interface Message {
 
 const QUICK_CHIPS = [
   'What is our cash runway?',
-  'Draft the NLCF interim grant report',
+  'Draft a grant progress report',
   'Give me a full compliance summary',
   'What HR actions are outstanding?',
   'Prepare trustee financial report',

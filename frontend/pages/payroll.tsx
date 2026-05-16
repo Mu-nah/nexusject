@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import AppLayout from '@/components/layout/AppLayout'
 import { StatCard, Panel, Badge, Button, Alert } from '@/components/ui'
 import { useEmployees, usePayrollRuns, useRunPayroll } from '@/hooks/useFinancial'
+import { useAuthStore } from '@/lib/store'
 
 const gbp = (n: number) =>
   `GBP ${Number(n).toLocaleString('en-GB', {
@@ -12,6 +13,7 @@ const gbp = (n: number) =>
 
 export default function Payroll() {
   const router = useRouter()
+  const { user } = useAuthStore()
   const [selectedEmp, setSelectedEmp] = useState<any>(null)
   const [showRunModal, setShowRunModal] = useState(false)
 
@@ -24,11 +26,14 @@ export default function Payroll() {
   const totalEmployerCost = employees.reduce((s: number, e: any) => s + (e.calculated?.employer_total_cost ?? 0), 0)
   const totalEmployerNI = employees.reduce((s: number, e: any) => s + (e.calculated?.employer_ni ?? 0), 0)
   const totalPension = employees.reduce((s: number, e: any) => s + (e.calculated?.employer_pension ?? 0), 0)
+  const activePeriodLabel = runs[0]?.period || 'Current payroll period'
+  const workspaceName = user?.organisation || 'Your workspace'
+  const currentTaxYear = `${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${String(new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()).slice(-2)}`
 
   return (
     <AppLayout
       title="Payroll Engine"
-      subtitle="2024-25"
+      subtitle={currentTaxYear}
       actions={
         <div style={{ display: 'flex', gap: 10 }}>
           <Button variant="ghost">RTI to HMRC</Button>
@@ -37,7 +42,7 @@ export default function Payroll() {
       }
     >
       <Alert variant="info" icon="i">
-        March payroll run scheduled for <strong>28 March 2025</strong>. PAYE/NI submissions due to HMRC by <strong>19 April</strong>.
+        Review payroll totals carefully before finalising the current run and submitting RTI to HMRC.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
@@ -122,13 +127,13 @@ export default function Payroll() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 16, borderBottom: '1px solid #334155', marginBottom: 16 }}>
                     <div>
                       <div style={{ fontSize: 12, color: '#34d399', fontWeight: 600, marginBottom: 4 }}>
-                        Harvest Touch Youth & Skills CIC
+                        {workspaceName}
                       </div>
                       <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', letterSpacing: '-0.02em' }}>
                         Payslip
                       </div>
                       <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'DM Mono, monospace', marginTop: 2 }}>
-                        March 2025 - {selectedEmp.full_name}
+                        {activePeriodLabel} - {selectedEmp.full_name}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -186,7 +191,7 @@ export default function Payroll() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: 440 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>
-              Run March Payroll
+              Run Payroll
             </div>
             <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 16, marginBottom: 20, fontSize: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -216,11 +221,11 @@ export default function Payroll() {
                 onClick={() =>
                   runMutation.mutate(
                     {
-                      period_start: '2025-03-01T00:00:00',
-                      period_end: '2025-03-31T23:59:59',
-                      pay_date: '2025-03-28T00:00:00',
-                      tax_period: 12,
-                      tax_year: '2024-25',
+                      period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+                      period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString(),
+                      pay_date: new Date().toISOString(),
+                      tax_period: new Date().getMonth() + 1,
+                      tax_year: `${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${String(new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()).slice(-2)}`,
                     },
                     {
                       onSuccess: () => setShowRunModal(false),

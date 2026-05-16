@@ -123,7 +123,7 @@ export default function HR() {
       name: reviewName.trim(),
       reviewer: 'Workspace Admin',
       review_type: 'Quarterly',
-      due: '30 Jun 2026',
+      due: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB'),
       status: 'Scheduled',
     })
     setReviewName('')
@@ -165,15 +165,21 @@ export default function HR() {
         </Alert>
       )}
 
-      <Alert variant="warning" icon="!">
-        <strong>RTW Check Required:</strong> One or more right-to-work records need attention. Review expiring documents and complete renewals promptly.
+      <Alert variant={summary?.expired_rtw ? 'warning' : 'info'} icon={summary?.expired_rtw ? '!' : 'i'}>
+        {summary?.expired_rtw ? (
+          <>
+            <strong>RTW Check Required:</strong> One or more right-to-work records need attention. Review expiring documents and complete renewals promptly.
+          </>
+        ) : (
+          <>No urgent HR compliance alerts are recorded in this workspace right now.</>
+        )}
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Total Headcount" value={String(summary?.headcount ?? 0)} change="Current workforce register" icon="EMP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
         <StatCard label="RTW Expired" value={String(summary?.expired_rtw ?? 0)} change="Immediate action required" changeUp={false} icon="!" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
         <StatCard label="DBS Renewals Due" value={String(summary?.dbs_due ?? 0)} change="Within 90 days" icon="DBS" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
-        <StatCard label="Open Vacancies" value={String(summary?.open_vacancies ?? 0)} change="Skills Hub + Outreach" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Open Vacancies" value={String(summary?.open_vacancies ?? 0)} change={(summary?.open_vacancies ?? 0) > 0 ? 'Vacancies currently tracked' : 'No open vacancies recorded'} icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
       </div>
 
       {showEmployeeForm && (
@@ -294,7 +300,7 @@ export default function HR() {
       {tab === 'rtw' && (
         <>
           <Alert variant="error" icon="!">
-            <strong>CRIMINAL LIABILITY:</strong> RTW checks required before employment. Penalties from Feb 2024: <strong>£45,000</strong> per worker (first breach) / <strong>£60,000</strong> (repeat).
+            <strong>Right to Work compliance:</strong> Checks must be completed before employment starts and renewed where time-limited permission applies.
           </Alert>
           <Panel noPadding>
             <DataTable
@@ -336,9 +342,9 @@ export default function HR() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
             <StatCard label="Annual Leave Requests" value={String(leaveRows.filter((row: any) => row.status === 'Pending').length)} change="Pending approval" icon="LV" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-            <StatCard label="Sick Days YTD" value="8.5" change="Avg 0.7/employee" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-            <StatCard label="Leave Balance" value="124d" change="Across all staff" icon="BAL" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-            <StatCard label="Upcoming Absence" value="3" change="Next 14 days" icon="!" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+            <StatCard label="Sick Days YTD" value="0" change="No sickness totals calculated yet" icon="+" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+            <StatCard label="Leave Balance" value="Not tracked" change="Configure leave balances per employee" icon="BAL" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+            <StatCard label="Upcoming Absence" value="0" change="No upcoming absences recorded" icon="!" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
           </div>
           <Panel title="Leave Requests" titleIcon="LV" iconColor="#C9A84C" noPadding>
             <DataTable

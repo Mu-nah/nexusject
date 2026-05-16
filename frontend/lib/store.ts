@@ -43,6 +43,12 @@ interface AuthState {
   }) => Promise<void>
   logout: () => void
   loadUser: () => Promise<void>
+  updateWorkspaceContext: (data: {
+    organisation?: string
+    organisation_type?: string
+    country?: string
+    currency?: string
+  }) => void
 }
 
 interface UiState {
@@ -168,6 +174,21 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           set({ user: null, token: null })
         }
+      },
+
+      updateWorkspaceContext: (data) => {
+        set((state) => {
+          if (!state.user) return state
+          return {
+            user: {
+              ...state.user,
+              organisation: data.organisation ?? state.user.organisation,
+              organisation_type: data.organisation_type ?? state.user.organisation_type,
+              country: data.country ?? state.user.country,
+              currency: data.currency ?? state.user.currency,
+            },
+          }
+        })
       },
     }),
     { name: 'erp-auth', partialize: (state) => ({ token: state.token, user: state.user }) }

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
-import AppLayout from '@/components/layout/AppLayout'
-import { Panel, Button, FormInput, Alert, Badge } from '@/components/ui'
-import { useCreateEmployeeMutation } from '@/hooks/useFinancial'
-import api from '@/lib/api'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { isValidNI, isValidTaxCode, formatGBP2 } from '@/lib/utils'
+
+import AppLayout from '@/components/layout/AppLayout'
+import { Alert, Button, FormInput, Panel } from '@/components/ui'
+import api from '@/lib/api'
+import { formatGBP2, isValidNI, isValidTaxCode } from '@/lib/utils'
 
 interface FormState {
   full_name: string
@@ -50,12 +50,12 @@ export default function NewEmployee() {
   const [preview, setPreview] = useState<any>(null)
 
   const set = (key: keyof FormState) => (val: string | boolean) =>
-    setForm(prev => ({ ...prev, [key]: val }))
+    setForm((prev) => ({ ...prev, [key]: val }))
 
   const mutation = useMutation({
     mutationFn: api.createEmployee,
     onSuccess: (data) => {
-      toast.success(`Employee ${data.full_name} added — ${data.employee_number}`)
+      toast.success(`Employee ${data.full_name} added - ${data.employee_number}`)
       qc.invalidateQueries({ queryKey: ['employees'] })
       router.push('/payroll')
     },
@@ -78,14 +78,19 @@ export default function NewEmployee() {
     const annualGross = gross * 12
     const personalAllowance = 12570
     const taxable = Math.max(0, annualGross - personalAllowance)
-    const paye = Math.round(Math.min(taxable, 37700) * 0.20 / 12 * 100) / 100
+    const paye = Math.round(Math.min(taxable, 37700) * 0.2 / 12 * 100) / 100
     const empNI = annualGross > 12570 ? Math.round((Math.min(annualGross, 50270) - 12570) * 0.08 / 12 * 100) / 100 : 0
     const erNI = annualGross > 9100 ? Math.round((annualGross - 9100) * 0.138 / 12 * 100) / 100 : 0
     const qualifyingEarnings = Math.max(0, Math.min(annualGross, 50270) - 6240)
     const empPension = Math.round(qualifyingEarnings * Number(form.pension_employee_rate) / 100 / 12 * 100) / 100
     const erPension = Math.round(qualifyingEarnings * Number(form.pension_employer_rate) / 100 / 12 * 100) / 100
     setPreview({
-      gross, paye, empNI, erNI, empPension, erPension,
+      gross,
+      paye,
+      empNI,
+      erNI,
+      empPension,
+      erPension,
       net: gross - paye - empNI - empPension,
       employerCost: gross + erNI + erPension,
     })
@@ -114,7 +119,7 @@ export default function NewEmployee() {
     <AppLayout
       title="Add Employee"
       subtitle="Payroll engine"
-      actions={<Button variant="ghost" onClick={() => router.push('/payroll')}>← Back to Payroll</Button>}
+      actions={<Button variant="ghost" onClick={() => router.push('/payroll')}>Back to Payroll</Button>}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, maxWidth: 960 }}>
         <div>
@@ -124,7 +129,7 @@ export default function NewEmployee() {
                 <FormInput label="Full Name *" value={form.full_name} onChange={set('full_name')} placeholder="e.g. Sarah Johnson" />
                 {errors.full_name && <div style={{ fontSize: 11, color: '#f87171', marginTop: -10, marginBottom: 10 }}>{errors.full_name}</div>}
               </div>
-              <FormInput label="Email Address" value={form.email} onChange={set('email')} placeholder="sarah@harvesttouch.org.uk" type="email" />
+              <FormInput label="Email Address" value={form.email} onChange={set('email')} placeholder="name@example.com" type="email" />
               <FormInput label="Role / Job Title" value={form.role_title} onChange={set('role_title')} placeholder="e.g. Youth Worker" />
               <FormInput label="NI Number" value={form.national_insurance} onChange={set('national_insurance')} placeholder="AB 12 34 56 C" />
               {errors.national_insurance && <div style={{ fontSize: 11, color: '#f87171', marginTop: -10, marginBottom: 10 }}>{errors.national_insurance}</div>}
@@ -144,7 +149,7 @@ export default function NewEmployee() {
               <FormInput label="Start Date" value={form.start_date} onChange={set('start_date')} type="date" />
               <div style={{ gridColumn: '1 / -1' }}>
                 <FormInput
-                  label="Gross Monthly Salary (£) *"
+                  label="Gross Monthly Salary (GBP) *"
                   value={form.gross_salary}
                   onChange={(v) => { set('gross_salary')(v); setPreview(null) }}
                   placeholder="e.g. 1800"
@@ -161,7 +166,7 @@ export default function NewEmployee() {
           <Panel title="Pension & Grant Funding">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <input type="checkbox" id="pension" checked={form.pension_enrolled} onChange={(e) => set('pension_enrolled')(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#059669' }} />
-              <label htmlFor="pension" style={{ fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>Enrolled in auto-enrolment pension (NEST)</label>
+              <label htmlFor="pension" style={{ fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>Enrolled in auto-enrolment pension</label>
             </div>
             {form.pension_enrolled && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
@@ -181,9 +186,9 @@ export default function NewEmployee() {
 
         <div>
           {preview && (
-            <Panel title="Pay Calculation Preview" titleIcon="◈" style={{ marginBottom: 16 }}>
-              <Alert variant="info" icon="ℹ">
-                Estimates based on 2024-25 UK tax rates. Actual figures may vary.
+            <Panel title="Pay Calculation Preview" titleIcon="CALC" style={{ marginBottom: 16 }}>
+              <Alert variant="info" icon="i">
+                Estimates based on the currently configured UK payroll preview rules. Actual figures may vary.
               </Alert>
               {[
                 ['Gross Pay', formatGBP2(preview.gross), '#e2e8f0'],
@@ -191,18 +196,23 @@ export default function NewEmployee() {
                 ['Employee NI (8%)', `-${formatGBP2(preview.empNI)}`, '#f87171'],
                 ['Employee Pension', `-${formatGBP2(preview.empPension)}`, '#f87171'],
                 ['Net Pay', formatGBP2(preview.net), '#34d399'],
-                ['— Employer NI', formatGBP2(preview.erNI), '#fbbf24'],
-                ['— Employer Pension', formatGBP2(preview.erPension), '#fbbf24'],
+                ['Employer NI', formatGBP2(preview.erNI), '#fbbf24'],
+                ['Employer Pension', formatGBP2(preview.erPension), '#fbbf24'],
                 ['Total Employer Cost', formatGBP2(preview.employerCost), '#fbbf24'],
               ].map(([label, val, color], i) => (
-                <div key={label} style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  padding: '8px 0', fontSize: 13,
-                  borderTop: [4, 7].includes(i) ? '1px solid #334155' : 'none',
-                  borderBottom: i < 7 ? '1px solid rgba(51,65,85,0.4)' : 'none',
-                  marginTop: [4, 7].includes(i) ? 8 : 0,
-                  fontWeight: [4, 7].includes(i) ? 600 : 400,
-                }}>
+                <div
+                  key={label}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    fontSize: 13,
+                    borderTop: [4, 7].includes(i) ? '1px solid #334155' : 'none',
+                    borderBottom: i < 7 ? '1px solid rgba(51,65,85,0.4)' : 'none',
+                    marginTop: [4, 7].includes(i) ? 8 : 0,
+                    fontWeight: [4, 7].includes(i) ? 600 : 400,
+                  }}
+                >
                   <span style={{ color: '#94a3b8' }}>{label}</span>
                   <span style={{ fontFamily: 'DM Mono, monospace', color }}>{val}</span>
                 </div>
@@ -220,7 +230,7 @@ export default function NewEmployee() {
               disabled={mutation.isPending}
               style={{ marginBottom: 10 }}
             >
-              {mutation.isPending ? 'Adding employee…' : '+ Add Employee'}
+              {mutation.isPending ? 'Adding employee...' : '+ Add Employee'}
             </Button>
             <Button variant="ghost" fullWidth onClick={() => router.push('/payroll')}>
               Cancel

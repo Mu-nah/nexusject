@@ -6,29 +6,17 @@ import toast from 'react-hot-toast'
 
 type Tab = 'returns' | 'transactions' | 'settings'
 
-const RETURNS = [
-  { period: 'Q4 2024 (Jan-Mar 2025)', due: '07 May 2025', vatDue: 'GBP 1,240.00', status: 'Due', variant: 'amber' as const },
-  { period: 'Q3 2024 (Oct-Dec 2024)', due: '07 Feb 2025', vatDue: 'GBP 980.00', status: 'Filed', variant: 'green' as const },
-  { period: 'Q2 2024 (Jul-Sep 2024)', due: '07 Nov 2024', vatDue: 'GBP 1,100.00', status: 'Filed', variant: 'green' as const },
-  { period: 'Q1 2024 (Apr-Jun 2024)', due: '07 Aug 2024', vatDue: 'GBP 860.00', status: 'Filed', variant: 'green' as const },
-]
-
-const VAT_TX = [
-  { date: '15 Mar', description: 'NLCF Grant Disbursement', type: 'Income', rate: 'Exempt', vat: '-', net: 'GBP 15,000' },
-  { date: '14 Mar', description: 'Staff Salaries', type: 'Expense', rate: 'Exempt', vat: '-', net: 'GBP 4,850' },
-  { date: '12 Mar', description: 'Skills Workshop Catering', type: 'Expense', rate: 'Standard 20%', vat: 'GBP 20.67', net: 'GBP 103.33' },
-  { date: '10 Mar', description: 'Online Donation', type: 'Income', rate: 'Exempt', vat: '-', net: 'GBP 250' },
-  { date: '08 Mar', description: 'Venue Hire', type: 'Expense', rate: 'Standard 20%', vat: 'GBP 33.33', net: 'GBP 166.67' },
-]
+const RETURNS: Array<{ period: string; due: string; vatDue: string; status: string; variant: 'amber' | 'green' }> = []
+const VAT_TX: Array<{ date: string; description: string; type: string; rate: string; vat: string; net: string }> = []
 
 export default function VAT() {
   const [tab, setTab] = useState<Tab>('returns')
   const [rateFilter, setRateFilter] = useState('All Rates')
-  const [submissionNote, setSubmissionNote] = useState('Current VAT return has not been submitted yet.')
+  const [submissionNote, setSubmissionNote] = useState('No VAT return has been prepared from this workspace yet.')
 
   const filteredTransactions = useMemo(() => {
     if (rateFilter === 'All Rates') return VAT_TX
-    return VAT_TX.filter((row) => row.rate.startsWith(rateFilter.split(' ')[0]))
+    return VAT_TX.filter((row) => row.rate === rateFilter)
   }, [rateFilter])
 
   const exportVat = () => {
@@ -44,21 +32,21 @@ export default function VAT() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={exportVat}>Export</Button>
           <Button onClick={() => {
-            setSubmissionNote('Submission pack prepared. Review the calculated return and approve before sending to HMRC.')
-            toast.success('VAT submission pack prepared')
+            setSubmissionNote('No VAT submission was created because this workspace does not yet have VAT return data.')
+            toast.success('VAT submission check completed')
           }}>Submit to HMRC</Button>
         </div>
       }
     >
-      <Alert variant="gold" icon="%">
-        <strong>Making Tax Digital:</strong> VAT returns should be filed digitally with a clear audit trail from transactions to submission.
+      <Alert variant="info" icon="%">
+        This page now reflects only VAT data saved for the current workspace. No sample VAT figures are preloaded.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="VAT Registration" value="Registered" change="VAT No: GB 123 456 789" icon="VAT" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Current Period VAT" value="GBP 1,240" change="Q4 2024 due 07 May" changeUp={false} icon="DUE" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
-        <StatCard label="VAT Scheme" value="Standard" change="Quarterly periods" icon="SCH" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="MTD Status" value="Connected" change="HMRC API active" changeUp icon="OK" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="VAT Registration" value="Not recorded" change="Add your VAT registration details when applicable" icon="VAT" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Current Period VAT" value="GBP 0.00" change="No current VAT return calculated" changeUp={false} icon="DUE" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="VAT Scheme" value="Not set" change="No VAT scheme configured yet" icon="SCH" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="MTD Status" value="Not connected" change="HMRC integration not configured" changeUp={false} icon="OK" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
@@ -90,36 +78,33 @@ export default function VAT() {
       {tab === 'returns' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
           <Panel title="VAT Returns Log" titleIcon="VR" iconColor="#C9A84C">
-            <DataTable
-              columns={[
-                { key: 'period', header: 'Period', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.period}</span> },
-                { key: 'due', header: 'Due Date' },
-                { key: 'vatDue', header: 'VAT Due', align: 'right', mono: true },
-                { key: 'status', header: 'Status', render: (r) => <Badge variant={r.variant}>{r.status}</Badge> },
-              ]}
-              data={RETURNS}
-            />
+            {RETURNS.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: 'var(--mute2)' }}>No VAT return periods have been recorded for this workspace.</div>
+            ) : (
+              <DataTable
+                columns={[
+                  { key: 'period', header: 'Period', render: (r) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{r.period}</span> },
+                  { key: 'due', header: 'Due Date' },
+                  { key: 'vatDue', header: 'VAT Due', align: 'right', mono: true },
+                  { key: 'status', header: 'Status', render: (r) => <Badge variant={r.variant}>{r.status}</Badge> },
+                ]}
+                data={RETURNS}
+              />
+            )}
           </Panel>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Panel title="Current Period Summary" titleIcon="CP" iconColor="#C9A84C" action={<Badge variant="amber">Q4 2024</Badge>}>
+            <Panel title="Current Period Summary" titleIcon="CP" iconColor="#C9A84C">
               {[
-                { label: 'VAT on Sales (Output)', value: 'GBP 1,890.00', color: '#2DCE89' },
-                { label: 'VAT on Purchases (Input)', value: 'GBP 650.00', color: '#F5365C' },
-                { label: 'Net VAT Due', value: 'GBP 1,240.00', color: '#C9A84C' },
+                { label: 'VAT on Sales (Output)', value: 'GBP 0.00', color: '#2DCE89' },
+                { label: 'VAT on Purchases (Input)', value: 'GBP 0.00', color: '#F5365C' },
+                { label: 'Net VAT Due', value: 'GBP 0.00', color: '#C9A84C' },
               ].map((row) => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
                   <span style={{ color: 'var(--mute)' }}>{row.label}</span>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: row.color }}>{row.value}</span>
                 </div>
               ))}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-                <Button style={{ width: '100%', justifyContent: 'center' }} onClick={() => toast.success('VAT return recalculated')}>Calculate VAT Return</Button>
-                <Button variant="ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={() => {
-                  setSubmissionNote('Draft submission created and ready for final review.')
-                  toast.success('HMRC submission draft prepared')
-                }}>Submit via MTD</Button>
-              </div>
             </Panel>
 
             <Panel title="Submission Status" titleIcon="SS" iconColor="#5E9EFF">
@@ -164,6 +149,7 @@ export default function VAT() {
                 { key: 'net', header: 'Net', align: 'right', mono: true },
               ]}
               data={filteredTransactions}
+              emptyMessage="No VAT transactions recorded yet"
             />
           </Panel>
         </>
@@ -173,16 +159,16 @@ export default function VAT() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
           <Panel title="VAT Scheme" titleIcon="VS" iconColor="#C9A84C">
             {[
-              { label: 'Current Scheme', value: 'Standard Rate', badge: 'Active' },
-              { label: 'Return Frequency', value: 'Quarterly' },
-              { label: 'Accounting Basis', value: 'Invoice (Accruals)' },
-              { label: 'MTD Integration', value: 'HMRC API Connected' },
+              { label: 'Current Scheme', value: 'Not set', badge: 'Pending' },
+              { label: 'Return Frequency', value: 'Not recorded' },
+              { label: 'Accounting Basis', value: 'Not recorded' },
+              { label: 'MTD Integration', value: 'Not connected' },
             ].map((row) => (
               <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
                 <span style={{ color: 'var(--mute)' }}>{row.label}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{row.value}</span>
-                  {row.badge && <Badge variant="green">{row.badge}</Badge>}
+                  {row.badge && <Badge variant="amber">{row.badge}</Badge>}
                 </div>
               </div>
             ))}
@@ -191,9 +177,9 @@ export default function VAT() {
           <Panel title="VAT Rates Reference" titleIcon="RR" iconColor="#5E9EFF">
             {[
               { rate: 'Standard Rate', pct: '20%', desc: 'Most goods and services', color: '#C9A84C' },
-              { rate: 'Reduced Rate', pct: '5%', desc: 'Domestic fuel and child car seats', color: '#FB8C00' },
-              { rate: 'Zero Rate', pct: '0%', desc: 'Food and childrens clothing', color: '#5E9EFF' },
-              { rate: 'Exempt', pct: '-', desc: 'Charity income and welfare services', color: '#2DCE89' },
+              { rate: 'Reduced Rate', pct: '5%', desc: 'Some qualifying reduced supplies', color: '#FB8C00' },
+              { rate: 'Zero Rate', pct: '0%', desc: 'Some qualifying zero-rated supplies', color: '#5E9EFF' },
+              { rate: 'Exempt', pct: '-', desc: 'Some welfare, finance, or charity income', color: '#2DCE89' },
             ].map((row) => (
               <div key={row.rate} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: row.color, fontFamily: "'JetBrains Mono', monospace", width: 36, flexShrink: 0 }}>{row.pct}</div>

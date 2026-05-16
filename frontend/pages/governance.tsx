@@ -4,6 +4,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import { Alert, Badge, Button, DataTable, FormInput, Panel, StatCard } from '@/components/ui'
 import { downloadCsvFile } from '@/lib/export'
 import api from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 
 type TrusteeRecord = {
@@ -19,11 +20,12 @@ const EMPTY_TRUSTEE: TrusteeRecord = {
   name: '',
   role: '',
   appointed: '',
-  status: 'Pending induction',
+  status: 'Onboarding',
   coi: '',
 }
 
 export default function Governance() {
+  const user = useAuthStore((state) => state.user)
   const [showTrusteeForm, setShowTrusteeForm] = useState(false)
   const [trusteeForm, setTrusteeForm] = useState<TrusteeRecord>(EMPTY_TRUSTEE)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -43,6 +45,9 @@ export default function Governance() {
 
   const trustees = data?.trustees ?? []
   const summary = data?.summary
+  const organisationName = user?.organisation || 'Current workspace'
+  const currentYear = new Date().getFullYear()
+  const fyLabel = `FY ${currentYear - 1}-${String(currentYear).slice(-2)}`
 
   const exportRegister = () => {
     downloadCsvFile('trustee-register.csv', trustees)
@@ -98,8 +103,8 @@ export default function Governance() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Directors / Trustees" value={String(summary?.trustee_count ?? 0)} change="Workspace register" icon="T" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
         <StatCard label="Conflicts Declared" value={String(summary?.conflicts_declared ?? 0)} change="Annual review due June" icon="C" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Board Meetings" value={String(summary?.board_meetings ?? 0)} change="FY 2024-25" icon="M" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="CIC Report Due" value={summary?.cic_report_due ?? '31 Jan'} change="Companies House" icon="R" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Board Meetings" value={String(summary?.board_meetings ?? 0)} change={fyLabel} icon="M" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="CIC Report Due" value={summary?.cic_report_due ?? 'Not recorded'} change="Companies House" icon="R" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginBottom: 14 }}>
@@ -135,11 +140,11 @@ export default function Governance() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
         <Panel title="CIC Community Interest Statement" titleIcon="CIC" iconColor="#C9A84C">
           {[
-            { label: 'CIC Number', value: '14587923' },
-            { label: 'Registered Name', value: 'Harvest Touch CIC' },
-            { label: 'Annual CIC Report', value: '2023 Filed' },
-            { label: 'Asset Lock', value: 'Confirmed' },
-            { label: 'Community Benefit', value: 'Employment and training' },
+            { label: 'Registered Name', value: organisationName },
+            { label: 'Governance Records', value: trustees.length > 0 ? 'Trustee register in progress' : 'No trustee register entries yet' },
+            { label: 'Annual CIC Report', value: summary?.cic_report_due ? `Due ${summary.cic_report_due}` : 'Not recorded' },
+            { label: 'Asset Lock', value: 'Not recorded' },
+            { label: 'Community Benefit', value: 'Not recorded' },
           ].map((row) => (
             <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 12.5 }}>
               <span style={{ color: 'var(--mute)' }}>{row.label}</span>
@@ -148,7 +153,7 @@ export default function Governance() {
           ))}
           <div style={{ marginTop: 14 }}>
             <Button small style={{ width: '100%', justifyContent: 'center' }} onClick={() => toast.success('CIC report draft queued for export')}>
-              Generate 2024 CIC Report
+              Generate CIC Report
             </Button>
           </div>
         </Panel>
@@ -175,11 +180,11 @@ export default function Governance() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Full Name" value={trusteeForm.name} onChange={(v) => setTrusteeForm({ ...trusteeForm, name: v })} placeholder="Trustee name" />
               <FormInput label="Role" value={trusteeForm.role} onChange={(v) => setTrusteeForm({ ...trusteeForm, role: v })} placeholder="Chair, Treasurer..." />
-              <FormInput label="Appointed" value={trusteeForm.appointed} onChange={(v) => setTrusteeForm({ ...trusteeForm, appointed: v })} placeholder="01 Apr 2022" />
-              <FormInput label="Status" as="select" value={trusteeForm.status} onChange={(v) => setTrusteeForm({ ...trusteeForm, status: v })}>
-                <option value="Pending induction">Pending induction</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <FormInput label="Appointed" value={trusteeForm.appointed} onChange={(v) => setTrusteeForm({ ...trusteeForm, appointed: v })} placeholder="DD/MM/YYYY" />
+                <FormInput label="Status" as="select" value={trusteeForm.status} onChange={(v) => setTrusteeForm({ ...trusteeForm, status: v })}>
+                  <option value="Onboarding">Onboarding</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
               </FormInput>
             </div>
             <FormInput label="Conflict of Interest Note" value={trusteeForm.coi} onChange={(v) => setTrusteeForm({ ...trusteeForm, coi: v })} placeholder="None declared" as="textarea" />

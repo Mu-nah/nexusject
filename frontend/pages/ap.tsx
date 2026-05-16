@@ -24,6 +24,9 @@ type SupplierRecord = {
   status: string
 }
 
+const gbp = (value: number) => `GBP ${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const parseAmount = (value: string) => Number((value || '').replace(/[^0-9.-]/g, '')) || 0
+
 const EMPTY_INVOICE: InvoiceRecord = {
   ref: '',
   supplier: '',
@@ -37,30 +40,15 @@ const EMPTY_SUPPLIER: SupplierRecord = {
   name: '',
   category: 'New Supplier',
   terms: 'Net 30',
-  outstanding: '£0.00',
+  outstanding: 'GBP 0.00',
   status: 'Active',
 }
-
-const INITIAL_INVOICES: InvoiceRecord[] = [
-  { ref: 'SUP-0128', supplier: 'Manchester Catering Co', due: '20 Mar 2025', amount: '£124.00', status: 'Pending Approval', variant: 'amber' },
-  { ref: 'SUP-0129', supplier: 'Rochdale Venue Hire', due: '25 Mar 2025', amount: '£200.00', status: 'Approved', variant: 'green' },
-  { ref: 'SUP-0130', supplier: 'BT Business', due: '01 Apr 2025', amount: '£89.50', status: 'Pending Approval', variant: 'amber' },
-  { ref: 'SUP-0127', supplier: 'Paragon Print', due: '10 Mar 2025', amount: '£340.00', status: 'Paid', variant: 'green' },
-  { ref: 'SUP-0126', supplier: 'Office Supplies Ltd', due: '05 Mar 2025', amount: '£67.20', status: 'Paid', variant: 'green' },
-]
-
-const INITIAL_SUPPLIERS: SupplierRecord[] = [
-  { name: 'Manchester Catering Co', category: 'Catering', terms: 'Net 30', outstanding: '£124.00', status: 'Active' },
-  { name: 'Rochdale Venue Hire', category: 'Facilities', terms: 'Net 30', outstanding: '£200.00', status: 'Active' },
-  { name: 'BT Business', category: 'Utilities', terms: 'Net 14', outstanding: '£89.50', status: 'Active' },
-  { name: 'Paragon Print', category: 'Marketing', terms: 'Net 30', outstanding: '—', status: 'Active' },
-]
 
 export default function AP() {
   const [tab, setTab] = useState<Tab>('invoices')
   const [filter, setFilter] = useState('all')
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>(INITIAL_INVOICES)
-  const [suppliers, setSuppliers] = useState<SupplierRecord[]>(INITIAL_SUPPLIERS)
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>([])
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
   const [showSupplierForm, setShowSupplierForm] = useState(false)
   const [invoiceForm, setInvoiceForm] = useState<InvoiceRecord>(EMPTY_INVOICE)
@@ -69,14 +57,26 @@ export default function AP() {
   const [editingSupplierName, setEditingSupplierName] = useState<string | null>(null)
 
   const filtered = filter === 'all' ? invoices : invoices.filter((invoice) => invoice.status.toLowerCase().includes(filter))
-  const exportPayables = () => downloadCsvFile('accounts-payable.csv', filtered)
+  const pendingInvoices = invoices.filter((invoice) => invoice.status === 'Pending Approval')
+  const approvedInvoices = invoices.filter((invoice) => invoice.status === 'Approved')
+  const paidInvoices = invoices.filter((invoice) => invoice.status === 'Paid')
+  const openInvoices = invoices.filter((invoice) => invoice.status !== 'Paid')
+  const totalPayable = openInvoices.reduce((sum, invoice) => sum + parseAmount(invoice.amount), 0)
+  const pendingApprovalTotal = pendingInvoices.reduce((sum, invoice) => sum + parseAmount(invoice.amount), 0)
+  const approvedTotal = approvedInvoices.reduce((sum, invoice) => sum + parseAmount(invoice.amount), 0)
+  const paidYtd = paidInvoices.reduce((sum, invoice) => sum + parseAmount(invoice.amount), 0)
+
+  const exportPayables = () => {
+    downloadCsvFile('accounts-payable.csv', filtered)
+    toast.success('Accounts payable export downloaded')
+  }
 
   const openInvoiceForm = (record?: InvoiceRecord) => {
     setInvoiceForm(record ?? {
       ...EMPTY_INVOICE,
-      ref: `SUP-${String(invoices.length + 131).padStart(4, '0')}`,
-      due: '31 May 2026',
-      amount: '£150.00',
+      ref: `SUP-${String(invoices.length + 1).padStart(4, '0')}`,
+      due: new Date().toLocaleDateString('en-GB'),
+      amount: 'GBP 0.00',
     })
     setEditingInvoiceRef(record?.ref ?? null)
     setShowInvoiceForm(true)
@@ -150,7 +150,7 @@ export default function AP() {
   return (
     <AppLayout
       title="AP & Suppliers"
-      subtitle="Accounts Payable"
+      subtitle="Accounts payable"
       actions={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button variant="ghost" onClick={exportPayables}>Export</Button>
@@ -159,10 +159,10 @@ export default function AP() {
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Total Payable" value="£413.50" change="3 invoices outstanding" icon="AP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Pending Approval" value="£213.50" change="2 invoices" changeUp={false} icon="P" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
-        <StatCard label="Due This Week" value="£200.00" change="1 invoice" icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
-        <StatCard label="Paid YTD" value="£24,180" change="↑ 6% vs prior year" changeUp icon="£" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Total Payable" value={gbp(totalPayable)} change={openInvoices.length > 0 ? `${openInvoices.length} invoices outstanding` : 'No unpaid invoices'} icon="AP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Pending Approval" value={gbp(pendingApprovalTotal)} change={pendingInvoices.length > 0 ? `${pendingInvoices.length} invoices awaiting review` : 'Nothing awaiting approval'} changeUp={false} icon="P" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Approved to Pay" value={gbp(approvedTotal)} change={approvedInvoices.length > 0 ? `${approvedInvoices.length} invoices ready for payment` : 'No approved payment batch'} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Paid YTD" value={gbp(paidYtd)} change={paidInvoices.length > 0 ? `${paidInvoices.length} invoices marked paid` : 'No paid invoices recorded'} changeUp={paidYtd > 0} icon="GBP" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
@@ -217,6 +217,7 @@ export default function AP() {
                 },
               ]}
               data={filtered}
+              emptyMessage="No supplier invoices recorded yet"
             />
           </Panel>
         </>
@@ -226,9 +227,7 @@ export default function AP() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Supplier Register</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Button onClick={() => openSupplierForm()}>+ Add Supplier</Button>
-            </div>
+            <Button onClick={() => openSupplierForm()}>+ Add Supplier</Button>
           </div>
           <Panel noPadding>
             <DataTable
@@ -250,27 +249,34 @@ export default function AP() {
                 },
               ]}
               data={suppliers}
+              emptyMessage="No suppliers recorded yet"
             />
           </Panel>
         </>
       )}
 
       {tab === 'aged' && (
-        <Panel title="Aged Creditors Analysis" titleIcon="A" iconColor="#C9A84C" action={<Badge variant="slate">DPO calculated</Badge>}>
-          <DataTable
-            columns={[
-              { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.supplier}</span> },
-              { key: 'current', header: 'Current', align: 'right', mono: true },
-              { key: 'd30', header: '31-60d', align: 'right', mono: true },
-              { key: 'd60', header: '61-90d', align: 'right', mono: true },
-              { key: 'total', header: 'Total', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#C9A84C' }}>{row.total}</span> },
-            ]}
-            data={[
-              { supplier: 'Manchester Catering Co', current: '£124.00', d30: '—', d60: '—', total: '£124.00' },
-              { supplier: 'Rochdale Venue Hire', current: '£200.00', d30: '—', d60: '—', total: '£200.00' },
-              { supplier: 'BT Business', current: '£89.50', d30: '—', d60: '—', total: '£89.50' },
-            ]}
-          />
+        <Panel title="Aged Creditors Analysis" titleIcon="A" iconColor="#C9A84C" action={<Badge variant="slate">Workspace view</Badge>}>
+          {openInvoices.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: 'var(--mute2)' }}>No unpaid invoices yet, so there is no aged creditors analysis to display.</div>
+          ) : (
+            <DataTable
+              columns={[
+                { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.supplier}</span> },
+                { key: 'current', header: 'Current', align: 'right', mono: true },
+                { key: 'd30', header: '31-60d', align: 'right', mono: true },
+                { key: 'd60', header: '61-90d', align: 'right', mono: true },
+                { key: 'total', header: 'Total', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#C9A84C' }}>{row.total}</span> },
+              ]}
+              data={openInvoices.map((invoice) => ({
+                supplier: invoice.supplier,
+                current: invoice.amount,
+                d30: '-',
+                d60: '-',
+                total: invoice.amount,
+              }))}
+            />
+          )}
         </Panel>
       )}
 
@@ -280,21 +286,29 @@ export default function AP() {
             <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Payment Runs</div>
             <Button onClick={runPaymentBatch}>Run Payment Batch</Button>
           </div>
-          <Alert variant="info" icon="i">Approved invoices ready for payment. Verify bank details before executing payment run.</Alert>
+          <Alert variant="info" icon="i">Approved invoices will appear here once they are ready for a payment batch.</Alert>
           <Panel noPadding>
-            <DataTable
-              columns={[
-                { key: 'ref', header: 'Run Reference', mono: true },
-                { key: 'date', header: 'Date' },
-                { key: 'count', header: 'Invoices' },
-                { key: 'total', header: 'Total', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#2DCE89' }}>{row.total}</span> },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
-              ]}
-              data={[
-                { ref: 'PAY-0022', date: '01 Mar 2025', count: '5', total: '£1,248.00', status: 'Completed', variant: 'green' },
-                { ref: 'PAY-0021', date: '01 Feb 2025', count: '4', total: '£892.50', status: 'Completed', variant: 'green' },
-              ]}
-            />
+            {approvedInvoices.length === 0 ? (
+              <div style={{ padding: 16, fontSize: 12.5, color: 'var(--mute2)' }}>No approved invoices are ready for a payment run yet.</div>
+            ) : (
+              <DataTable
+                columns={[
+                  { key: 'ref', header: 'Run Reference', mono: true },
+                  { key: 'date', header: 'Date' },
+                  { key: 'count', header: 'Invoices' },
+                  { key: 'total', header: 'Total', align: 'right', render: (row) => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#2DCE89' }}>{row.total}</span> },
+                  { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
+                ]}
+                data={[{
+                  ref: `PAY-${String(approvedInvoices.length).padStart(4, '0')}`,
+                  date: new Date().toLocaleDateString('en-GB'),
+                  count: String(approvedInvoices.length),
+                  total: gbp(approvedTotal),
+                  status: 'Ready',
+                  variant: 'amber',
+                }]}
+              />
+            )}
           </Panel>
         </>
       )}
@@ -305,21 +319,9 @@ export default function AP() {
             <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Purchase Orders</div>
             <Button onClick={createPo}>+ Create PO</Button>
           </div>
-          <Alert variant="info" icon="i">3-way matching: PO → Goods Receipt → Invoice. Auto-flags mismatches for approval.</Alert>
+          <Alert variant="info" icon="i">Purchase orders are not seeded anymore. This workspace will show only the POs you actually create.</Alert>
           <Panel noPadding>
-            <DataTable
-              columns={[
-                { key: 'ref', header: 'PO Number', mono: true },
-                { key: 'supplier', header: 'Supplier', render: (row) => <span style={{ fontWeight: 500, color: 'var(--heading)' }}>{row.supplier}</span> },
-                { key: 'desc', header: 'Description' },
-                { key: 'amount', header: 'Amount', align: 'right', mono: true },
-                { key: 'status', header: 'Status', render: (row) => <Badge variant={row.variant as any}>{row.status}</Badge> },
-              ]}
-              data={[
-                { ref: 'PO-0055', supplier: 'Manchester Catering Co', desc: 'Skills Workshop Catering', amount: '£124.00', status: 'Matched', variant: 'green' },
-                { ref: 'PO-0056', supplier: 'Rochdale Venue Hire', desc: 'April Venue Booking', amount: '£200.00', status: 'Open', variant: 'blue' },
-              ]}
-            />
+            <div style={{ padding: 16, fontSize: 12.5, color: 'var(--mute2)' }}>No purchase orders have been created from this workspace yet.</div>
           </Panel>
         </>
       )}
@@ -329,10 +331,10 @@ export default function AP() {
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 520 }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>{editingInvoiceRef ? 'Edit Supplier Invoice' : 'Log Supplier Invoice'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-              <FormInput label="Invoice Reference" value={invoiceForm.ref} onChange={(v) => setInvoiceForm({ ...invoiceForm, ref: v })} placeholder="SUP-0131" />
+              <FormInput label="Invoice Reference" value={invoiceForm.ref} onChange={(v) => setInvoiceForm({ ...invoiceForm, ref: v })} placeholder="SUP-0001" />
               <FormInput label="Supplier" value={invoiceForm.supplier} onChange={(v) => setInvoiceForm({ ...invoiceForm, supplier: v })} placeholder="Supplier name" />
-              <FormInput label="Due Date" value={invoiceForm.due} onChange={(v) => setInvoiceForm({ ...invoiceForm, due: v })} placeholder="31 May 2026" />
-              <FormInput label="Amount" value={invoiceForm.amount} onChange={(v) => setInvoiceForm({ ...invoiceForm, amount: v })} placeholder="£150.00" />
+              <FormInput label="Due Date" value={invoiceForm.due} onChange={(v) => setInvoiceForm({ ...invoiceForm, due: v })} placeholder="DD/MM/YYYY" />
+              <FormInput label="Amount" value={invoiceForm.amount} onChange={(v) => setInvoiceForm({ ...invoiceForm, amount: v })} placeholder="GBP 150.00" />
               <FormInput label="Status" as="select" value={invoiceForm.status} onChange={(v) => setInvoiceForm({ ...invoiceForm, status: v as InvoiceStatus })}>
                 <option value="Pending Approval">Pending Approval</option>
                 <option value="Approved">Approved</option>
@@ -355,7 +357,7 @@ export default function AP() {
               <FormInput label="Supplier Name" value={supplierForm.name} onChange={(v) => setSupplierForm({ ...supplierForm, name: v })} placeholder="Supplier name" />
               <FormInput label="Category" value={supplierForm.category} onChange={(v) => setSupplierForm({ ...supplierForm, category: v })} placeholder="Category" />
               <FormInput label="Terms" value={supplierForm.terms} onChange={(v) => setSupplierForm({ ...supplierForm, terms: v })} placeholder="Net 30" />
-              <FormInput label="Outstanding" value={supplierForm.outstanding} onChange={(v) => setSupplierForm({ ...supplierForm, outstanding: v })} placeholder="£0.00" />
+              <FormInput label="Outstanding" value={supplierForm.outstanding} onChange={(v) => setSupplierForm({ ...supplierForm, outstanding: v })} placeholder="GBP 0.00" />
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
               <Button variant="ghost" fullWidth onClick={() => { setShowSupplierForm(false); setEditingSupplierName(null); setSupplierForm(EMPTY_SUPPLIER) }}>Cancel</Button>

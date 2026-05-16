@@ -82,7 +82,7 @@ function ModulePicker({
 }
 
 export default function Admin() {
-  const { user } = useAuthStore()
+  const { user, updateWorkspaceContext } = useAuthStore()
   const [tab, setTab] = useState<Tab>('workspace')
   const [workspace, setWorkspace] = useState<any>(null)
   const [users, setUsers] = useState<any[]>([])
@@ -163,6 +163,12 @@ export default function Admin() {
         currency: workspaceForm.currency,
         charity_number: cleanOptional(workspaceForm.charity_number),
         companies_house_number: cleanOptional(workspaceForm.companies_house_number),
+      })
+      updateWorkspaceContext({
+        organisation: workspaceForm.name.trim(),
+        organisation_type: workspaceForm.legal_type,
+        country: cleanOptional(workspaceForm.country),
+        currency: workspaceForm.currency,
       })
       toast.success('Workspace updated')
       await load()

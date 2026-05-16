@@ -4,9 +4,7 @@ import { Panel, Badge, Button, Alert, StatCard, DataTable, FormInput } from '@/c
 import { downloadCsvFile, downloadPageSummary } from '@/lib/export'
 import toast from 'react-hot-toast'
 
-const INITIAL_DSARS = [
-  { subject: 'Amina Ibrahim', type: 'Access Request', received: '06 May 2026', deadline: '05 Jun 2026', status: 'Open', variant: 'amber' },
-]
+const INITIAL_DSARS: Array<{ subject: string; type: string; received: string; deadline: string; status: string; variant: string }> = []
 
 export default function GDPR() {
   const [dsars, setDsars] = useState(INITIAL_DSARS)
@@ -16,9 +14,9 @@ export default function GDPR() {
   const exportData = () => {
     downloadPageSummary('gdpr-data-export.txt', 'GDPR & Data Snapshot', [
       `Open DSARs: ${dsars.length}`,
-      'ICO registration: Pending',
-      'Data subjects tracked: 347',
-      'Consent rate: 68%',
+      'ICO registration: Not recorded',
+      'Data subjects tracked: Not recorded',
+      'Consent rate: Not recorded',
     ])
   }
 
@@ -46,19 +44,19 @@ export default function GDPR() {
         </div>
       }
     >
-      <Alert variant="error" icon="⚠">
-        <strong>GDPR MODULE — Phase 2 Build.</strong> UK GDPR / DPA 2018 compliance infrastructure partially implemented. ICO registration, consent management, DSAR workflow, and data retention required.
+      <Alert variant="info" icon="i">
+        GDPR controls only reflect records stored in this workspace. Empty values below mean the required evidence has not been captured yet.
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
-        <StatCard label="ICO Registration" value="Pending" change="Register at ico.org.uk" changeUp={false} icon="🔒" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
-        <StatCard label="Open DSARs" value={dsars.length} change="30-day deadline applies" icon="≡" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Data Subjects" value="347" change="Donors + beneficiaries" icon="⊞" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Consent Rate" value="68%" change="Gift Aid opt-in" icon="✓" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="ICO Registration" value="Not recorded" change="Update in workspace records" changeUp={false} icon="LOCK" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Open DSARs" value={dsars.length} change={dsars.length ? '30-day deadline applies' : 'No open requests'} icon="DSAR" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Data Subjects" value="0" change="No tracked register yet" icon="DATA" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Consent Rate" value="Not recorded" change="Add consent evidence to calculate" icon="OK" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
-        <Panel title="Log Data Subject Request" titleIcon="⊞" iconColor="#C9A84C">
+        <Panel title="Log Data Subject Request" titleIcon="DATA" iconColor="#C9A84C">
           <FormInput label="Data Subject" value={subjectName} onChange={setSubjectName} placeholder="Full name" />
           <FormInput label="Request Type" value={subjectType} onChange={setSubjectType} as="select">
             <option>Access Request</option>
@@ -69,7 +67,7 @@ export default function GDPR() {
           <Button fullWidth onClick={logDsar}>Create DSAR</Button>
         </Panel>
 
-        <Panel title="Open DSAR Register" titleIcon="≡" iconColor="#5E9EFF" noPadding>
+        <Panel title="Open DSAR Register" titleIcon="DSAR" iconColor="#5E9EFF" noPadding>
           <DataTable
             columns={[
               { key: 'subject', header: 'Subject', render: (row) => <span style={{ fontWeight: 500, color: '#E8EDF5' }}>{row.subject}</span> },
@@ -88,27 +86,27 @@ export default function GDPR() {
         {[
           {
             title: 'ICO Registration',
-            icon: '🔴',
+            icon: 'ICO',
             status: 'Not registered',
             statusColor: '#F5365C',
-            desc: 'Register at ico.org.uk — annual fee based on organisation size.',
+            desc: 'Store the workspace registration number and renewal evidence once the ICO fee has been paid.',
             action: () => window.open('https://ico.org.uk/for-organisations/data-protection-fee/', '_blank', 'noopener,noreferrer'),
-            actionLabel: 'Register with ICO →',
+            actionLabel: 'Open ICO Portal',
             actionVariant: 'primary' as const,
           },
           {
             title: 'Consent Management',
-            icon: '🟡',
-            status: 'Partial',
+            icon: 'CONSENT',
+            status: 'Not configured',
             statusColor: '#FB8C00',
-            desc: 'Gift Aid boolean exists. Consent date, withdrawal mechanism, and marketing consent need expansion.',
+            desc: 'Track consent date, lawful basis, withdrawal route, and communication preferences before relying on GDPR metrics.',
             action: () => downloadCsvFile('consent-gap-list.csv', [{ area: 'Marketing consent', status: 'Needed' }, { area: 'Consent date', status: 'Needed' }, { area: 'Withdrawal flow', status: 'Needed' }]),
             actionLabel: 'Export Consent Gap List',
             actionVariant: 'ghost' as const,
           },
           {
             title: 'Data Subject Rights',
-            icon: '🔴',
+            icon: 'RIGHTS',
             status: 'In progress',
             statusColor: '#F5365C',
             desc: 'DSAR workflow, Right to Erasure, and portability controls are being operationalised.',
@@ -127,7 +125,7 @@ export default function GDPR() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Panel title="Data Retention Schedule" titleIcon="≡" iconColor="#C9A84C">
+        <Panel title="Data Retention Schedule" titleIcon="KEEP" iconColor="#C9A84C">
           {[
             { category: 'Employee Records', retention: '6 years after leaving', basis: 'Legal obligation' },
             { category: 'Donor Records', retention: '7 years', basis: 'Gift Aid / HMRC' },
@@ -146,7 +144,7 @@ export default function GDPR() {
           ))}
         </Panel>
 
-        <Panel title="GDPR Compliance Roadmap" titleIcon="◷" iconColor="#5E9EFF">
+        <Panel title="GDPR Compliance Roadmap" titleIcon="ROAD" iconColor="#5E9EFF">
           {[
             { phase: 'Phase 1 (Complete)', items: ['Gift Aid consent boolean', 'Row-level security', 'Basic audit logging'], done: true },
             { phase: 'Phase 2 (Month 1)', items: ['ICO registration', 'Consent management UI', 'DSAR workflow (30-day)'], done: false },
@@ -154,12 +152,12 @@ export default function GDPR() {
           ].map((phase) => (
             <div key={phase.phase} style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <span style={{ color: phase.done ? '#2DCE89' : '#5C6B84', fontSize: 11 }}>{phase.done ? '✓' : '○'}</span>
+                <span style={{ color: phase.done ? '#2DCE89' : '#5C6B84', fontSize: 11 }}>{phase.done ? 'OK' : 'TODO'}</span>
                 <span style={{ fontSize: 12, fontWeight: 600, color: phase.done ? '#2DCE89' : '#C8D3E8' }}>{phase.phase}</span>
               </div>
               {phase.items.map((item) => (
                 <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0 3px 14px', fontSize: 11.5, color: '#5C6B84' }}>
-                  <span style={{ color: phase.done ? '#2DCE89' : '#5C6B84' }}>{phase.done ? '✓' : '·'}</span>
+                  <span style={{ color: phase.done ? '#2DCE89' : '#5C6B84' }}>{phase.done ? 'OK' : '-'}</span>
                   {item}
                 </div>
               ))}

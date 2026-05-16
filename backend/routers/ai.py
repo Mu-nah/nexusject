@@ -56,7 +56,7 @@ async def assistant_chat(
     db: Session = Depends(get_db),
 ):
     org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
-    org_name = org.name if org else "Harvest Touch CIC"
+    org_name = org.name if org and org.name else "Current workspace"
 
     context = await get_financial_context(db, current_user.organisation_id)
 
@@ -85,7 +85,7 @@ async def financial_analysis(
     db: Session = Depends(get_db),
 ):
     org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
-    org_name = org.name if org else "Harvest Touch CIC"
+    org_name = org.name if org and org.name else "Current workspace"
     context = await get_financial_context(db, current_user.organisation_id)
 
     prompts = {
@@ -149,7 +149,7 @@ async def cashflow_forecast(
         months_ahead=data.months_ahead,
         db=db,
         org_id=current_user.organisation_id,
-        org_name=org.name if org else "Harvest Touch CIC",
+        org_name=org.name if org and org.name else "Current workspace",
     )
     return result
 
@@ -176,7 +176,7 @@ async def grant_report(
         period_start=data.period_start,
         period_end=data.period_end,
         db=db,
-        org_name=org.name if org else "Harvest Touch CIC",
+        org_name=org.name if org and org.name else "Current workspace",
     )
     if "narrative" in result:
         saved_report = save_workspace_report(
@@ -230,7 +230,7 @@ Provide:
     response = await ai_assistant_chat(
         message=prompt,
         conversation_history=[],
-        org_name=org.name if org else "Harvest Touch CIC",
+        org_name=org.name if org and org.name else "Current workspace",
         financial_context=context,
     )
 
@@ -252,7 +252,7 @@ async def generate_trustee_report(
 ):
     org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
     context = await get_financial_context(db, current_user.organisation_id)
-    org_name = org.name if org else "Harvest Touch CIC"
+    org_name = org.name if org and org.name else "Current workspace"
 
     period = quarter or datetime.utcnow().strftime("Q ending %B %Y")
     prompt = f"""Generate a professional Trustee Financial Report for {org_name} for {period}.

@@ -141,7 +141,7 @@ export default function Programmes() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
         <StatCard label="Active Programmes" value={programmes.length} accentColor="#10b981" />
-        <StatCard label="Beneficiaries YTD" value={totalBeneficiaries} change="Up 18%" changeUp accentColor="#3b82f6" />
+        <StatCard label="Beneficiaries YTD" value={totalBeneficiaries} change={totalBeneficiaries > 0 ? 'Tracked from programme records' : 'No beneficiary totals recorded yet'} changeUp={totalBeneficiaries > 0} accentColor="#3b82f6" />
         <StatCard label="Avg Cost / Person" value={gbp(avgCostPerHead)} accentColor="#8b5cf6" />
         <StatCard label="Volunteer Value" value={gbp(totalVolunteerValue)} change={`${totalVolunteerHours.toLocaleString()} hours`} changeUp accentColor="#f59e0b" />
       </div>

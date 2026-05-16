@@ -2,11 +2,12 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
 from backend.core.security import get_current_user
+from backend.models.account import Account, BankAccount
 from backend.models.employee import Employee
 from backend.models.grant import Programme
 from backend.models.transaction import Transaction
@@ -25,6 +26,32 @@ def _safe_pct(numerator: float, denominator: float) -> float:
     return round((numerator / denominator) * 100, 1)
 
 
+def _current_cash_balance(db: Session, org_id: int) -> float:
+    bank_accounts = (
+        db.query(BankAccount)
+        .filter(BankAccount.organisation_id == org_id, BankAccount.is_active == True)
+        .all()
+    )
+    if bank_accounts:
+        return round(sum(float(account.balance or 0) for account in bank_accounts), 2)
+
+    cash_accounts = (
+        db.query(Account)
+        .filter(
+            Account.organisation_id == org_id,
+            Account.account_type == "asset",
+            or_(
+                Account.code.like("1%"),
+                func.lower(Account.name).like("%cash%"),
+                func.lower(Account.name).like("%bank%"),
+                func.lower(Account.name).like("%current%"),
+            ),
+        )
+        .all()
+    )
+    return round(sum(float(account.balance or 0) for account in cash_accounts), 2)
+
+
 @router.get("/cashflow")
 async def planning_cashflow(
     current_user: User = Depends(get_current_user),
@@ -32,7 +59,11 @@ async def planning_cashflow(
 ):
     org_id = current_user.organisation_id
     now = datetime.utcnow()
-    start = now - timedelta(days=84)
+    current_week_start = (now - timedelta(days=now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    start = current_week_start - timedelta(weeks=12)
+    current_cash = _current_cash_balance(db, org_id)
 
     transactions = (
         db.query(Transaction)
@@ -46,35 +77,38 @@ async def planning_cashflow(
     )
 
     weekly_rows: list[dict[str, Any]] = []
-    running_balance = 84320.0
+    buckets: dict[str, dict[str, Any]] = {}
+    for index in range(13):
+        week_start = start + timedelta(days=index * 7)
+        key = week_start.strftime("%Y-%m-%d")
+        buckets[key] = {
+            "week": f"W{index + 1}",
+            "week_start": week_start,
+            "inflow": 0.0,
+            "outflow": 0.0,
+        }
 
-    if transactions:
-        first_week = (transactions[0].date - timedelta(days=transactions[0].date.weekday())).replace(
+    for tx in transactions:
+        week_start = (tx.date - timedelta(days=tx.date.weekday())).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        buckets: dict[str, dict[str, Any]] = {}
-        for index in range(13):
-            week_start = first_week + timedelta(days=index * 7)
-            key = week_start.strftime("%Y-%m-%d")
-            buckets[key] = {
-                "week": f"W{index + 1}",
-                "week_start": week_start,
-                "inflow": 0.0,
-                "outflow": 0.0,
-            }
+        key = week_start.strftime("%Y-%m-%d")
+        bucket = buckets.get(key)
+        if not bucket:
+            continue
+        amount = float(tx.amount or 0)
+        if tx.transaction_type == "income":
+            bucket["inflow"] += amount
+        elif tx.transaction_type == "expense":
+            bucket["outflow"] += amount
 
-        for tx in transactions:
-            offset = max((tx.date - first_week).days, 0) // 7
-            if offset > 12:
-                continue
-            key = (first_week + timedelta(days=offset * 7)).strftime("%Y-%m-%d")
-            bucket = buckets[key]
-            amount = float(tx.amount or 0)
-            if tx.transaction_type == "income":
-                bucket["inflow"] += amount
-            elif tx.transaction_type == "expense":
-                bucket["outflow"] += amount
+    net_movement_total = round(
+        sum(bucket["inflow"] - bucket["outflow"] for bucket in buckets.values()), 2
+    )
+    should_render_forecast = bool(transactions) or current_cash != 0
 
+    if should_render_forecast:
+        running_balance = round(current_cash - net_movement_total, 2)
         for bucket in buckets.values():
             running_balance += bucket["inflow"] - bucket["outflow"]
             weekly_rows.append(
@@ -85,8 +119,6 @@ async def planning_cashflow(
                     "balance": round(running_balance, 2),
                 }
             )
-    else:
-        weekly_rows = []
 
     forecast_rows = [
         {
@@ -109,31 +141,51 @@ async def planning_cashflow(
     )
     avg_monthly_burn = round(float(avg_monthly_burn) / 3, 2)
 
-    recommendations = [
-        "Chase outstanding receivables within 10 working days.",
-        "Review discretionary programme costs before the next payroll cycle.",
-        "Keep a minimum reserve equal to three months of payroll.",
-    ]
+    recommendations: list[str] = []
+    if current_cash <= 0 and not transactions:
+        recommendations.append("Add bank balances and posted transactions to activate a live workspace cash view.")
+    if avg_monthly_burn <= 0:
+        recommendations.append("Post recent expense activity so monthly burn and runway can be calculated reliably.")
+    if current_cash > 0 and avg_monthly_burn > 0 and current_cash / avg_monthly_burn < 3:
+        recommendations.append("Build at least three months of unrestricted reserves to reduce short runway pressure.")
+    if transactions:
+        recommendations.append("Review the last 13 weeks of posted inflows and outflows before locking next-quarter plans.")
+    if not recommendations:
+        recommendations.append("Add transactions to unlock a live 13-week cashflow forecast.")
 
     lowest = min(forecast_rows, key=lambda row: row["balance"]) if forecast_rows else None
+    projected_cash = round(forecast_rows[-1]["balance"], 2) if forecast_rows else round(current_cash, 2)
+    scenario_copy = {
+        "optimistic": (
+            "Optimistic scenario modelling will become more precise as more live income and cost data is posted."
+            if forecast_rows
+            else "Add live cash and transaction data to enable an optimistic scenario view."
+        ),
+        "base": (
+            "This base case reflects the current workspace cash position and the last 13 weeks of posted movement."
+            if forecast_rows
+            else "Base case scenarios will appear once this workspace has bank balances or posted transaction history."
+        ),
+        "stress": (
+            "Stress testing should focus on delayed income, unexpected spend, and whether reserves can absorb the pressure."
+            if forecast_rows
+            else "Stress test scenarios will appear once this workspace has bank balances or posted transaction history."
+        ),
+    }
 
     return {
         "summary": {
-            "current_cash": round(forecast_rows[0]["balance"], 2) if forecast_rows else 0,
-            "projected_cash": round(forecast_rows[-1]["balance"], 2) if forecast_rows else 0,
-            "net_movement": round(forecast_rows[-1]["balance"] - forecast_rows[0]["balance"], 2) if forecast_rows else 0,
+            "current_cash": round(current_cash, 2),
+            "projected_cash": projected_cash,
+            "net_movement": net_movement_total,
             "avg_monthly_burn": avg_monthly_burn,
-            "runway_months": round(forecast_rows[-1]["balance"] / max(avg_monthly_burn, 1), 1) if avg_monthly_burn > 0 and forecast_rows else None,
+            "runway_months": round(current_cash / max(avg_monthly_burn, 1), 1) if avg_monthly_burn > 0 and current_cash > 0 else None,
             "lowest_week": lowest["week"] if lowest else None,
             "lowest_balance": round(lowest["balance"], 2) if lowest else 0,
         },
         "forecast": forecast_rows,
-        "scenario_copy": {
-            "optimistic": "Add income and expense data to generate a tailored optimistic scenario.",
-            "base": "Base case scenarios will appear once this workspace has transaction history.",
-            "stress": "Stress test scenarios will appear once this workspace has transaction history.",
-        },
-        "recommendations": recommendations if forecast_rows else ["Add transactions to unlock a live 13-week cashflow forecast."],
+        "scenario_copy": scenario_copy,
+        "recommendations": recommendations,
     }
 
 

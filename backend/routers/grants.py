@@ -192,7 +192,7 @@ async def allocate_grant(
     if existing + data.allocated_amount > float(grant.amount_awarded):
         raise HTTPException(
             status_code=400,
-            detail=f"Allocation exceeds remaining grant balance (available: £{float(grant.amount_awarded) - existing:,.2f})"
+            detail=f"Allocation exceeds remaining grant balance (available: GBP {float(grant.amount_awarded) - existing:,.2f})"
         )
 
     allocation = GrantAllocation(
@@ -260,8 +260,13 @@ async def generate_ai_grant_report(
 
     org = db.query(Organisation).filter(Organisation.id == current_user.organisation_id).first()
     from backend.services.ai_service import generate_grant_report
-    result = await generate_grant_report(grant_id, period_start, period_end, db,
-                                         org.name if org else "Harvest Touch CIC")
+    result = await generate_grant_report(
+        grant_id,
+        period_start,
+        period_end,
+        db,
+        org.name if org and org.name else "Current workspace",
+    )
     if result.get("error"):
         raise HTTPException(status_code=500, detail=result["error"])
 

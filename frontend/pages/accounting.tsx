@@ -58,6 +58,12 @@ export default function Accounting() {
     queryFn: api.getAccountingSummary,
   })
 
+  const totalAssets = Number(summary?.total_cash ?? 0)
+  const incomeYtd = Number(summary?.total_income_ytd ?? 0)
+  const expensesYtd = Number(summary?.total_expenses_ytd ?? 0)
+  const netAssets = Number(summary?.net_surplus ?? (incomeYtd - expensesYtd))
+  const hasAccountingActivity = totalAssets !== 0 || incomeYtd !== 0 || expensesYtd !== 0 || accounts.length > 0
+
   const createAccountMutation = useMutation({
     mutationFn: api.createAccount,
     onSuccess: () => {
@@ -214,10 +220,10 @@ export default function Accounting() {
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatCard label="Total Assets" value={gbp(summary?.total_cash ?? 94820)} change="Cash and receivables" accentColor="#10b981" />
-        <StatCard label="Net Assets" value={gbp((summary?.total_cash ?? 94820) - 10500)} change="Assets less liabilities" accentColor="#3b82f6" />
-        <StatCard label="Income YTD" value={gbp(summary?.income_ytd ?? 156200)} change="Up 22.8%" changeUp accentColor="#8b5cf6" />
-        <StatCard label="Expenditure YTD" value={gbp(summary?.expenses_ytd ?? 71880)} change="Against budget" accentColor="#f59e0b" />
+        <StatCard label="Total Assets" value={gbp(totalAssets)} change={hasAccountingActivity ? 'Cash and receivables' : 'No asset balances posted yet'} accentColor="#10b981" />
+        <StatCard label="Net Assets" value={gbp(netAssets)} change={hasAccountingActivity ? 'Income less expenditure' : 'No surplus or deficit recorded yet'} changeUp={netAssets >= 0} accentColor="#3b82f6" />
+        <StatCard label="Income YTD" value={gbp(incomeYtd)} change={incomeYtd > 0 ? 'Cleared income transactions' : 'No income cleared yet'} changeUp={incomeYtd > 0} accentColor="#8b5cf6" />
+        <StatCard label="Expenditure YTD" value={gbp(expensesYtd)} change={expensesYtd > 0 ? 'Cleared expense transactions' : 'No expenses cleared yet'} changeUp={false} accentColor="#f59e0b" />
       </div>
 
       <div style={{ display: 'flex', gap: 2, background: 'var(--surface-muted)', borderRadius: 8, padding: 3, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
@@ -355,20 +361,18 @@ export default function Accounting() {
                 </div>
                 <div style={{ background: 'var(--surface-strong-2)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                    <span style={{ color: 'var(--mute)' }}>Opening balance</span>
-                    <span style={{ color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{gbp(Number(selectedBank.balance) - 1240)}</span>
+                    <span style={{ color: 'var(--mute)' }}>Current balance</span>
+                    <span style={{ color: 'var(--heading)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>{gbp(Number(selectedBank.balance))}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                    <span style={{ color: 'var(--mute)' }}>Payroll batch</span>
-                    <span style={{ color: '#f87171', fontFamily: 'JetBrains Mono, monospace' }}>- {gbp(5520).replace('GBP ', '')}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                    <span style={{ color: 'var(--mute)' }}>Grant receipt</span>
-                    <span style={{ color: '#34d399', fontFamily: 'JetBrains Mono, monospace' }}>+ {gbp(8000).replace('GBP ', '')}</span>
+                    <span style={{ color: 'var(--mute)' }}>Last synced</span>
+                    <span style={{ color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      {selectedBank.last_synced ? new Date(selectedBank.last_synced).toLocaleString('en-GB') : 'Never'}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ color: 'var(--mute)' }}>Closing balance</span>
-                    <span style={{ color: 'var(--heading)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>{gbp(Number(selectedBank.balance))}</span>
+                    <span style={{ color: 'var(--mute)' }}>Imported transactions</span>
+                    <span style={{ color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>Not loaded in this view</span>
                   </div>
                 </div>
               </div>
@@ -429,8 +433,8 @@ export default function Accounting() {
         <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 18, fontWeight: 600, color: 'var(--heading)', marginBottom: 20 }}>{editingBankId ? 'Edit Bank Account' : 'Add Bank Account'}</div>
-            <FormInput label="Account Name" value={bankDraft.account_name} onChange={(v) => setBankDraft({ ...bankDraft, account_name: v })} placeholder="Current Account" />
-            <FormInput label="Bank Name" value={bankDraft.bank_name} onChange={(v) => setBankDraft({ ...bankDraft, bank_name: v })} placeholder="Barclays" />
+            <FormInput label="Account Name" value={bankDraft.account_name} onChange={(v) => setBankDraft({ ...bankDraft, account_name: v })} placeholder="Main operating account" />
+            <FormInput label="Bank Name" value={bankDraft.bank_name} onChange={(v) => setBankDraft({ ...bankDraft, bank_name: v })} placeholder="Bank name" />
             <FormInput label="Opening Balance" value={bankDraft.balance} onChange={(v) => setBankDraft({ ...bankDraft, balance: v })} type="number" placeholder="0.00" />
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Button variant="ghost" fullWidth onClick={() => { setShowBankForm(false); setEditingBankId(null); setBankDraft({ account_name: '', bank_name: '', balance: '' }) }}>Cancel</Button>

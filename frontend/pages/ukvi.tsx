@@ -204,15 +204,21 @@ export default function UKVI() {
         </div>
       }
     >
-      <Alert variant="error" icon="!">
-        <strong>UKVI sponsor compliance:</strong> Review sponsored workers, certificate allocations, and reporting duties carefully to stay audit-ready.
+      <Alert variant={hasUkviData ? 'warning' : 'info'} icon={hasUkviData ? '!' : 'i'}>
+        {hasUkviData ? (
+          <>
+            <strong>UKVI sponsor compliance:</strong> Review sponsored workers, certificate allocations, and reporting duties carefully to stay audit-ready.
+          </>
+        ) : (
+          <>No UKVI records have been entered in this workspace yet.</>
+        )}
       </Alert>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Licence Status" value={summary?.licence_status ?? 'Not recorded'} change={licenceChangeText} icon="L" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Sponsored Workers" value={String(summary?.sponsored_workers ?? 0)} change={workers[0]?.name ?? 'None'} icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="CoS Available" value={String(summary?.cos_available ?? 0)} change="Annual allocation" icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="Reporting Duties" value={String(summary?.reporting_duties ?? 0)} change="Actions overdue" changeUp={false} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+        <StatCard label="Sponsored Workers" value={String(summary?.sponsored_workers ?? 0)} change={workers[0]?.name ?? 'No workers recorded'} icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="CoS Available" value={String(summary?.cos_available ?? 0)} change={cosRecords.length ? 'Certificates recorded in register' : 'No certificates recorded yet'} icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Reporting Duties" value={String(summary?.reporting_duties ?? 0)} change={overdueDuties.length ? 'Action required' : 'No overdue duties'} changeUp={false} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
@@ -289,6 +295,7 @@ export default function UKVI() {
                 { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openWorkerForm(r as WorkerRecord)}>View / Edit</Button> },
               ]}
               data={workers}
+              emptyMessage="No sponsored workers recorded yet"
             />
           </Panel>
         </>
@@ -311,6 +318,7 @@ export default function UKVI() {
                 { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openCosForm(r as CosRecord)}>View / Edit</Button> },
               ]}
               data={cosRecords}
+              emptyMessage="No CoS records created yet"
             />
           </Panel>
         </>
@@ -318,8 +326,10 @@ export default function UKVI() {
 
       {tab === 'duties' && (
         <>
-          <Alert variant="error" icon="!">
-            Worker changes should be reported within 10 working days, and organisational changes within 20 working days.
+          <Alert variant={duties.length ? 'warning' : 'info'} icon={duties.length ? '!' : 'i'}>
+            {duties.length
+              ? 'Worker changes should be reported within 10 working days, and organisational changes within 20 working days.'
+              : 'No reporting duty entries have been logged in this workspace yet.'}
           </Alert>
           <Panel noPadding>
             <DataTable
@@ -331,6 +341,7 @@ export default function UKVI() {
                 { key: 'actions', header: '', render: (r) => r.status === 'Overdue' || r.status === 'Due' ? <Button small onClick={() => reportDuty(r.id, r.duty)}>Report Now</Button> : <Button small variant="ghost" onClick={() => toast.success(`${r.duty} reviewed`)}>View</Button> },
               ]}
               data={duties}
+              emptyMessage="No reporting duties recorded yet"
             />
           </Panel>
           <Panel title="Latest Duty Update" titleIcon="LOG" iconColor="#5E9EFF" style={{ marginTop: 14 }}>
@@ -375,9 +386,9 @@ export default function UKVI() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Worker Name" value={workerForm.name} onChange={(v) => setWorkerForm({ ...workerForm, name: v })} placeholder="Full name" />
               <FormInput label="Role / SOC Code" value={workerForm.role} onChange={(v) => setWorkerForm({ ...workerForm, role: v })} placeholder="Community Worker / 3229" />
-              <FormInput label="CoS Reference" value={workerForm.cos} onChange={(v) => setWorkerForm({ ...workerForm, cos: v })} placeholder="CoS-2025-0001" />
-              <FormInput label="Start Date" value={workerForm.startDate} onChange={(v) => setWorkerForm({ ...workerForm, startDate: v })} placeholder="01 Jun 2025" />
-              <FormInput label="Visa Expiry" value={workerForm.visaExpiry} onChange={(v) => setWorkerForm({ ...workerForm, visaExpiry: v })} placeholder="31 Dec 2027" />
+              <FormInput label="CoS Reference" value={workerForm.cos} onChange={(v) => setWorkerForm({ ...workerForm, cos: v })} placeholder="Certificate reference" />
+              <FormInput label="Start Date" value={workerForm.startDate} onChange={(v) => setWorkerForm({ ...workerForm, startDate: v })} placeholder="DD/MM/YYYY" />
+              <FormInput label="Visa Expiry" value={workerForm.visaExpiry} onChange={(v) => setWorkerForm({ ...workerForm, visaExpiry: v })} placeholder="DD/MM/YYYY" />
               <FormInput label="RTW Status" as="select" value={workerForm.rtw} onChange={(v) => setWorkerForm({ ...workerForm, rtw: v })}>
                 <option value="Valid">Valid</option>
                 <option value="Due Soon">Due Soon</option>
@@ -399,13 +410,13 @@ export default function UKVI() {
               {editingCosId === null ? 'Assign CoS' : 'Edit CoS Record'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-              <FormInput label="CoS Reference" value={cosForm.cosRef} onChange={(v) => setCosForm({ ...cosForm, cosRef: v })} placeholder="CoS-2025-0011" />
+              <FormInput label="CoS Reference" value={cosForm.cosRef} onChange={(v) => setCosForm({ ...cosForm, cosRef: v })} placeholder="Certificate reference" />
               <FormInput label="Assigned To" value={cosForm.worker} onChange={(v) => setCosForm({ ...cosForm, worker: v })} placeholder="Worker name" />
               <FormInput label="Type" as="select" value={cosForm.type} onChange={(v) => setCosForm({ ...cosForm, type: v })}>
                 <option value="Defined">Defined</option>
                 <option value="Undefined">Undefined</option>
               </FormInput>
-              <FormInput label="Issued" value={cosForm.issued} onChange={(v) => setCosForm({ ...cosForm, issued: v })} placeholder="15 May 2025" />
+              <FormInput label="Issued" value={cosForm.issued} onChange={(v) => setCosForm({ ...cosForm, issued: v })} placeholder="DD/MM/YYYY" />
               <FormInput label="Status" as="select" value={cosForm.status} onChange={(v) => setCosForm({ ...cosForm, status: v })}>
                 <option value="Available">Available</option>
                 <option value="Used">Used</option>

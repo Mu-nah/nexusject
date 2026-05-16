@@ -21,7 +21,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <title>Nexus One - Realtouch Enterprise Platform</title>
         <meta
           name="description"
-          content="AI-powered financial operating system for Harvest Touch CIC"
+          content="AI-powered operating system for finance, people, operations, and compliance."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

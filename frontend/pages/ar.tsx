@@ -77,7 +77,7 @@ export default function AR() {
   const collectedYtd = paidInvoices.reduce((sum, invoice) => sum + parseAmount(invoice.amount), 0)
 
   const openInvoiceForm = (record?: InvoiceRecord) => {
-    setInvoiceForm(record ?? { ...EMPTY_INVOICE, ref: `INV-${String(invoices.length + 1).padStart(4, '0')}`, due: '30 May 2026', amount: 'GBP 1,000.00' })
+    setInvoiceForm(record ?? { ...EMPTY_INVOICE, ref: `INV-${String(invoices.length + 1).padStart(4, '0')}`, due: '', amount: 'GBP 0.00' })
     setEditingInvoiceRef(record?.ref ?? null)
     setShowInvoiceForm(true)
   }
@@ -367,8 +367,8 @@ export default function AR() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Invoice Reference" value={invoiceForm.ref} onChange={(value) => setInvoiceForm({ ...invoiceForm, ref: value })} placeholder="INV-0001" />
               <FormInput label="Customer" value={invoiceForm.customer} onChange={(value) => setInvoiceForm({ ...invoiceForm, customer: value })} placeholder="Customer name" />
-              <FormInput label="Due Date" value={invoiceForm.due} onChange={(value) => setInvoiceForm({ ...invoiceForm, due: value })} placeholder="30 May 2026" />
-              <FormInput label="Amount" value={invoiceForm.amount} onChange={(value) => setInvoiceForm({ ...invoiceForm, amount: value })} placeholder="GBP 1,000.00" />
+              <FormInput label="Due Date" value={invoiceForm.due} onChange={(value) => setInvoiceForm({ ...invoiceForm, due: value })} placeholder="DD/MM/YYYY" />
+              <FormInput label="Amount" value={invoiceForm.amount} onChange={(value) => setInvoiceForm({ ...invoiceForm, amount: value })} placeholder="GBP 0.00" />
               <FormInput label="Status" as="select" value={invoiceForm.status} onChange={(value) => setInvoiceForm({ ...invoiceForm, status: value as InvoiceStatus })}>
                 <option value="Draft">Draft</option>
                 <option value="Sent">Sent</option>

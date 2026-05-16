@@ -34,6 +34,9 @@ export default function Donations() {
   const donations = donationsData?.items ?? []
   const trend = stats?.monthly_trend ?? []
   const recurringCount = stats?.recurring_count ?? 0
+  const recurringValue = donations
+    .filter((donation: any) => donation.is_recurring)
+    .reduce((sum: number, donation: any) => sum + Number(donation.amount || 0), 0)
 
   return (
     <AppLayout
@@ -55,7 +58,7 @@ export default function Donations() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
         <StatCard label="Total Donations YTD" value={money(stats?.ytd_total ?? 0)} change={trend.length ? `${trend.length} tracked periods` : 'No donations recorded yet'} changeUp={(stats?.ytd_total ?? 0) > 0} accentColor="#10b981" />
         <StatCard label="Unique Donors" value={stats?.unique_donors ?? 0} change="Current workspace donors" changeUp={(stats?.unique_donors ?? 0) > 0} accentColor="#3b82f6" />
-        <StatCard label="Recurring Monthly" value={money(recurringCount * 34.4)} change={`${recurringCount} standing orders`} changeUp={recurringCount > 0} accentColor="#8b5cf6" />
+        <StatCard label="Recurring Donations" value={money(recurringValue)} change={recurringCount > 0 ? `${recurringCount} recurring donors` : 'No recurring donations recorded yet'} changeUp={recurringCount > 0} accentColor="#8b5cf6" />
         <StatCard label="Gift Aid Claimable" value={money(giftAid?.total_claimable ?? 0)} change="From HMRC this year" accentColor="#f59e0b" />
       </div>
 

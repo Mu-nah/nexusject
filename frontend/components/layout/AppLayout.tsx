@@ -8,15 +8,21 @@ import api from '@/lib/api'
 import { DashboardPeriodMode, useAuthStore, useUiStore } from '@/lib/store'
 
 type ModuleKey = 'finance' | 'operations' | 'people_hr' | 'compliance' | 'system' | 'overview'
+type SidebarBadgeTone = 'gold' | 'red'
+type SidebarBadgeKind = 'count' | 'status'
+
+type SidebarBadge = {
+  label: string
+  tone: SidebarBadgeTone
+  kind: SidebarBadgeKind
+}
 
 type NavItem = {
   label: string
   href: string
   icon: string
   module: ModuleKey
-  badge?: string
-  badgeGold?: boolean
-  badgeRed?: boolean
+  badge?: SidebarBadge
   adminOnly?: boolean
 }
 
@@ -26,13 +32,22 @@ type NavSection = {
   items: NavItem[]
 }
 
+const createCountBadge = (count: number, tone: SidebarBadgeTone = 'gold'): SidebarBadge | undefined =>
+  count > 0 ? { label: String(count), tone, kind: 'count' } : undefined
+
+const createStatusBadge = (label: string, tone: SidebarBadgeTone = 'gold'): SidebarBadge => ({
+  label,
+  tone,
+  kind: 'status',
+})
+
 const BASE_NAV: NavSection[] = [
   {
     section: 'Overview',
     module: 'overview',
     items: [
       { label: 'Executive Dashboard', href: '/dashboard', icon: 'O', module: 'overview' },
-      { label: 'AI Intelligence', href: '/ai', icon: 'AI', module: 'overview', badge: 'Live', badgeGold: true },
+      { label: 'AI Intelligence', href: '/ai', icon: 'AI', module: 'overview', badge: createStatusBadge('Live') },
     ],
   },
   {
@@ -66,7 +81,7 @@ const BASE_NAV: NavSection[] = [
       { label: 'HR Management', href: '/hr', icon: 'HR', module: 'people_hr' },
       { label: 'Volunteers', href: '/volunteers', icon: 'VO', module: 'people_hr' },
       { label: 'Rota & Timesheets', href: '/rota', icon: 'RT', module: 'people_hr' },
-      { label: 'UKVI & Sponsorship', href: '/ukvi', icon: 'UK', module: 'people_hr', badge: '!', badgeRed: true },
+      { label: 'UKVI & Sponsorship', href: '/ukvi', icon: 'UK', module: 'people_hr' },
     ],
   },
   {
@@ -132,11 +147,24 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
     enabled: isWorkspaceAdmin,
     staleTime: 30000,
   })
+  const { data: ukviWorkspace } = useQuery({
+    queryKey: ['layout-ukvi-workspace'],
+    queryFn: api.getUkviWorkspace,
+    enabled: allowedModules.has('people_hr'),
+    staleTime: 30000,
+  })
+  const adminPendingInvites = Number(accessMonitor?.summary?.pending_invites ?? 0)
+  const workspaceAdminBadge = createCountBadge(adminPendingInvites)
 
   const navSections = useMemo(() => {
     const pendingExpenses = Number(expenseSummary?.pending_count ?? 0)
     const activeGrants = Number(grantsSummary?.active_grants ?? 0)
     const urgentCompliance = 0
+    const ukviDuties = Array.isArray(ukviWorkspace?.duties) ? ukviWorkspace.duties : []
+    const ukviWorkers = Array.isArray(ukviWorkspace?.workers) ? ukviWorkspace.workers : []
+    const ukviActionCount =
+      ukviDuties.filter((item: any) => item?.status === 'Due' || item?.status === 'Overdue').length +
+      ukviWorkers.filter((item: any) => item?.rtw === 'Due Soon' || item?.rtw === 'Expired').length
 
     const sections = BASE_NAV
       .filter((section) => section.module === 'overview' || allowedModules.has(section.module))
@@ -146,25 +174,25 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
           if (item.href === '/expenses') {
             return {
               ...item,
-              badge: pendingExpenses > 0 ? String(pendingExpenses) : undefined,
-              badgeRed: pendingExpenses > 0,
-              badgeGold: false,
+              badge: createCountBadge(pendingExpenses, 'red'),
             }
           }
           if (item.href === '/grants') {
             return {
               ...item,
-              badge: activeGrants > 0 ? String(activeGrants) : undefined,
-              badgeGold: activeGrants > 0,
-              badgeRed: false,
+              badge: createCountBadge(activeGrants),
             }
           }
           if (item.href === '/compliance') {
             return {
               ...item,
-              badge: urgentCompliance > 0 ? String(urgentCompliance) : undefined,
-              badgeRed: urgentCompliance > 0,
-              badgeGold: false,
+              badge: createCountBadge(urgentCompliance, 'red'),
+            }
+          }
+          if (item.href === '/ukvi') {
+            return {
+              ...item,
+              badge: createCountBadge(ukviActionCount, 'red'),
             }
           }
           return item
@@ -172,7 +200,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
       }))
 
     return sections
-  }, [accessMonitor?.summary?.pending_invites, allowedModules, expenseSummary?.pending_count, grantsSummary?.active_grants, isWorkspaceAdmin])
+  }, [allowedModules, expenseSummary?.pending_count, grantsSummary?.active_grants, ukviWorkspace?.duties, ukviWorkspace?.workers])
 
   const navItems = useMemo(() => navSections.flatMap((section) => section.items), [navSections])
 
@@ -273,6 +301,47 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
     { value: 'qtd', label: 'QTD' },
     { value: 'ytd', label: 'YTD' },
   ]
+  const sidebarWidth = isPhone ? 244 : 256
+  const sidebarHiddenOffset = -(sidebarWidth + 16)
+  const navRowPadding = isPhone ? '7px 9px 7px 14px' : '7px 10px 7px 16px'
+  const navRowGap = isPhone ? 8 : 9
+  const navRowMargin = isPhone ? '1px 6px' : '1px 8px'
+  const navLabelFontSize = isPhone ? 12 : 12.5
+  const navIconWidth = isPhone ? 20 : 22
+  const renderSidebarBadge = (badge?: SidebarBadge) => {
+    if (!badge) return null
+    const isCountBadge = badge.kind === 'count'
+    const badgeStyle = badge.tone === 'red'
+      ? { background: 'var(--red-bg)', color: 'var(--red)' }
+      : { background: 'var(--gold-bg)', color: 'var(--gold2)' }
+
+    return (
+      <span
+        style={{
+          ...badgeStyle,
+          fontSize: isCountBadge ? 9.5 : 9,
+          fontWeight: 700,
+          height: isCountBadge ? 20 : 18,
+          padding: isCountBadge ? '2px 6px' : '1px 8px',
+          borderRadius: 999,
+          fontFamily: isCountBadge ? "'JetBrains Mono', monospace" : 'inherit',
+          flexShrink: 0,
+          minWidth: isCountBadge ? 20 : 'auto',
+          maxWidth: isCountBadge ? (isPhone ? 28 : 32) : 56,
+          textAlign: 'center',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          letterSpacing: isCountBadge ? 'normal' : '0.01em',
+        }}
+      >
+        {badge.label}
+      </span>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
@@ -285,14 +354,14 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
 
       <aside
         style={{
-          width: 256,
+          width: sidebarWidth,
           background: 'var(--bg2)',
           borderRight: '1px solid var(--line)',
           display: 'flex',
           flexDirection: 'column',
           position: 'fixed',
           top: 0,
-          left: isCompact ? (sidebarOpen ? 0 : -272) : 0,
+          left: isCompact ? (sidebarOpen ? 0 : sidebarHiddenOffset) : 0,
           bottom: 0,
           zIndex: 200,
           overflowX: 'hidden',
@@ -391,9 +460,6 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
               </div>
               {items.map((item) => {
                 const isActive = router.pathname === item.href
-                const badgeStyle = item.badgeRed
-                  ? { background: 'var(--red-bg)', color: 'var(--red)' }
-                  : { background: 'var(--gold-bg)', color: 'var(--gold2)' }
 
                 return (
                   <Link
@@ -415,15 +481,15 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 9,
-                        padding: '7px 10px 7px 16px',
-                        margin: '1px 8px',
+                        gap: navRowGap,
+                        padding: navRowPadding,
+                        margin: navRowMargin,
                         borderRadius: 7,
                         cursor: 'pointer',
                         color: isActive ? 'var(--gold2)' : 'var(--mute2)',
                         background: isActive ? 'var(--surface-hover)' : 'transparent',
                         fontWeight: isActive ? 500 : 400,
-                        fontSize: 12.5,
+                        fontSize: navLabelFontSize,
                         transition: 'all 0.12s ease',
                         position: 'relative',
                       }}
@@ -443,8 +509,8 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                       )}
                       <span
                         style={{
-                          width: 22,
-                          minWidth: 22,
+                          width: navIconWidth,
+                          minWidth: navIconWidth,
                           fontSize: 10,
                           flexShrink: 0,
                           opacity: isActive ? 1 : 0.9,
@@ -455,27 +521,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                         {item.icon}
                       </span>
                       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{item.label}</span>
-                      {item.badge && (
-                        <span
-                          style={{
-                            ...badgeStyle,
-                            fontSize: 9.5,
-                            fontWeight: 700,
-                            padding: '2px 6px',
-                            borderRadius: 999,
-                            fontFamily: "'JetBrains Mono', monospace",
-                            flexShrink: 0,
-                            minWidth: 20,
-                            maxWidth: 46,
-                            textAlign: 'center',
-                            overflow: 'hidden',
-                            whiteSpace: 'nowrap',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
+                      {renderSidebarBadge(item.badge)}
                     </div>
                   </Link>
                 )
@@ -526,37 +572,22 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                     gap: 10,
                     color: router.pathname === '/admin' ? 'var(--gold2)' : 'var(--mute2)',
                   }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--heading)' }}>Workspace Admin</div>
-                    <div style={{ fontSize: 10, color: 'var(--mute)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Users, access, invites
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      background: 'var(--gold-bg)',
-                      color: 'var(--gold2)',
-                      fontSize: 9.5,
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      minWidth: 24,
-                      textAlign: 'center',
-                      borderRadius: 999,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      flexShrink: 0,
-                    }}
                   >
-                    {accessMonitor?.summary?.pending_invites ?? 'AD'}
-                  </span>
-                </div>
-              </Link>
-            )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--heading)' }}>Workspace Admin</div>
+                      <div style={{ fontSize: 10, color: 'var(--mute)', fontFamily: "'JetBrains Mono', monospace" }}>
+                        {adminPendingInvites > 0 ? 'Users, access, invites' : 'Users and access'}
+                      </div>
+                    </div>
+                    {renderSidebarBadge(workspaceAdminBadge)}
+                  </div>
+                </Link>
+              )}
           </div>
         </div>
       </aside>
 
-      <main style={{ marginLeft: isCompact ? 0 : 256, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <main style={{ marginLeft: isCompact ? 0 : sidebarWidth, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <div
           style={{
             minHeight: 60,

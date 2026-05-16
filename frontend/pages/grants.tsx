@@ -10,13 +10,24 @@ import api from '@/lib/api'
 const gbp = (n: number) => `GBP ${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 const pct = (n: number) => `${Number(n || 0).toFixed(1)}%`
 
+const currentQuarterBounds = () => {
+  const now = new Date()
+  const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+  const start = new Date(Date.UTC(now.getFullYear(), quarterStartMonth, 1, 0, 0, 0))
+  const end = new Date(Date.UTC(now.getFullYear(), quarterStartMonth + 3, 0, 23, 59, 59))
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
 export default function Grants() {
   const router = useRouter()
   const { data: grants = [], isLoading } = useQuery({ queryKey: ['grants'], queryFn: () => api.getGrants('active') })
   const { data: summary } = useQuery({ queryKey: ['grants-summary'], queryFn: api.getGrantsSummary })
 
   const reportMutation = useMutation({
-    mutationFn: (grantId: number) => api.aiGrantReport(grantId, '2025-01-01T00:00:00', '2025-03-31T23:59:59'),
+    mutationFn: (grantId: number) => {
+      const { start, end } = currentQuarterBounds()
+      return api.aiGrantReport(grantId, start, end)
+    },
     onSuccess: () => {
       toast.success('AI report generated - check Reports')
       router.push('/reports')

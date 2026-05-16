@@ -156,9 +156,9 @@ export default function Volunteers() {
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Active Volunteers" value={String(activeVolunteers)} change={`${summary?.inactive_volunteers ?? 0} inactive`} icon="V" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Hours This Month" value={`${summary?.hours_this_month ?? 0}h`} change="Backend tracked" changeUp icon="H" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
-        <StatCard label="Volunteer Value" value={summary?.volunteer_value ?? 'GBP 0'} change="At NMW equivalent" icon="GBP" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="DBS Required" value={String(summary?.dbs_required ?? 0)} change="Renewals due" changeUp={false} icon="D" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Hours This Month" value={`${summary?.hours_this_month ?? 0}h`} change={Number(summary?.hours_this_month ?? 0) > 0 ? 'Tracked from volunteer logs' : 'No hours logged this month'} changeUp={Number(summary?.hours_this_month ?? 0) > 0} icon="H" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Volunteer Value" value={summary?.volunteer_value ?? 'GBP 0'} change={Number(summary?.hours_this_month ?? 0) > 0 ? 'Calculated from logged hours' : 'No value calculated yet'} icon="GBP" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="DBS Required" value={String(summary?.dbs_required ?? 0)} change={(summary?.dbs_required ?? 0) > 0 ? 'Renewals due' : 'No DBS renewals flagged'} changeUp={false} icon="D" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
@@ -200,6 +200,7 @@ export default function Volunteers() {
               { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openVolunteerForm(r as VolunteerRecord)}>View / Edit</Button> },
             ]}
             data={volunteers}
+            emptyMessage="No volunteers recorded yet"
           />
         </Panel>
       )}
@@ -220,10 +221,11 @@ export default function Volunteers() {
                 { key: 'value', header: 'Value', align: 'right', render: (r) => <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#C9A84C' }}>{r.value}</span> },
                 { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'Approved' ? 'green' : 'amber'}>{r.status}</Badge> },
                 { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openHoursForm(r as HoursRecord)}>View / Edit</Button> },
-              ]}
-              data={hours}
-            />
-          </Panel>
+            ]}
+            data={hours}
+            emptyMessage="No volunteer hours logged yet"
+          />
+        </Panel>
         </>
       )}
 
@@ -246,6 +248,7 @@ export default function Volunteers() {
               })}>Open Record</Button> },
             ]}
             data={agreements}
+            emptyMessage="No volunteer agreements recorded yet"
           />
         </Panel>
       )}
@@ -293,7 +296,7 @@ export default function Volunteers() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <FormInput label="Volunteer Name" value={hoursForm.name} onChange={(v) => setHoursForm({ ...hoursForm, name: v })} placeholder="Volunteer name" />
-              <FormInput label="Week Ending" value={hoursForm.week} onChange={(v) => setHoursForm({ ...hoursForm, week: v })} placeholder="W/E 15 Mar" />
+              <FormInput label="Week Ending" value={hoursForm.week} onChange={(v) => setHoursForm({ ...hoursForm, week: v })} placeholder="DD/MM/YYYY" />
               <FormInput label="Hours Logged" value={hoursForm.logged} onChange={(v) => setHoursForm({ ...hoursForm, logged: v })} placeholder="e.g. 6.0h" />
               <FormInput label="Approved Hours" value={hoursForm.approved} onChange={(v) => setHoursForm({ ...hoursForm, approved: v })} placeholder="Approved value" />
               <FormInput label="Value" value={hoursForm.value} onChange={(v) => setHoursForm({ ...hoursForm, value: v })} placeholder="GBP 69.00" />

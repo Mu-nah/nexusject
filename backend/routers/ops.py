@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -107,14 +108,19 @@ async def get_volunteers(
 
     active_count = sum(1 for item in volunteers if item.status == "Active")
     pending_dbs = sum(1 for item in volunteers if item.dbs == "Pending")
-    approved_hours = sum(float(item.logged.replace("h", "")) for item in hours if item.status == "Approved" and item.logged.replace(".", "", 1).replace("h", "").isdigit())
+    approved_hours = sum(
+        float(item.logged.replace("h", ""))
+        for item in hours
+        if item.status == "Approved" and item.logged.replace(".", "", 1).replace("h", "").isdigit()
+    )
+    volunteer_value = round(approved_hours * 15.60, 2)
 
     return {
         "summary": {
             "active_volunteers": active_count,
             "inactive_volunteers": max(len(volunteers) - active_count, 0),
             "hours_this_month": round(approved_hours, 1),
-            "volunteer_value": "GBP 2,139",
+            "volunteer_value": f"GBP {volunteer_value:,.0f}" if volunteer_value else "GBP 0",
             "dbs_required": pending_dbs,
         },
         "register": [
@@ -371,8 +377,9 @@ async def renew_hr_rtw(rtw_id: int, current_user: User = Depends(get_current_use
     record = db.query(HrRightToWorkRecord).filter(HrRightToWorkRecord.id == rtw_id, HrRightToWorkRecord.organisation_id == current_user.organisation_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="RTW record not found")
-    record.checked = datetime.utcnow().strftime("%d %b %Y")
-    record.expires = "31 Dec 2026"
+    checked_at = datetime.utcnow()
+    record.checked = checked_at.strftime("%d %b %Y")
+    record.expires = (checked_at + timedelta(days=365)).strftime("%d %b %Y")
     record.status = "Valid"
     db.commit()
     return {"success": True}

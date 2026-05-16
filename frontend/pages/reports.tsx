@@ -32,7 +32,7 @@ const REPORTS = [
     id: 'grant' as ReportType,
     icon: 'GRANT',
     title: 'Grant Funder Report',
-    description: 'Narrative plus financial breakdown for NLCF, GMCA, or Rochdale SLA.',
+    description: 'Narrative plus financial breakdown for a selected grant or funding stream in your workspace.',
     badge: 'Due soon',
     badgeVariant: 'red' as const,
   },

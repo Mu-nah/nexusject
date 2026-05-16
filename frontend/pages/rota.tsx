@@ -16,18 +16,28 @@ type ShiftRecord = {
   total: string
 }
 
-const INITIAL_ROTA: ShiftRecord[] = [
-  { name: 'Aisha Ibrahim', mon: '09:00-17:00', tue: '09:00-17:00', wed: 'OFF', thu: '09:00-17:00', fri: '09:00-17:00', total: '32h' },
-  { name: 'Kwame Okafor', mon: '10:00-14:00', tue: '10:00-14:00', wed: '10:00-14:00', thu: 'OFF', fri: 'OFF', total: '12h' },
-  { name: 'Jamilu Musa', mon: 'OFF', tue: '13:00-17:00', wed: '13:00-17:00', thu: '13:00-17:00', fri: '13:00-17:00', total: '16h' },
-]
+type AbsenceRecord = {
+  name: string
+  from: string
+  to: string
+  days: string
+  type: string
+  tV: 'amber' | 'blue'
+  status: string
+  sV: 'slate' | 'green'
+}
 
-const INITIAL_TIMESHEETS = [
-  { name: 'Aisha Ibrahim', week: 'W/E 15 Mar', scheduled: '32h', actual: '32.5h', overtime: '0.5h', status: 'Approved', sV: 'green' as const },
-  { name: 'Kwame Okafor', week: 'W/E 15 Mar', scheduled: '12h', actual: '12.0h', overtime: '-', status: 'Approved', sV: 'green' as const },
-  { name: 'Jamilu Musa', week: 'W/E 15 Mar', scheduled: '16h', actual: '14.0h', overtime: '-', status: 'Pending', sV: 'amber' as const },
-  { name: 'Aisha Ibrahim', week: 'W/E 08 Mar', scheduled: '32h', actual: '31.0h', overtime: '-', status: 'Approved', sV: 'green' as const },
-]
+const INITIAL_ROTA: ShiftRecord[] = []
+
+const INITIAL_TIMESHEETS: Array<{
+  name: string
+  week: string
+  scheduled: string
+  actual: string
+  overtime: string
+  status: string
+  sV: 'green' | 'amber'
+}> = []
 
 const EMPTY_SHIFT: ShiftRecord = {
   name: '',
@@ -39,6 +49,8 @@ const EMPTY_SHIFT: ShiftRecord = {
   total: '',
 }
 
+const ABSENCES: AbsenceRecord[] = []
+
 export default function Rota() {
   const [tab, setTab] = useState<Tab>('rota')
   const [weekOffset, setWeekOffset] = useState(0)
@@ -49,10 +61,14 @@ export default function Rota() {
   const [editingShiftIndex, setEditingShiftIndex] = useState<number | null>(null)
 
   const weekLabel = useMemo(() => {
-    const base = new Date('2025-03-17T00:00:00')
+    const base = new Date()
     base.setDate(base.getDate() + (weekOffset * 7))
     return base.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
   }, [weekOffset])
+
+  const scheduledHours = rota.reduce((sum, row) => sum + Number(row.total.replace(/[^0-9.]/g, '') || 0), 0)
+  const pendingTimesheets = timesheets.filter((row) => row.status === 'Pending').length
+  const overtimeHours = timesheets.reduce((sum, row) => sum + Number(row.overtime.replace(/[^0-9.]/g, '') || 0), 0)
 
   const exportTimesheets = () => {
     downloadCsvFile('timesheets.csv', timesheets)
@@ -99,10 +115,10 @@ export default function Rota() {
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <StatCard label="Scheduled Hours" value="60h" change="This week | 4 staff" icon="H" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
-        <StatCard label="Timesheets Pending" value={String(timesheets.filter((row) => row.status === 'Pending').length)} change="Awaiting approval" icon="P" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
-        <StatCard label="Overtime This Month" value="3.5h" change="0.5h this week" icon="OT" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
-        <StatCard label="Absences (MTD)" value="1" change="Planned" icon="A" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
+        <StatCard label="Scheduled Hours" value={`${scheduledHours}h`} change={rota.length ? `This week | ${rota.length} staff` : 'No rota shifts scheduled'} icon="H" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
+        <StatCard label="Timesheets Pending" value={String(pendingTimesheets)} change={timesheets.length ? 'Awaiting approval' : 'No timesheets logged'} icon="P" accentColor="#FB8C00" iconBg="rgba(251,140,0,0.12)" />
+        <StatCard label="Overtime This Month" value={`${overtimeHours}h`} change={overtimeHours ? 'Logged from timesheets' : 'No overtime recorded'} icon="OT" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
+        <StatCard label="Absences (MTD)" value="0" change="No absences recorded" icon="A" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
@@ -154,6 +170,7 @@ export default function Rota() {
                 { key: 'actions', header: '', render: (r) => <Button small variant="ghost" onClick={() => openShiftForm(r, rota.findIndex((row) => row.name === r.name))}>Edit</Button> },
               ]}
               data={rota}
+              emptyMessage="No rota has been scheduled in this workspace yet"
             />
           </Panel>
         </>
@@ -177,6 +194,7 @@ export default function Rota() {
                 { key: 'actions', header: '', render: (r) => r.status === 'Pending' ? <Button small onClick={() => approveTimesheet(r.name, r.week)}>Approve</Button> : <Button small variant="ghost" onClick={() => toast.success(`Viewing ${r.name}'s timesheet`)}>View</Button> },
               ]}
               data={timesheets}
+              emptyMessage="No timesheets logged yet"
             />
           </Panel>
         </>
@@ -193,10 +211,8 @@ export default function Rota() {
               { key: 'type', header: 'Type', render: (r) => <Badge variant={r.tV}>{r.type}</Badge> },
               { key: 'status', header: 'Status', render: (r) => <Badge variant={r.sV}>{r.status}</Badge> },
             ]}
-            data={[
-              { name: 'Kwame Okafor', from: '10 Mar', to: '10 Mar', days: '1', type: 'Sick', tV: 'amber' as const, status: 'Recorded', sV: 'slate' as const },
-              { name: 'Aisha Ibrahim', from: '14 Apr', to: '17 Apr', days: '4', type: 'Annual Leave', tV: 'blue' as const, status: 'Approved', sV: 'green' as const },
-            ]}
+            data={ABSENCES}
+            emptyMessage="No absences recorded yet"
           />
         </Panel>
       )}
