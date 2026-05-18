@@ -4,7 +4,7 @@ from pydantic import field_validator
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Realtouch Financial ERP"
+    APP_NAME: str = "Realtouch One"
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # AI
     ANTHROPIC_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
-    AI_MODEL: str = "claude-sonnet-4-20250514"
+    AI_MODEL: str = "claude-sonnet-4-6"
     OPENAI_FALLBACK_MODEL: str = "gpt-4o-mini"
     AI_ENABLE_OPENAI_FALLBACK: bool = True
 

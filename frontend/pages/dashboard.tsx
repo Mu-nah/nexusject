@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import {
   Area,
   AreaChart,
@@ -21,6 +22,10 @@ import { Alert, Badge, Button, DataTable, EmptyState, Panel, ProgressBar, StatCa
 import api from '@/lib/api'
 import { useAuthStore, useUiStore } from '@/lib/store'
 
+type DashboardRole = 'CFO' | 'CEO' | 'HR' | 'Operations' | 'Trustee'
+
+const ROLES: DashboardRole[] = ['CFO', 'CEO', 'HR', 'Operations', 'Trustee']
+
 const money = (n: number) =>
   `GBP ${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
@@ -28,6 +33,7 @@ export default function Dashboard() {
   const router = useRouter()
   const { user } = useAuthStore()
   const { dashboardPeriodMode } = useUiStore()
+  const [activeRole, setActiveRole] = useState<DashboardRole>('CFO')
 
   useEffect(() => {
     if (!user && router.pathname !== '/login') router.replace('/login')
@@ -120,6 +126,10 @@ export default function Dashboard() {
       subtitle={periodLabel === 'Normal' ? 'Workspace overview' : periodLabel}
       actions={
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Button variant="ghost" onClick={() => {
+            toast.success('Generating Board Pack… check Reports in a moment')
+            setTimeout(() => router.push('/reports'), 1200)
+          }}>Board Pack</Button>
           <Button variant="ghost" onClick={() => router.push('/reports')}>Export</Button>
           <Button onClick={() => router.push('/accounting')}>+ New Entry</Button>
         </div>
@@ -133,6 +143,117 @@ export default function Dashboard() {
         <Alert variant="info" icon="i">
           No pending approvals in this workspace right now.
         </Alert>
+      )}
+
+      <div style={{ display: 'flex', gap: 4, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10.5, color: 'var(--mute)', fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4 }}>View as</span>
+        {ROLES.map((role) => (
+          <button
+            key={role}
+            onClick={() => setActiveRole(role)}
+            style={{
+              padding: '5px 13px',
+              border: activeRole === role ? '1px solid var(--gold)' : '1px solid var(--line2)',
+              borderRadius: 20,
+              background: activeRole === role ? 'rgba(201,168,76,0.12)' : 'transparent',
+              color: activeRole === role ? 'var(--gold)' : 'var(--mute2)',
+              fontSize: 11.5,
+              fontWeight: activeRole === role ? 600 : 400,
+              cursor: 'pointer',
+              transition: 'all 0.12s',
+              fontFamily: "'Instrument Sans', sans-serif",
+            }}
+          >
+            {role}
+          </button>
+        ))}
+      </div>
+
+      {activeRole === 'CEO' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18, padding: '14px 16px', background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10 }}>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Cash Runway</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--heading)', fontFamily: "'Instrument Serif', serif" }}>{summary?.cash_runway_months != null ? `${summary.cash_runway_months} months` : '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Active Grants</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--heading)', fontFamily: "'Instrument Serif', serif" }}>{summary?.active_grants_count ?? '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Total Income YTD</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#2DCE89', fontFamily: "'Instrument Serif', serif" }}>{money(summary?.total_cash ?? 0)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Donations YTD</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#C9A84C', fontFamily: "'Instrument Serif', serif" }}>{money(donations?.ytd_total ?? 0)}</div>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button onClick={() => router.push('/ai')} style={{ padding: '8px 16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, color: 'var(--gold)', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>
+              Ask Realtouch IQ for executive briefing →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeRole === 'HR' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18, padding: '14px 16px', background: 'rgba(94,158,255,0.04)', border: '1px solid rgba(94,158,255,0.12)', borderRadius: 10 }}>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Monthly Payroll Cost</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--heading)', fontFamily: "'Instrument Serif', serif" }}>{money(summary?.avg_monthly_burn ?? 0)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Pending Expense Claims</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: summary?.pending_expenses_count ? '#FB8C00' : '#2DCE89', fontFamily: "'Instrument Serif', serif" }}>{summary?.pending_expenses_count ?? 0}</div>
+          </div>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => router.push('/hr')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>HR Management →</button>
+            <button onClick={() => router.push('/payroll')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Payroll →</button>
+            <button onClick={() => router.push('/ukvi')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>UKVI Compliance →</button>
+          </div>
+        </div>
+      )}
+
+      {activeRole === 'Operations' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18, padding: '14px 16px', background: 'rgba(45,206,137,0.04)', border: '1px solid rgba(45,206,137,0.12)', borderRadius: 10 }}>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Total Grants Awarded</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#2DCE89', fontFamily: "'Instrument Serif', serif" }}>{money(summary?.total_grants_awarded ?? 0)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Grants Remaining</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--heading)', fontFamily: "'Instrument Serif', serif" }}>{money(summary?.total_grants_remaining ?? 0)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Active Grants</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--heading)', fontFamily: "'Instrument Serif', serif" }}>{summary?.active_grants_count ?? '—'}</div>
+          </div>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => router.push('/grants')} style={{ padding: '8px 16px', background: 'rgba(45,206,137,0.1)', border: '1px solid rgba(45,206,137,0.2)', borderRadius: 8, color: '#2DCE89', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Grant Management →</button>
+            <button onClick={() => router.push('/programmes')} style={{ padding: '8px 16px', background: 'rgba(45,206,137,0.1)', border: '1px solid rgba(45,206,137,0.2)', borderRadius: 8, color: '#2DCE89', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Programmes →</button>
+          </div>
+        </div>
+      )}
+
+      {activeRole === 'Trustee' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18, padding: '14px 16px', background: 'rgba(179,136,255,0.04)', border: '1px solid rgba(179,136,255,0.12)', borderRadius: 10 }}>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Reserves / Total Funds</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--heading)', fontFamily: "'Instrument Serif', serif" }}>{money(summary?.total_cash ?? 0)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Cash Runway</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: summary?.cash_runway_months != null && summary.cash_runway_months < 3 ? '#F5365C' : '#2DCE89', fontFamily: "'Instrument Serif', serif" }}>{summary?.cash_runway_months != null ? `${summary.cash_runway_months} mo` : '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>Donations YTD</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#C9A84C', fontFamily: "'Instrument Serif', serif" }}>{money(donations?.ytd_total ?? 0)}</div>
+          </div>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => router.push('/reports')} style={{ padding: '8px 16px', background: 'rgba(179,136,255,0.1)', border: '1px solid rgba(179,136,255,0.2)', borderRadius: 8, color: '#B388FF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Trustee Report →</button>
+            <button onClick={() => router.push('/governance')} style={{ padding: '8px 16px', background: 'rgba(179,136,255,0.1)', border: '1px solid rgba(179,136,255,0.2)', borderRadius: 8, color: '#B388FF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Governance →</button>
+            <button onClick={() => router.push('/compliance')} style={{ padding: '8px 16px', background: 'rgba(179,136,255,0.1)', border: '1px solid rgba(179,136,255,0.2)', borderRadius: 8, color: '#B388FF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Compliance →</button>
+          </div>
+        </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>

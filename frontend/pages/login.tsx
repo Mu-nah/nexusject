@@ -18,14 +18,16 @@ export default function Login() {
   const { login, googleAuth, register, acceptInvite, isLoading } = useAuthStore()
   const inviteToken = typeof router.query.invite === 'string' ? router.query.invite : ''
   const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [email, setEmail] = useState('dominic@harvesttouch.org.uk')
-  const [password, setPassword] = useState('Admin1234!')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [organisationName, setOrganisationName] = useState('')
   const [organisationType, setOrganisationType] = useState(ORG_TYPES[0])
   const [country, setCountry] = useState(COUNTRIES[0])
   const [currency, setCurrency] = useState('GBP')
   const [googleReady, setGoogleReady] = useState(false)
+  const [googleHovered, setGoogleHovered] = useState(false)
+  const [googleFocused, setGoogleFocused] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -154,7 +156,7 @@ export default function Login() {
               color: '#0C0F14',
             }}
           >
-            N1
+            R1
           </div>
           <div
             style={{
@@ -165,7 +167,7 @@ export default function Login() {
               fontFamily: "'Instrument Serif', serif",
             }}
           >
-            Nexus One
+            Realtouch One
           </div>
           <div
             style={{
@@ -221,7 +223,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             {mode === 'signup' && !inviteToken && (
               <>
                 <Field label="Full Name">
@@ -251,11 +253,27 @@ export default function Login() {
             )}
 
             <Field label="Email Address">
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
+              <input
+                type="email"
+                name="workspace-email"
+                autoComplete="off"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={inputStyle}
+              />
             </Field>
 
             <Field label="Password">
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} />
+              <input
+                type="password"
+                name="workspace-password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={inputStyle}
+              />
             </Field>
 
             <button
@@ -291,38 +309,55 @@ export default function Login() {
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={isLoading || !googleReady}
+                  onMouseEnter={() => setGoogleHovered(true)}
+                  onMouseLeave={() => setGoogleHovered(false)}
+                  onFocus={() => setGoogleFocused(true)}
+                  onBlur={() => setGoogleFocused(false)}
                   style={{
                     width: '100%',
-                    padding: '11px',
-                    background: '#1C2230',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '11px 14px',
+                    background: '#FFFFFF',
+                    border: googleFocused ? '1px solid #8AB4F8' : '1px solid rgba(255,255,255,0.08)',
                     borderRadius: 8,
                     fontSize: 13.5,
                     fontWeight: 600,
-                    color: '#E8EDF5',
+                    color: '#1F2937',
                     cursor: isLoading || !googleReady ? 'wait' : 'pointer',
                     opacity: isLoading || !googleReady ? 0.7 : 1,
                     marginBottom: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    boxShadow: googleFocused
+                      ? '0 0 0 3px rgba(66,133,244,0.18), 0 1px 2px rgba(15,23,42,0.1)'
+                      : googleHovered
+                        ? '0 2px 6px rgba(15,23,42,0.12)'
+                        : '0 1px 2px rgba(15,23,42,0.08)',
+                    transform: googleHovered && !isLoading && googleReady ? 'translateY(-1px)' : 'translateY(0)',
+                    transition: 'box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease',
                   }}
                 >
-                  {googleReady ? (mode === 'login' ? 'Sign In with Google' : 'Create Workspace with Google') : 'Loading Google...'}
+                  <span
+                    style={{
+                      width: 20,
+                      height: 20,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <GoogleLogo />
+                  </span>
+                  <span>
+                    {googleReady ? (mode === 'login' ? 'Sign in with Google' : 'Sign up with Google') : 'Loading Google...'}
+                  </span>
                 </button>
               </>
             )}
           </form>
 
-          {mode === 'login' && !inviteToken && (
-            <div style={{ marginTop: 18, padding: 14, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8 }}>
-              <div style={{ fontSize: 10.5, color: '#5C6B84', marginBottom: 6, fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Demo Credentials
-              </div>
-              <div style={{ fontSize: 12, color: '#7A8BA8', lineHeight: 1.8 }}>
-                <strong style={{ color: '#C9A84C' }}>CFO:</strong> dominic@harvesttouch.org.uk
-                <br />
-                <strong style={{ color: '#C9A84C' }}>Password:</strong> Admin1234!
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -348,6 +383,29 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       </label>
       {children}
     </div>
+  )
+}
+
+function GoogleLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.3h6.45a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.56-5.18 3.56-8.65Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.88-3c-1.07.72-2.44 1.16-4.07 1.16-3.13 0-5.78-2.11-6.72-4.96H1.27v3.09A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.29A7.2 7.2 0 0 1 4.91 12c0-.79.14-1.56.37-2.29V6.62H1.27A12 12 0 0 0 0 12c0 1.93.46 3.76 1.27 5.38l4.01-3.09Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.96 1.19 15.24 0 12 0 7.31 0 3.27 2.69 1.27 6.62l4.01 3.09c.94-2.85 3.59-4.94 6.72-4.94Z"
+      />
+    </svg>
   )
 }
 

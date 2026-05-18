@@ -51,9 +51,12 @@ const dutyVariant = (status: string) => status === 'Overdue' ? 'red' : status ==
 const rtwVariant = (status: string) => status === 'Valid' ? 'green' : status === 'Expired' ? 'red' : 'amber'
 const cosVariant = (status: string) => status === 'Used' ? 'green' : status === 'Reserved' ? 'amber' : 'slate'
 
+type ChecklistStatus = 'ok' | 'fail' | 'na'
+
 export default function UKVI() {
   const user = useAuthStore((state) => state.user)
   const [tab, setTab] = useState<Tab>('licence')
+  const [country, setCountry] = useState('United Kingdom')
   const [showWorkerForm, setShowWorkerForm] = useState(false)
   const [showCosForm, setShowCosForm] = useState(false)
   const [workerForm, setWorkerForm] = useState<WorkerRecord>(EMPTY_WORKER)
@@ -90,13 +93,43 @@ export default function UKVI() {
     { label: 'Open Reporting Duties', value: String(summary?.reporting_duties ?? 0) },
     { label: 'Latest Duty Log', value: dutyLog || 'No reporting activity yet' },
   ]
-  const complianceChecklist = [
-    { item: 'Sponsor licence status recorded', ok: (summary?.licence_status ?? 'Not recorded') !== 'Not recorded' },
-    { item: 'Sponsored worker register maintained', ok: workers.length > 0 },
-    { item: 'Certificate allocation recorded', ok: cosRecords.length > 0 },
-    { item: 'Right to Work checks valid', ok: workers.length > 0 && validRtwCount === workers.length },
-    { item: 'Reporting duties up to date', ok: overdueDuties.length === 0 },
-    { item: 'Latest UKVI action log captured', ok: dutyLog !== 'No report has been submitted from this screen yet.' },
+  const hasLicence = (summary?.licence_status ?? 'Not recorded') !== 'Not recorded'
+  const hasWorkers = workers.length > 0
+  const hasCos = cosRecords.length > 0
+  const hasDuties = duties.length > 0
+  const hasLog = dutyLog !== 'No report has been submitted from this screen yet.'
+
+  const complianceChecklist: { item: string; status: ChecklistStatus; note: string }[] = [
+    {
+      item: 'Sponsor licence status recorded',
+      status: !hasUkviData ? 'na' : hasLicence ? 'ok' : 'fail',
+      note: hasLicence ? summary?.licence_status ?? '' : 'Go to Sponsor Licence tab to record',
+    },
+    {
+      item: 'Sponsored worker register maintained',
+      status: !hasUkviData ? 'na' : hasWorkers ? 'ok' : 'fail',
+      note: hasWorkers ? `${workers.length} worker${workers.length !== 1 ? 's' : ''} on record` : 'No workers added yet',
+    },
+    {
+      item: 'Certificate of Sponsorship register',
+      status: !hasUkviData ? 'na' : hasCos ? 'ok' : 'fail',
+      note: hasCos ? `${cosRecords.length} CoS record${cosRecords.length !== 1 ? 's' : ''}` : 'No CoS records yet',
+    },
+    {
+      item: 'Right to Work checks valid',
+      status: !hasWorkers ? 'na' : validRtwCount === workers.length ? 'ok' : 'fail',
+      note: !hasWorkers ? 'No workers to check' : `${validRtwCount}/${workers.length} valid`,
+    },
+    {
+      item: 'Reporting duties up to date',
+      status: !hasDuties ? 'na' : overdueDuties.length === 0 ? 'ok' : 'fail',
+      note: !hasDuties ? 'No duties logged yet' : overdueDuties.length === 0 ? 'All duties reported' : `${overdueDuties.length} overdue`,
+    },
+    {
+      item: 'Latest UKVI action log captured',
+      status: !hasUkviData ? 'na' : hasLog ? 'ok' : 'fail',
+      note: hasLog ? 'Log entry present' : 'No action logged yet',
+    },
   ]
   const licenceChangeText =
     summary?.licence_status === 'Not recorded'
@@ -195,22 +228,20 @@ export default function UKVI() {
 
   return (
     <AppLayout
-      title="UKVI and Sponsorship"
-      subtitle="Sponsor licence management"
+      title="Sponsorship"
+      subtitle="Sponsor licence management · Worker compliance"
       actions={
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Button variant="ghost" onClick={exportPack}>Export Pack</Button>
-          <Button onClick={() => setTab('audit')}>Generate Audit Pack</Button>
+          <Button onClick={() => setTab('audit')}>Audit Pack</Button>
         </div>
       }
     >
       <Alert variant={hasUkviData ? 'warning' : 'info'} icon={hasUkviData ? '!' : 'i'}>
         {hasUkviData ? (
-          <>
-            <strong>UKVI sponsor compliance:</strong> Review sponsored workers, certificate allocations, and reporting duties carefully to stay audit-ready.
-          </>
+          <><strong>Sponsor compliance active:</strong> Review workers, CoS allocations, and reporting duties to stay audit-ready. UKVI visits can happen with little notice.</>
         ) : (
-          <>No UKVI records have been entered in this workspace yet.</>
+          <>No sponsorship records yet. Add your sponsor licence, workers, and CoS certificates to activate the compliance checklist.</>
         )}
       </Alert>
 
@@ -219,6 +250,34 @@ export default function UKVI() {
         <StatCard label="Sponsored Workers" value={String(summary?.sponsored_workers ?? 0)} change={workers[0]?.name ?? 'No workers recorded'} icon="W" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
         <StatCard label="CoS Available" value={String(summary?.cos_available ?? 0)} change={cosRecords.length ? 'Certificates recorded in register' : 'No certificates recorded yet'} icon="C" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
         <StatCard label="Reporting Duties" value={String(summary?.reporting_duties ?? 0)} change={overdueDuties.length ? 'Action required' : 'No overdue duties'} changeUp={false} icon="D" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
+      </div>
+
+      {/* Jurisdiction selector — content-level setting that all tabs adapt to */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, padding: '10px 14px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--mute2)', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Sponsoring jurisdiction</span>
+        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{ position: 'absolute', left: 10, fontSize: 14, pointerEvents: 'none', zIndex: 1 }}>🇬🇧</span>
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            style={{
+              appearance: 'none',
+              paddingLeft: 32, paddingRight: 28, paddingTop: 6, paddingBottom: 6,
+              background: 'color-mix(in srgb, var(--gold) 10%, var(--bg3))',
+              border: '1px solid var(--gold-line)',
+              borderRadius: 20,
+              color: 'var(--gold2)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: "'Instrument Sans', sans-serif",
+            }}
+          >
+            <option value="United Kingdom">United Kingdom</option>
+          </select>
+          <span style={{ position: 'absolute', right: 10, fontSize: 10, color: 'var(--gold2)', pointerEvents: 'none' }}>▾</span>
+        </div>
+        <span style={{ fontSize: 11, color: 'var(--mute)', marginLeft: 'auto' }}>Compliance rules, thresholds, and timelines apply for this jurisdiction</span>
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
@@ -261,15 +320,23 @@ export default function UKVI() {
           </Panel>
 
           <Panel title="Compliance Checklist" titleIcon="CC" iconColor="#C9A84C">
-            {complianceChecklist.map((row, index) => (
-              <div key={row.item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: index < complianceChecklist.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', fontSize: 12 }}>
-                <span style={{ color: row.ok ? '#2DCE89' : '#F5365C' }}>{row.ok ? 'OK' : '!'}</span>
-                <span style={{ color: row.ok ? '#7A8BA8' : '#C8D3E8' }}>{row.item}</span>
-              </div>
-            ))}
+            {complianceChecklist.map((row, index) => {
+              const iconColor = row.status === 'ok' ? '#2DCE89' : row.status === 'fail' ? '#F5365C' : '#5C6B84'
+              const iconLabel = row.status === 'ok' ? 'OK' : row.status === 'fail' ? '!' : '—'
+              const textColor = row.status === 'ok' ? '#7A8BA8' : row.status === 'fail' ? '#C8D3E8' : '#5C6B84'
+              return (
+                <div key={row.item} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: index < complianceChecklist.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  <span style={{ color: iconColor, fontWeight: 700, fontSize: 12, minWidth: 18, marginTop: 1 }}>{iconLabel}</span>
+                  <div>
+                    <div style={{ fontSize: 12, color: textColor }}>{row.item}</div>
+                    <div style={{ fontSize: 11, color: '#4A5568', marginTop: 2 }}>{row.note}</div>
+                  </div>
+                </div>
+              )
+            })}
             {!hasUkviData && (
-              <div style={{ marginTop: 12, fontSize: 12.5, color: '#7A8BA8', lineHeight: 1.7 }}>
-                This workspace does not have sponsor licence, worker, CoS, or duty records yet, so the checklist is based on current saved data only.
+              <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(201,168,76,0.06)', borderRadius: 7, fontSize: 11.5, color: '#5C6B84', lineHeight: 1.65 }}>
+                Checklist items show <strong style={{ color: '#5C6B84' }}>—</strong> until records are added. Items only fail once data exists but something is wrong.
               </div>
             )}
           </Panel>

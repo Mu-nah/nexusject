@@ -18,10 +18,10 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <Head>
-        <title>Nexus One - Realtouch Enterprise Platform</title>
+        <title>Realtouch One - Enterprise Operating System</title>
         <meta
           name="description"
-          content="AI-powered operating system for finance, people, operations, and compliance."
+          content="AI-native all-in-one operating system for UK finance, people, operations, and compliance."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

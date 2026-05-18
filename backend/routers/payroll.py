@@ -793,7 +793,7 @@ async def download_payslip_pdf(
         elements.append(Spacer(1, 0.5 * cm))
 
         info_data = [
-            ["Organisation:", "Nexus One Workspace"],
+            ["Organisation:", "Realtouch One Workspace"],
             ["Employee:", emp.full_name],
             ["NI Number:", emp.national_insurance or "-"],
             ["Tax Code:", record.tax_code_used or "1257L"],

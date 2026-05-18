@@ -1,18 +1,81 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import toast from 'react-hot-toast'
 
 import AppLayout from '@/components/layout/AppLayout'
-import { Alert, Badge, Button, Panel } from '@/components/ui'
+import { Alert, Badge, Button, Panel, StatCard } from '@/components/ui'
 import api from '@/lib/api'
+
+type Tab = 'claims' | 'mileage'
 
 const money = (n: number) => `GBP ${Number(n || 0).toFixed(2)}`
 
+// HMRC AMAP rates 2026-27
+const AMAP_RATES = {
+  car:        { label: 'Car / Van', first: 0.45, after: 0.25, threshold: 10000 },
+  motorcycle: { label: 'Motorcycle', first: 0.24, after: 0.24, threshold: Infinity },
+  bicycle:    { label: 'Bicycle', first: 0.20, after: 0.20, threshold: Infinity },
+}
+type VehicleType = keyof typeof AMAP_RATES
+const PASSENGER_RATE = 0.05
+
+function calcMileage(miles: number, vehicleType: VehicleType, ytdMilesBefore: number, passengers: number) {
+  const rate = AMAP_RATES[vehicleType]
+  const firstMilesAvailable = Math.max(0, rate.threshold - ytdMilesBefore)
+  const firstMiles = Math.min(miles, firstMilesAvailable)
+  const afterMiles = Math.max(0, miles - firstMilesAvailable)
+  const basePay = firstMiles * rate.first + afterMiles * rate.after
+  const passengerPay = miles * PASSENGER_RATE * passengers
+  return { basePay, passengerPay, total: basePay + passengerPay, firstMiles, afterMiles }
+}
+
+interface MileageEntry {
+  id: number; date: string; claimant: string; journey: string
+  miles: number; vehicleType: VehicleType; passengers: number
+  amount: number; status: 'Pending' | 'Approved' | 'Rejected'
+}
+
+const MOCK_MILEAGE: MileageEntry[] = [
+  { id: 1, date: '2026-05-15', claimant: 'M. Okonkwo', journey: 'Office → Birmingham Conference Centre', miles: 84, vehicleType: 'car', passengers: 0, amount: 37.80, status: 'Approved' },
+  { id: 2, date: '2026-05-12', claimant: 'T. Singh', journey: 'Office → Partner site visit', miles: 32, vehicleType: 'car', passengers: 1, amount: 16.00, status: 'Pending' },
+  { id: 3, date: '2026-05-08', claimant: 'S. O\'Brien', journey: 'Home → Outreach event', miles: 18, vehicleType: 'motorcycle', passengers: 0, amount: 4.32, status: 'Approved' },
+]
+
 export default function Expenses() {
   const qc = useQueryClient()
+  const [tab, setTab] = useState<Tab>('claims')
   const [filter, setFilter] = useState('all')
+  // Mileage calculator state
+  const [calcMiles, setCalcMiles] = useState(0)
+  const [calcVehicle, setCalcVehicle] = useState<VehicleType>('car')
+  const [calcYtdMiles, setCalcYtdMiles] = useState(0)
+  const [calcPassengers, setCalcPassengers] = useState(0)
+  const [mileageLog, setMileageLog] = useState<MileageEntry[]>(MOCK_MILEAGE)
+  const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10))
+  const [logJourney, setLogJourney] = useState('')
+  const [logClaimant, setLogClaimant] = useState('')
+
+  const calcResult = useMemo(() => calcMileage(calcMiles, calcVehicle, calcYtdMiles, calcPassengers), [calcMiles, calcVehicle, calcYtdMiles, calcPassengers])
+
+  const addMileageEntry = () => {
+    if (!logJourney.trim() || calcMiles <= 0) { toast.error('Enter journey and miles'); return }
+    const entry: MileageEntry = {
+      id: mileageLog.length + 100,
+      date: logDate,
+      claimant: logClaimant || 'You',
+      journey: logJourney,
+      miles: calcMiles,
+      vehicleType: calcVehicle,
+      passengers: calcPassengers,
+      amount: calcResult.total,
+      status: 'Pending',
+    }
+    setMileageLog(prev => [entry, ...prev])
+    setLogJourney('')
+    toast.success(`Mileage claim logged — ${money(calcResult.total)}`)
+  }
 
   const { data: expensesData } = useQuery({
     queryKey: ['expenses', filter],
@@ -66,20 +129,22 @@ export default function Expenses() {
     }, [])
 
   return (
-    <AppLayout title="Expense Management" subtitle="Receipt automation" actions={<Button onClick={() => {}}>+ Log Expense</Button>}>
-      {!expenses.length && !receipts.length && (
-        <Alert variant="info" icon="i">
-          This workspace has no expense claims or receipt uploads yet.
-        </Alert>
+    <AppLayout title="Expense Management" subtitle="Receipt automation · HMRC mileage" actions={<Button onClick={() => {}}>+ Log Expense</Button>}>
+      {!expenses.length && !receipts.length && tab === 'claims' && (
+        <Alert variant="info" icon="i">This workspace has no expense claims or receipt uploads yet.</Alert>
+      )}
+      {summary?.pending_count > 0 && tab === 'claims' && (
+        <Alert variant="warning" icon="!"><strong>{summary.pending_count} receipts awaiting approval</strong> | Total: {money(summary.pending_amount)}</Alert>
       )}
 
-      {summary?.pending_count > 0 && (
-        <Alert variant="warning" icon="!">
-          <strong>{summary.pending_count} receipts awaiting approval</strong> | Total: {money(summary.pending_amount)}
-        </Alert>
-      )}
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)', flexWrap: 'wrap', marginTop: 8 }}>
+        {([{ key: 'claims', label: 'Expense Claims' }, { key: 'mileage', label: 'Mileage Calculator' }] as { key: Tab; label: string }[]).map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 12.5, background: 'none', borderBottom: tab === t.key ? '2px solid #C9A84C' : '2px solid transparent', color: tab === t.key ? 'var(--gold)' : 'var(--mute)', fontWeight: tab === t.key ? 600 : 400, fontFamily: "'Instrument Sans', sans-serif" }}>{t.label}</button>
+        ))}
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 16 }}>
+      {tab === 'claims' && <div style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 16 }}>
         <div>
           <Panel
             title="Receipt Inbox - OCR Extraction"
@@ -230,7 +295,129 @@ export default function Expenses() {
             ))}
           </Panel>
         </div>
-      </div>
+      </div>}
+
+      {tab === 'mileage' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18 }}>
+            <StatCard label="Total Mileage Claimed" value={`${mileageLog.reduce((s, e) => s + e.miles, 0).toLocaleString()} mi`} change="this financial year" accentColor="#C9A84C" />
+            <StatCard label="Total Reimbursement" value={money(mileageLog.reduce((s, e) => s + e.amount, 0))} change="all claims" accentColor="#2DCE89" />
+            <StatCard label="Pending Claims" value={String(mileageLog.filter(e => e.status === 'Pending').length)} change={money(mileageLog.filter(e => e.status === 'Pending').reduce((s, e) => s + e.amount, 0))} accentColor="#FB8C00" />
+            <StatCard label="HMRC Rate (Car)" value="45p / 25p" change="per mile (first 10k / after)" accentColor="#5E9EFF" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14, marginBottom: 14 }}>
+            <Panel title="HMRC Mileage Calculator" titleIcon="MI" iconColor="#C9A84C">
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 11.5, color: 'var(--mute)', display: 'block', marginBottom: 5 }}>Vehicle Type</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(Object.entries(AMAP_RATES) as [VehicleType, typeof AMAP_RATES.car][]).map(([k, v]) => (
+                    <button key={k} onClick={() => setCalcVehicle(k)} style={{ padding: '6px 14px', borderRadius: 20, border: `1px solid ${calcVehicle === k ? '#C9A84C' : 'var(--line)'}`, background: calcVehicle === k ? 'rgba(201,168,76,0.12)' : 'var(--surface-muted)', color: calcVehicle === k ? '#C9A84C' : 'var(--mute)', cursor: 'pointer', fontSize: 12, fontFamily: "'Instrument Sans', sans-serif" }}>{v.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {(['Miles Driven', 'YTD Miles (before this trip)', 'Passengers'] as const).map((label, i) => {
+                const vals = [calcMiles, calcYtdMiles, calcPassengers]
+                const setters = [setCalcMiles, setCalcYtdMiles, setCalcPassengers]
+                return (
+                  <div key={label} style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11.5, color: 'var(--mute)', display: 'block', marginBottom: 5 }}>{label}</label>
+                    <input type="number" min="0" value={vals[i]} onChange={(e) => setters[i](Number(e.target.value))}
+                      style={{ width: '100%', padding: '8px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--heading)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }} />
+                  </div>
+                )
+              })}
+
+              <div style={{ height: 1, background: 'var(--line)', margin: '14px 0' }} />
+
+              <div style={{ padding: '12px 14px', background: 'rgba(201,168,76,0.08)', borderRadius: 8, border: '1px solid rgba(201,168,76,0.2)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Calculation Result</div>
+                {[
+                  ['Miles @ first rate', `${calcResult.firstMiles} mi × ${(AMAP_RATES[calcVehicle].first * 100).toFixed(0)}p`, money(calcResult.firstMiles * AMAP_RATES[calcVehicle].first)],
+                  ...(calcResult.afterMiles > 0 ? [['Miles @ reduced rate', `${calcResult.afterMiles} mi × ${(AMAP_RATES[calcVehicle].after * 100).toFixed(0)}p`, money(calcResult.afterMiles * AMAP_RATES[calcVehicle].after)]] : []),
+                  ...(calcPassengers > 0 ? [['Passenger supplement', `${calcMiles} mi × 5p × ${calcPassengers}`, money(calcResult.passengerPay)]] : []),
+                ].map(([label, detail, value]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ color: 'var(--text)' }}>{label} <span style={{ color: 'var(--mute)', fontSize: 11 }}>({detail})</span></span>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{value}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontWeight: 700 }}>
+                  <span style={{ color: 'var(--heading)', fontSize: 14 }}>HMRC Approved Amount</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, color: '#C9A84C' }}>{money(calcResult.total)}</span>
+                </div>
+              </div>
+            </Panel>
+
+            <Panel title="Log Mileage Claim" titleIcon="LG" iconColor="#5E9EFF">
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 11.5, color: 'var(--mute)', display: 'block', marginBottom: 5 }}>Claimant</label>
+                <input value={logClaimant} onChange={(e) => setLogClaimant(e.target.value)} placeholder="Your name" style={{ width: '100%', padding: '8px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--heading)', fontFamily: "'Instrument Sans', sans-serif", fontSize: 12.5 }} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 11.5, color: 'var(--mute)', display: 'block', marginBottom: 5 }}>Date</label>
+                <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} style={{ width: '100%', padding: '8px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--heading)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11.5, color: 'var(--mute)', display: 'block', marginBottom: 5 }}>Journey Description</label>
+                <input value={logJourney} onChange={(e) => setLogJourney(e.target.value)} placeholder="e.g. Office → Partner site (Bristol)" style={{ width: '100%', padding: '8px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--heading)', fontFamily: "'Instrument Sans', sans-serif", fontSize: 12.5 }} />
+              </div>
+              <div style={{ padding: '10px 12px', background: 'var(--surface-muted)', borderRadius: 8, marginBottom: 14, display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 12.5, color: 'var(--mute)' }}>Amount from calculator</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#C9A84C' }}>{money(calcResult.total)}</span>
+              </div>
+              <Button fullWidth onClick={addMileageEntry} disabled={calcMiles <= 0 || !logJourney.trim()}>Log Mileage Claim</Button>
+
+              <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-muted)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>HMRC AMAP Rates 2026-27</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 11.5 }}>
+                  {[
+                    ['Cars / Vans', '45p (first 10,000 mi)', '25p (after)'],
+                    ['Motorcycles', '24p per mile', ''],
+                    ['Bicycles', '20p per mile', ''],
+                    ['Passenger', '+5p per passenger', ''],
+                  ].map(([type, rate, after]) => (
+                    <>
+                      <span key={`${type}-t`} style={{ color: 'var(--heading)', fontWeight: 500 }}>{type}</span>
+                      <span key={`${type}-r`} style={{ color: '#C9A84C', fontFamily: "'JetBrains Mono', monospace" }}>{rate}</span>
+                      <span key={`${type}-a`} style={{ color: 'var(--mute)', fontFamily: "'JetBrains Mono', monospace" }}>{after}</span>
+                    </>
+                  ))}
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <Panel title="Mileage Log" titleIcon="ML" iconColor="#C9A84C" noPadding>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--line)' }}>
+                    {['Date', 'Claimant', 'Journey', 'Miles', 'Vehicle', 'Passengers', 'Amount', 'Status'].map(h => (
+                      <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: 'var(--mute)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {mileageLog.map((e) => (
+                    <tr key={e.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                      <td style={{ padding: '12px 14px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--mute)', fontSize: 11.5 }}>{new Date(e.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--heading)' }}>{e.claimant}</td>
+                      <td style={{ padding: '12px 14px', color: 'var(--mute)', maxWidth: 200 }}>{e.journey}</td>
+                      <td style={{ padding: '12px 14px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)' }}>{e.miles}</td>
+                      <td style={{ padding: '12px 14px' }}><Badge variant="blue">{AMAP_RATES[e.vehicleType].label}</Badge></td>
+                      <td style={{ padding: '12px 14px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--mute)' }}>{e.passengers || '—'}</td>
+                      <td style={{ padding: '12px 14px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: '#C9A84C' }}>{money(e.amount)}</td>
+                      <td style={{ padding: '12px 14px' }}><Badge variant={e.status === 'Approved' ? 'green' : e.status === 'Rejected' ? 'red' : 'amber'}>{e.status}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </>
+      )}
     </AppLayout>
   )
 }

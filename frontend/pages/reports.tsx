@@ -110,15 +110,6 @@ function parseMetaSegments(line: string): Array<{ label: string; value: string }
   return []
 }
 
-function buildPreviewMarkdown(markdown: string): string {
-  const normalized = normaliseReportMarkdown(markdown)
-  if (!normalized) return ''
-
-  const lines = normalized.split('\n')
-  const preview = lines.slice(0, 18).join('\n').trim()
-  return lines.length > 18 ? `${preview}\n\n...` : preview
-}
-
 function renderMarkdownReport(markdown: string): ReactNode[] {
   const lines = normaliseReportMarkdown(markdown).split('\n')
   const elements: ReactNode[] = []
@@ -384,16 +375,6 @@ export default function Reports() {
 
   const shareQuery = typeof router.query.shared === 'string' ? router.query.shared : ''
   const sharedEmailQuery = typeof router.query.email === 'string' ? router.query.email : ''
-
-  const previewNarrative = useMemo(
-    () => buildPreviewMarkdown(report?.narrative || ''),
-    [report?.id, report?.narrative]
-  )
-
-  const previewElements = useMemo(
-    () => renderMarkdownReport(previewNarrative),
-    [previewNarrative]
-  )
 
   const fullReportElements = useMemo(
     () => renderMarkdownReport(report?.narrative || ''),
@@ -708,7 +689,7 @@ export default function Reports() {
                 N1
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--heading)' }}>Nexus One</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--heading)' }}>Realtouch One</div>
                 <div style={{ fontSize: 11, color: 'var(--mute2)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Secure shared document</div>
               </div>
             </div>
@@ -782,7 +763,7 @@ export default function Reports() {
                     </Badge>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--mute2)', lineHeight: 1.7, marginTop: 12, maxWidth: 720 }}>
-                    This document was shared from Nexus One. You can review it online here or download the PDF copy using the action on the right.
+                    This document was shared from Realtouch One. You can review it online here or download the PDF copy using the action on the right.
                   </div>
                 </div>
               </div>
@@ -863,7 +844,7 @@ export default function Reports() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18, alignItems: 'start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <Panel title="Saved History" titleIcon="LIB" iconColor="#E8C56A">
           <div style={{ fontSize: 12, color: 'var(--mute2)', marginBottom: 10 }}>{historyLabel}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 14 }}>
@@ -964,34 +945,6 @@ export default function Reports() {
                 </Button>
               )}
             </div>
-          )}
-        </Panel>
-
-        <Panel title="Viewer Preview" titleIcon="VIEW" iconColor="#34d399">
-          {report ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--heading)', marginBottom: 8 }}>{report.title}</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge variant="green">Saved to Workspace</Badge>
-                    <Badge variant="slate">{report.report_type.replace(/_/g, ' ')}</Badge>
-                    {report.period_label && <Badge variant="blue">{report.period_label}</Badge>}
-                  </div>
-                </div>
-                <Button onClick={() => setViewerOpen(true)}>
-                  Open Viewer
-                </Button>
-              </div>
-              <div style={{ background: 'linear-gradient(180deg, var(--bg2), var(--bg3))', border: '1px solid var(--line2)', borderRadius: 18, padding: '24px 26px', minHeight: 320, maxHeight: 560, overflow: 'hidden', position: 'relative' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 60%, var(--bg3) 100%)', pointerEvents: 'none' }} />
-                <div style={{ maxHeight: 500, overflowY: 'auto', overflowX: 'hidden', opacity: 0.95, paddingRight: 4 }}>
-                  {previewElements}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: 'var(--mute2)' }}>Select a saved report to preview it here or open the full report viewer.</div>
           )}
         </Panel>
       </div>

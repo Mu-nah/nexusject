@@ -9,29 +9,38 @@ interface Message {
 }
 
 const QUICK_CHIPS = [
-  'What is our cash runway?',
-  'Draft a grant progress report',
-  'Give me a full compliance summary',
-  'What HR actions are outstanding?',
-  'Prepare trustee financial report',
-  'Forecast next quarter income',
-  'Analyse our programme costs',
-  'Summarise our grant portfolio status',
+  'What is our cash runway and burn rate?',
+  'Draft a grant progress report for our largest active grant',
+  'Full compliance summary — what is due in the next 90 days?',
+  'What HR and payroll actions are outstanding this month?',
+  'Prepare a trustee financial report for the current quarter',
+  'Forecast our income and expenditure for the next 3 months',
+  'Analyse our programme costs and cost per beneficiary',
+  'Summarise our full grant portfolio — spend vs awarded',
+  'Are we at risk of any HMRC penalties or filing deadlines?',
+  'Check our payroll — any NMW/NLW compliance issues?',
+  'What Gift Aid is claimable and how do we submit to HMRC?',
+  'Review our UKVI sponsor licence — any reporting duties due?',
+  'Explain our VAT position and MTD obligations',
+  'Draft a management accounts commentary for the board',
+  'What budget variances require attention this month?',
+  'Summarise our GDPR compliance status and open DSARs',
 ]
 
 const buildInitialMessage = (organisation?: string) => `# Hello
 
-Welcome to **Nexus One AI** for **${organisation || 'your workspace'}**.
+Welcome to **Realtouch IQ** — your AI co-pilot for **${organisation || 'your workspace'}**.
 
-I can help with:
+I have live access to your workspace data and expert knowledge across all Realtouch One modules. Ask me anything about:
 
-- finance and cash flow analysis
-- payroll and HR questions
-- grant and programme reporting
-- compliance and governance summaries
-- trustee and management reports
+- **Finance** — cash flow, burn rate, budget variances, cashflow forecasts, VAT & MTD
+- **Grants & Programmes** — portfolio status, utilisation, funder reports, cost per beneficiary
+- **Payroll & HR** — payroll calculations, NMW compliance, statutory pay, RTI obligations
+- **Compliance** — HMRC deadlines, Companies House filings, Charity Commission returns, ICO/GDPR
+- **UKVI & Sponsorship** — sponsor licence, CoS management, reporting duties, RTW compliance
+- **Governance** — trustee reports, CIC annual report, conflict of interest, board packs
 
-Ask me a question below or use one of the quick prompts to get started.`
+Use the quick prompts below or type your own question. I give specific £ figures, legal citations, and actionable recommendations.`
 
 function renderInline(text: string, isUser: boolean): ReactNode[] {
   const parts = text.split(/(\*\*.*?\*\*)/g)
@@ -511,7 +520,7 @@ I'm temporarily unable to connect to the AI service. Please check your API key c
   }
 
   return (
-    <AppLayout title="AI Intelligence" subtitle="Overview / AI Intelligence">
+    <AppLayout title="Realtouch IQ" subtitle="AI Co-Pilot — Live workspace intelligence">
       <style>{`
         @keyframes typing {
           0%, 60%, 100% { opacity: 0.2; }

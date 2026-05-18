@@ -47,7 +47,7 @@ const BASE_NAV: NavSection[] = [
     module: 'overview',
     items: [
       { label: 'Executive Dashboard', href: '/dashboard', icon: 'O', module: 'overview' },
-      { label: 'AI Intelligence', href: '/ai', icon: 'AI', module: 'overview', badge: createStatusBadge('Live') },
+      { label: 'Realtouch IQ', href: '/ai', icon: 'AI', module: 'overview', badge: createStatusBadge('Live') },
     ],
   },
   {
@@ -71,6 +71,7 @@ const BASE_NAV: NavSection[] = [
     items: [
       { label: 'Grant Management', href: '/grants', icon: 'GR', module: 'operations' },
       { label: 'Programmes', href: '/programmes', icon: 'PR', module: 'operations' },
+      { label: 'Project Management', href: '/projects', icon: 'PM', module: 'operations' },
     ],
   },
   {
@@ -81,7 +82,7 @@ const BASE_NAV: NavSection[] = [
       { label: 'HR Management', href: '/hr', icon: 'HR', module: 'people_hr' },
       { label: 'Volunteers', href: '/volunteers', icon: 'VO', module: 'people_hr' },
       { label: 'Rota & Timesheets', href: '/rota', icon: 'RT', module: 'people_hr' },
-      { label: 'UKVI & Sponsorship', href: '/ukvi', icon: 'UK', module: 'people_hr' },
+      { label: 'Sponsorship', href: '/ukvi', icon: 'SP', module: 'people_hr' },
     ],
   },
   {
@@ -385,10 +386,10 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                 flexShrink: 0,
               }}
             >
-              N1
+              R1
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--heading)', letterSpacing: '-0.3px' }}>Nexus One</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--heading)', letterSpacing: '-0.3px' }}>Realtouch One</div>
               <div
                 style={{
                   fontSize: 10,

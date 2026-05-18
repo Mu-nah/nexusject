@@ -55,15 +55,15 @@ def _build_html_email(subject: str, body_html: str, org_name: str) -> str:
 <body>
   <div class="container">
     <div class="header">
-      <h1>Nexus One</h1>
+      <h1>Realtouch One</h1>
       <p>{org_name}</p>
     </div>
     <div class="body">
       {body_html}
     </div>
     <div class="footer">
-      This email was sent automatically by Nexus One. Do not reply to this message.
-      <br>&copy; {datetime.now().year} Nexus One
+      This email was sent automatically by Realtouch One. Do not reply to this message.
+      <br>&copy; {datetime.now().year} Realtouch One
     </div>
   </div>
 </body>
@@ -142,7 +142,7 @@ def send_email(
     to: str,
     subject: str,
     body_html: str,
-    org_name: str = "Nexus One Workspace",
+    org_name: str = "Realtouch One Workspace",
     attachment_bytes: Optional[bytes] = None,
     attachment_filename: Optional[str] = None,
 ) -> bool:
@@ -176,7 +176,7 @@ def send_workspace_invite_email(
 ):
     body = f"""
     <p>Dear {invitee_name},</p>
-    <p>{inviter_name} has invited you to join the <strong>{org_name}</strong> workspace on Nexus One.</p>
+    <p>{inviter_name} has invited you to join the <strong>{org_name}</strong> workspace on Realtouch One.</p>
     <div class="stat-row"><span class="stat-label">Workspace</span><span class="stat-value">{org_name}</span></div>
     <div class="stat-row"><span class="stat-label">Assigned Role</span><span class="stat-value">{role.replace('_', ' ').title()}</span></div>
     <p>Click the button below to create your password and activate your account.</p>
@@ -221,7 +221,7 @@ def send_payslip_email(
     gross_pay: float,
     net_pay: float,
     pdf_bytes: Optional[bytes] = None,
-    org_name: str = "Nexus One Workspace",
+    org_name: str = "Realtouch One Workspace",
 ):
     body = f"""
     <p>Dear {employee_name},</p>
@@ -247,7 +247,7 @@ def send_expense_decision_email(
     amount: float,
     decision: str,
     notes: Optional[str] = None,
-    org_name: str = "Nexus One Workspace",
+    org_name: str = "Realtouch One Workspace",
 ):
     colour = "green" if decision == "approved" else "red"
     notes_html = f'<div class="stat-row"><span class="stat-label">Notes</span><span class="stat-value">{notes}</span></div>' if notes else ""
@@ -269,7 +269,7 @@ def send_grant_deadline_alert(
     due_date: str,
     days_remaining: int,
     amount_remaining: float,
-    org_name: str = "Nexus One Workspace",
+    org_name: str = "Realtouch One Workspace",
 ):
     urgency = "red" if days_remaining <= 7 else "amber"
     body = f"""
@@ -291,7 +291,7 @@ def send_payroll_run_summary(
     total_gross: float,
     total_net: float,
     total_employer_cost: float,
-    org_name: str = "Nexus One Workspace",
+    org_name: str = "Realtouch One Workspace",
 ):
     body = f"""
     <p>The payroll run for <strong>{period}</strong> has been completed.</p>
@@ -312,7 +312,7 @@ def send_donation_receipt(
     gift_aid_amount: float,
     campaign: Optional[str],
     payment_ref: str,
-    org_name: str = "Nexus One Workspace",
+    org_name: str = "Realtouch One Workspace",
 ):
     campaign_html = f'<div class="stat-row"><span class="stat-label">Campaign</span><span class="stat-value">{campaign}</span></div>' if campaign else ""
     gift_aid_html = f'<div class="stat-row"><span class="stat-label">Gift Aid Value</span><span class="stat-value">GBP {gift_aid_amount:,.2f}</span></div>' if gift_aid_amount > 0 else ""
