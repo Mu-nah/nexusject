@@ -30,40 +30,10 @@ function calcStatus(days: number, filed: boolean): ComplianceStatus {
   return 'On Track'
 }
 
-function buildInitialItems(): ComplianceItem[] {
-  const today = new Date()
-  const y = today.getFullYear()
-  const daysDiff = (d: Date) => Math.ceil((d.getTime() - today.getTime()) / 86400000)
-  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-  const mk = (id: number, requirement: string, regulator: string, dueDate: Date): ComplianceItem => ({
-    id, requirement, regulator, due_date: fmt(dueDate), _rawDays: daysDiff(dueDate), filed: false,
-  })
-
-  const nextFps = new Date(today.getFullYear(), today.getMonth() + 1, 5)
-  const vatDates = [new Date(y, 4, 7), new Date(y, 7, 7), new Date(y, 10, 7), new Date(y + 1, 1, 7)]
-  const nextVat = vatDates.find(d => d >= today) ?? vatDates[vatDates.length - 1]
-
-  return [
-    mk(1,  'P60 Statements to Employees',         'HMRC',                  new Date(y, 4, 31)),
-    mk(2,  'Monthly RTI Full Payment Submission',  'HMRC',                  nextFps),
-    mk(3,  'P11D / Benefits in Kind Return',       'HMRC',                  new Date(y, 6, 6)),
-    mk(4,  'P11D(b) Class 1A NI Payment',          'HMRC',                  new Date(y, 6, 19)),
-    mk(5,  'PAYE Settlement Agreement Payment',    'HMRC',                  new Date(y, 9, 19)),
-    mk(6,  'VAT Return — Quarterly',               'HMRC MTD',              nextVat),
-    mk(7,  'Annual Accounts Filing',               'Companies House',       new Date(y, 11, 31)),
-    mk(8,  'Confirmation Statement',               'Companies House',       new Date(y, 7, 28)),
-    mk(9,  'CIC Annual Report',                    'Companies House',       new Date(y, 11, 31)),
-    mk(10, 'Charity Commission Annual Return',     'Charity Commission',    new Date(y + 1, 0, 31)),
-    mk(11, 'ICO Data Protection Fee Renewal',      'ICO',                   new Date(y, 5, 30)),
-    mk(12, 'Pension Auto-Enrolment Re-enrolment',  'Pensions Regulator',    new Date(y + 1, 8, 1)),
-    mk(13, 'Annual Safeguarding Policy Review',    'Internal / Ofsted',     new Date(y, 8, 30)),
-    mk(14, 'Working Time Regulations Annual Audit','Internal / HSE',        new Date(y, 10, 30)),
-  ].sort((a, b) => a._rawDays - b._rawDays)
-}
 
 export default function Compliance() {
   const router = useRouter()
-  const [items, setItems] = useState<ComplianceItem[]>(buildInitialItems)
+  const [items, setItems] = useState<ComplianceItem[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState({ requirement: '', regulator: '', dueDate: '' })
 
