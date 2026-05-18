@@ -208,7 +208,7 @@ export default function Dashboard() {
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button onClick={() => router.push('/hr')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>HR Management →</button>
             <button onClick={() => router.push('/payroll')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Payroll →</button>
-            <button onClick={() => router.push('/ukvi')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>UKVI Compliance →</button>
+            <button onClick={() => router.push('/ukvi')} style={{ padding: '8px 16px', background: 'rgba(94,158,255,0.1)', border: '1px solid rgba(94,158,255,0.2)', borderRadius: 8, color: '#5E9EFF', fontSize: 12, cursor: 'pointer', fontFamily: "'Instrument Sans', sans-serif" }}>Sponsorship →</button>
           </div>
         </div>
       )}

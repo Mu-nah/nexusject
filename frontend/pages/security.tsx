@@ -12,7 +12,7 @@ type UserRoleAssignment = { id: number; user: string; email: string; role: strin
 const RBAC_ROLES: RBACRole[] = [
   { id: 1, name: 'Super Admin', description: 'Full system access including user management and settings', permissions: ['All modules', 'User management', 'Settings', 'Audit log'], userCount: 2 },
   { id: 2, name: 'Finance Manager', description: 'Access to all finance modules including payroll and budgets', permissions: ['Accounting', 'Payroll', 'Expenses', 'Budgets', 'Donations', 'Reports'], userCount: 3 },
-  { id: 3, name: 'HR Manager', description: 'People and HR module access including employee records', permissions: ['HR', 'Payroll (view)', 'UKVI', 'Rota', 'Volunteers'], userCount: 2 },
+  { id: 3, name: 'HR Manager', description: 'People and HR module access including employee records', permissions: ['HR', 'Payroll (view)', 'Sponsorship', 'Rota', 'Volunteers'], userCount: 2 },
   { id: 4, name: 'Programme Manager', description: 'Grants, programmes, and project management access', permissions: ['Grants', 'Programmes', 'Projects', 'Reports (own)'], userCount: 4 },
   { id: 5, name: 'Trustee / Board', description: 'Read-only access to board-level reports and governance', permissions: ['Dashboard (read)', 'Reports (read)', 'Governance', 'Compliance (read)'], userCount: 7 },
   { id: 6, name: 'Staff', description: 'Standard staff access — expenses, rota, and own data', permissions: ['Expenses (own)', 'Rota (view)', 'Dashboard (limited)'], userCount: 12 },

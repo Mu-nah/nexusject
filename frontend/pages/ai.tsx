@@ -20,7 +20,7 @@ const QUICK_CHIPS = [
   'Are we at risk of any HMRC penalties or filing deadlines?',
   'Check our payroll — any NMW/NLW compliance issues?',
   'What Gift Aid is claimable and how do we submit to HMRC?',
-  'Review our UKVI sponsor licence — any reporting duties due?',
+  'Review our sponsor licence — any reporting duties due?',
   'Explain our VAT position and MTD obligations',
   'Draft a management accounts commentary for the board',
   'What budget variances require attention this month?',
@@ -37,7 +37,7 @@ I have live access to your workspace data and expert knowledge across all Realto
 - **Grants & Programmes** — portfolio status, utilisation, funder reports, cost per beneficiary
 - **Payroll & HR** — payroll calculations, NMW compliance, statutory pay, RTI obligations
 - **Compliance** — HMRC deadlines, Companies House filings, Charity Commission returns, ICO/GDPR
-- **UKVI & Sponsorship** — sponsor licence, CoS management, reporting duties, RTW compliance
+- **Sponsorship** — sponsor licence, CoS management, reporting duties, RTW compliance
 - **Governance** — trustee reports, CIC annual report, conflict of interest, board packs
 
 Use the quick prompts below or type your own question. I give specific £ figures, legal citations, and actionable recommendations.`
