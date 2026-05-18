@@ -246,9 +246,15 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   }, [theme])
 
   useEffect(() => {
-    if (!navRef.current) return
-    const active = navRef.current.querySelector<HTMLElement>('[data-active="true"]')
-    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    const nav = navRef.current
+    if (!nav) return
+    const active = nav.querySelector<HTMLElement>('[data-active="true"]')
+    if (!active) return
+    const navRect = nav.getBoundingClientRect()
+    const activeRect = active.getBoundingClientRect()
+    if (activeRect.top < navRect.top || activeRect.bottom > navRect.bottom) {
+      nav.scrollTop += activeRect.top - navRect.top - (nav.clientHeight - active.clientHeight) / 2
+    }
   }, [router.pathname])
 
   useEffect(() => {
