@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useQuery } from '@tanstack/react-query'
@@ -126,6 +126,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
   const [isPhone, setIsPhone] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
+  const navRef = useRef<HTMLElement>(null)
 
   const isWorkspaceAdmin = user?.role === 'owner' || user?.role === 'admin'
   const allowedModules = normalizeModules(user?.module_access)
@@ -243,6 +244,12 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
     document.documentElement.setAttribute('data-theme', theme)
     window.localStorage.setItem('nexus-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!navRef.current) return
+    const active = navRef.current.querySelector<HTMLElement>('[data-active="true"]')
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [router.pathname])
 
   useEffect(() => {
     const clearNavigation = () => setIsNavigating(false)
@@ -443,7 +450,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
           <span style={{ fontSize: 9, color: 'var(--mute)' }}>V</span>
         </div>
 
-        <nav style={{ flex: 1, padding: '4px 0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
+        <nav ref={navRef} style={{ flex: 1, padding: '4px 0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
           {navSections.map(({ section, items }) => (
             <div key={section} style={{ paddingTop: 4 }}>
               <div
@@ -479,6 +486,7 @@ export default function AppLayout({ children, title, subtitle, actions }: Props)
                     }}
                   >
                     <div
+                      data-active={isActive ? 'true' : 'false'}
                       style={{
                         display: 'flex',
                         alignItems: 'center',

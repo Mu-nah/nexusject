@@ -17,51 +17,29 @@ type ProgrammeForm = {
 const EMPTY_FORM: ProgrammeForm = { name: '', description: '', total_budget: '', target_participants: '', start_date: '', end_date: '' }
 const gbp = (n: number) => `GBP ${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
-// ── Beneficiary CRM mock data ──────────────────────────────────────────────
+// ── Beneficiary CRM ────────────────────────────────────────────────────────
 type BenStatus = 'Active' | 'Graduated' | 'Withdrawn' | 'Referred'
 interface Beneficiary {
   id: number; name: string; programme: string; age: number; status: BenStatus
   joinDate: string; sessionsAttended: number; totalSessions: number; notes: string
 }
 
-const MOCK_BENEFICIARIES: Beneficiary[] = [
-  { id: 1, name: 'Alex Johnson', programme: 'Youth Employability', age: 19, status: 'Active', joinDate: '2026-01-15', sessionsAttended: 8, totalSessions: 12, notes: 'Strong progress; CV workshop completed.' },
-  { id: 2, name: 'Priya Patel',  programme: 'Digital Skills',     age: 34, status: 'Active', joinDate: '2026-02-03', sessionsAttended: 5, totalSessions: 8,  notes: 'Attending Tuesday cohort.' },
-  { id: 3, name: 'Marcus Brown', programme: 'Youth Employability', age: 21, status: 'Graduated', joinDate: '2025-09-01', sessionsAttended: 12, totalSessions: 12, notes: 'Secured employment. Positive outcome.' },
-  { id: 4, name: 'Sarah Williams', programme: 'Community Wellbeing', age: 52, status: 'Active', joinDate: '2026-03-10', sessionsAttended: 3, totalSessions: 10, notes: 'Joined via GP social prescribing.' },
-  { id: 5, name: 'James Carter', programme: 'Digital Skills', age: 28, status: 'Withdrawn', joinDate: '2026-01-22', sessionsAttended: 2, totalSessions: 8, notes: 'Work commitments. Open to re-joining.' },
-  { id: 6, name: 'Fatima Hassan', programme: 'Community Wellbeing', age: 44, status: 'Active', joinDate: '2026-02-28', sessionsAttended: 7, totalSessions: 10, notes: '' },
-]
-
 const BEN_STATUS_COLORS: Record<BenStatus, string> = {
   Active: 'green', Graduated: 'blue', Withdrawn: 'red', Referred: 'amber',
 }
 
-// ── Session log mock data ─────────────────────────────────────────────────
+// ── Session log ───────────────────────────────────────────────────────────
 interface Session {
   id: number; date: string; programme: string; activityType: string
   facilitator: string; attendees: number; notes: string
 }
-
-const MOCK_SESSIONS: Session[] = [
-  { id: 1, date: '2026-05-16', programme: 'Youth Employability', activityType: 'Workshop', facilitator: 'M. Okonkwo', attendees: 8, notes: 'CV writing and LinkedIn profiles' },
-  { id: 2, date: '2026-05-14', programme: 'Digital Skills', activityType: 'Group Session', facilitator: 'T. Singh', attendees: 6, notes: 'Introduction to spreadsheets' },
-  { id: 3, date: '2026-05-13', programme: 'Community Wellbeing', activityType: 'Drop-in', facilitator: 'S. O\'Brien', attendees: 11, notes: 'Open session; peer support focus' },
-  { id: 4, date: '2026-05-09', programme: 'Youth Employability', activityType: '1-to-1', facilitator: 'M. Okonkwo', attendees: 1, notes: 'Mock interview with Alex Johnson' },
-  { id: 5, date: '2026-05-07', programme: 'Digital Skills', activityType: 'Workshop', facilitator: 'T. Singh', attendees: 7, notes: 'Email and online safety session' },
-]
 
 // ── SROI outcomes ─────────────────────────────────────────────────────────
 interface SROIOutcome {
   label: string; count: number; unitValue: number; attribution: number; deadweight: number
 }
 
-const DEFAULT_SROI_OUTCOMES: SROIOutcome[] = [
-  { label: 'Participants entering employment', count: 8, unitValue: 18000, attribution: 0.65, deadweight: 0.15 },
-  { label: 'Participants gaining qualifications', count: 14, unitValue: 4500, attribution: 0.75, deadweight: 0.10 },
-  { label: 'Improved wellbeing (WEMWBS)', count: 22, unitValue: 3200, attribution: 0.60, deadweight: 0.20 },
-  { label: 'Reduced social isolation', count: 18, unitValue: 2800, attribution: 0.55, deadweight: 0.25 },
-]
+const DEFAULT_SROI_OUTCOMES: SROIOutcome[] = []
 
 export default function Programmes() {
   const router = useRouter()
@@ -69,7 +47,13 @@ export default function Programmes() {
   const [tab, setTab] = useState<Tab>('overview')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [form, setForm] = useState<ProgrammeForm>(EMPTY_FORM)
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
   const [benSearch, setBenSearch] = useState('')
+  const [showAddBen, setShowAddBen] = useState(false)
+  const [benForm, setBenForm] = useState({ name: '', programme: '', age: '', status: 'Active' as BenStatus, joinDate: '', notes: '' })
+  const [showLogSession, setShowLogSession] = useState(false)
+  const [sessionForm, setSessionForm] = useState({ date: '', programme: '', activityType: 'Workshop', facilitator: '', attendees: '', notes: '' })
   const [sroiInvestment, setSroiInvestment] = useState(95000)
   const [sroiVolunteerValue, setSroiVolunteerValue] = useState(12400)
   const [sroiOutcomes, setSroiOutcomes] = useState<SROIOutcome[]>(DEFAULT_SROI_OUTCOMES)
@@ -103,10 +87,37 @@ export default function Programmes() {
   const getStatus = (p: any) => { const u = p.utilisation_pct ?? 0; return u > 95 ? 'Over budget' : u > 80 ? 'Near limit' : 'On track' }
 
   const filteredBeneficiaries = useMemo(() =>
-    MOCK_BENEFICIARIES.filter(b =>
+    beneficiaries.filter(b =>
       b.name.toLowerCase().includes(benSearch.toLowerCase()) ||
       b.programme.toLowerCase().includes(benSearch.toLowerCase())
-    ), [benSearch])
+    ), [benSearch, beneficiaries])
+
+  const submitBeneficiary = () => {
+    if (!benForm.name.trim() || !benForm.programme.trim()) { toast.error('Name and programme are required'); return }
+    const newBen: Beneficiary = {
+      id: Date.now(), name: benForm.name.trim(), programme: benForm.programme.trim(),
+      age: Number(benForm.age) || 0, status: benForm.status,
+      joinDate: benForm.joinDate || new Date().toISOString().slice(0, 10),
+      sessionsAttended: 0, totalSessions: 0, notes: benForm.notes.trim(),
+    }
+    setBeneficiaries(prev => [...prev, newBen])
+    setBenForm({ name: '', programme: '', age: '', status: 'Active', joinDate: '', notes: '' })
+    setShowAddBen(false)
+    toast.success('Beneficiary added')
+  }
+
+  const submitSession = () => {
+    if (!sessionForm.programme.trim() || !sessionForm.date) { toast.error('Programme and date are required'); return }
+    const newSession: Session = {
+      id: Date.now(), date: sessionForm.date, programme: sessionForm.programme.trim(),
+      activityType: sessionForm.activityType, facilitator: sessionForm.facilitator.trim() || 'TBC',
+      attendees: Number(sessionForm.attendees) || 0, notes: sessionForm.notes.trim(),
+    }
+    setSessions(prev => [newSession, ...prev])
+    setSessionForm({ date: '', programme: '', activityType: 'Workshop', facilitator: '', attendees: '', notes: '' })
+    setShowLogSession(false)
+    toast.success('Session logged')
+  }
 
   const sroiSocialValue = useMemo(() => sroiOutcomes.reduce((sum, o) => {
     const gross = o.count * o.unitValue
@@ -269,10 +280,10 @@ export default function Programmes() {
       {tab === 'beneficiaries' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18 }}>
-            <StatCard label="Total Beneficiaries" value={String(MOCK_BENEFICIARIES.length)} change="registered" accentColor="#C9A84C" />
-            <StatCard label="Active" value={String(MOCK_BENEFICIARIES.filter(b => b.status === 'Active').length)} change="currently engaged" accentColor="#2DCE89" />
-            <StatCard label="Graduated" value={String(MOCK_BENEFICIARIES.filter(b => b.status === 'Graduated').length)} change="positive completions" accentColor="#5E9EFF" />
-            <StatCard label="Avg Attendance" value={`${(MOCK_BENEFICIARIES.reduce((s, b) => s + (b.sessionsAttended / b.totalSessions), 0) / MOCK_BENEFICIARIES.length * 100).toFixed(0)}%`} change="engagement rate" accentColor="#FB8C00" />
+            <StatCard label="Total Beneficiaries" value={String(beneficiaries.length)} change="registered" accentColor="#C9A84C" />
+            <StatCard label="Active" value={String(beneficiaries.filter(b => b.status === 'Active').length)} change="currently engaged" accentColor="#2DCE89" />
+            <StatCard label="Graduated" value={String(beneficiaries.filter(b => b.status === 'Graduated').length)} change="positive completions" accentColor="#5E9EFF" />
+            <StatCard label="Avg Attendance" value={beneficiaries.length > 0 ? `${(beneficiaries.reduce((s, b) => s + (b.totalSessions > 0 ? b.sessionsAttended / b.totalSessions : 0), 0) / beneficiaries.length * 100).toFixed(0)}%` : '—'} change="engagement rate" accentColor="#FB8C00" />
           </div>
 
           <Panel title="Beneficiary Register" titleIcon="BR" iconColor="#C9A84C" noPadding
@@ -280,7 +291,7 @@ export default function Programmes() {
               <div style={{ display: 'flex', gap: 8, padding: '12px 16px 0' }}>
                 <input placeholder="Search name or programme..." value={benSearch} onChange={(e) => setBenSearch(e.target.value)}
                   style={{ padding: '6px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--text)', fontSize: 12, fontFamily: "'Instrument Sans', sans-serif", width: 200 }} />
-                <Button small onClick={() => toast.success('Add beneficiary form coming soon')}>+ Add Beneficiary</Button>
+                <Button small onClick={() => setShowAddBen(true)}>+ Add Beneficiary</Button>
               </div>
             }
           >
@@ -407,16 +418,16 @@ export default function Programmes() {
       {tab === 'sessions' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18 }}>
-            <StatCard label="Sessions This Month" value={String(MOCK_SESSIONS.length)} change="logged activities" accentColor="#C9A84C" />
-            <StatCard label="Total Attendees" value={String(MOCK_SESSIONS.reduce((s, x) => s + x.attendees, 0))} change="unique touchpoints" accentColor="#2DCE89" />
-            <StatCard label="Programmes Active" value={String(new Set(MOCK_SESSIONS.map(s => s.programme)).size)} change="with sessions this month" accentColor="#5E9EFF" />
-            <StatCard label="Avg Group Size" value={(MOCK_SESSIONS.reduce((s, x) => s + x.attendees, 0) / MOCK_SESSIONS.length).toFixed(1)} change="attendees per session" accentColor="#FB8C00" />
+            <StatCard label="Sessions This Month" value={String(sessions.length)} change="logged activities" accentColor="#C9A84C" />
+            <StatCard label="Total Attendees" value={String(sessions.reduce((s, x) => s + x.attendees, 0))} change="unique touchpoints" accentColor="#2DCE89" />
+            <StatCard label="Programmes Active" value={String(new Set(sessions.map(s => s.programme)).size)} change="with sessions this month" accentColor="#5E9EFF" />
+            <StatCard label="Avg Group Size" value={sessions.length > 0 ? (sessions.reduce((s, x) => s + x.attendees, 0) / sessions.length).toFixed(1) : '—'} change="attendees per session" accentColor="#FB8C00" />
           </div>
 
           <Panel title="Session Log" titleIcon="SL" iconColor="#C9A84C" noPadding
             action={
               <div style={{ padding: '12px 16px 0' }}>
-                <Button small onClick={() => toast.success('Log session form coming soon')}>+ Log Session</Button>
+                <Button small onClick={() => setShowLogSession(true)}>+ Log Session</Button>
               </div>
             }
           >
@@ -430,7 +441,7 @@ export default function Programmes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {MOCK_SESSIONS.map((s) => (
+                  {sessions.map((s) => (
                     <tr key={s.id} style={{ borderBottom: '1px solid var(--line)' }}>
                       <td style={{ padding: '12px 14px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--mute)', fontSize: 11.5 }}>{new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                       <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--heading)' }}>{s.programme}</td>
@@ -445,6 +456,49 @@ export default function Programmes() {
             </div>
           </Panel>
         </>
+      )}
+      {showAddBen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 540 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Add Beneficiary</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Full Name *" value={benForm.name} onChange={(v) => setBenForm({ ...benForm, name: v })} placeholder="First and last name" />
+              <FormInput label="Programme *" value={benForm.programme} onChange={(v) => setBenForm({ ...benForm, programme: v })} placeholder="e.g. Youth Employability" />
+              <FormInput label="Age" value={benForm.age} onChange={(v) => setBenForm({ ...benForm, age: v })} placeholder="Age" />
+              <FormInput label="Status" as="select" value={benForm.status} onChange={(v) => setBenForm({ ...benForm, status: v as BenStatus })}>
+                <option>Active</option><option>Graduated</option><option>Withdrawn</option><option>Referred</option>
+              </FormInput>
+              <FormInput label="Join Date" value={benForm.joinDate} onChange={(v) => setBenForm({ ...benForm, joinDate: v })} placeholder="YYYY-MM-DD" />
+            </div>
+            <FormInput label="Notes" value={benForm.notes} onChange={(v) => setBenForm({ ...benForm, notes: v })} placeholder="Progress notes, context..." as="textarea" />
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => setShowAddBen(false)}>Cancel</Button>
+              <Button fullWidth onClick={submitBeneficiary}>Add Beneficiary</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogSession && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 540 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Log Session</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Date *" value={sessionForm.date} onChange={(v) => setSessionForm({ ...sessionForm, date: v })} placeholder="YYYY-MM-DD" />
+              <FormInput label="Programme *" value={sessionForm.programme} onChange={(v) => setSessionForm({ ...sessionForm, programme: v })} placeholder="e.g. Digital Skills" />
+              <FormInput label="Activity Type" as="select" value={sessionForm.activityType} onChange={(v) => setSessionForm({ ...sessionForm, activityType: v })}>
+                <option>Workshop</option><option>Group Session</option><option>1-to-1</option><option>Drop-in</option><option>Training</option>
+              </FormInput>
+              <FormInput label="Facilitator" value={sessionForm.facilitator} onChange={(v) => setSessionForm({ ...sessionForm, facilitator: v })} placeholder="Staff or volunteer name" />
+              <FormInput label="Attendees" value={sessionForm.attendees} onChange={(v) => setSessionForm({ ...sessionForm, attendees: v })} placeholder="Number attended" />
+            </div>
+            <FormInput label="Notes" value={sessionForm.notes} onChange={(v) => setSessionForm({ ...sessionForm, notes: v })} placeholder="Session summary, topics covered..." as="textarea" />
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => setShowLogSession(false)}>Cancel</Button>
+              <Button fullWidth onClick={submitSession}>Log Session</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

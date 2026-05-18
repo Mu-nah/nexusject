@@ -9,23 +9,6 @@ type Tab = '2fa' | 'sessions' | 'encryption' | 'audit' | 'rbac' | 'sso'
 type RBACRole = { id: number; name: string; description: string; permissions: string[]; userCount: number }
 type UserRoleAssignment = { id: number; user: string; email: string; role: string; status: 'Active' | 'Suspended'; lastLogin: string }
 
-const RBAC_ROLES: RBACRole[] = [
-  { id: 1, name: 'Super Admin', description: 'Full system access including user management and settings', permissions: ['All modules', 'User management', 'Settings', 'Audit log'], userCount: 2 },
-  { id: 2, name: 'Finance Manager', description: 'Access to all finance modules including payroll and budgets', permissions: ['Accounting', 'Payroll', 'Expenses', 'Budgets', 'Donations', 'Reports'], userCount: 3 },
-  { id: 3, name: 'HR Manager', description: 'People and HR module access including employee records', permissions: ['HR', 'Payroll (view)', 'Sponsorship', 'Rota', 'Volunteers'], userCount: 2 },
-  { id: 4, name: 'Programme Manager', description: 'Grants, programmes, and project management access', permissions: ['Grants', 'Programmes', 'Projects', 'Reports (own)'], userCount: 4 },
-  { id: 5, name: 'Trustee / Board', description: 'Read-only access to board-level reports and governance', permissions: ['Dashboard (read)', 'Reports (read)', 'Governance', 'Compliance (read)'], userCount: 7 },
-  { id: 6, name: 'Staff', description: 'Standard staff access — expenses, rota, and own data', permissions: ['Expenses (own)', 'Rota (view)', 'Dashboard (limited)'], userCount: 12 },
-]
-
-const USER_ROLE_ASSIGNMENTS: UserRoleAssignment[] = [
-  { id: 1, user: 'M. Okonkwo', email: 'm.okonkwo@org.uk', role: 'Super Admin', status: 'Active', lastLogin: '2026-05-18' },
-  { id: 2, user: 'T. Singh', email: 't.singh@org.uk', role: 'Finance Manager', status: 'Active', lastLogin: '2026-05-17' },
-  { id: 3, user: 'S. O\'Brien', email: 's.obrien@org.uk', role: 'HR Manager', status: 'Active', lastLogin: '2026-05-16' },
-  { id: 4, user: 'P. Patel', email: 'p.patel@org.uk', role: 'Programme Manager', status: 'Active', lastLogin: '2026-05-15' },
-  { id: 5, user: 'A. Johnson', email: 'a.johnson@org.uk', role: 'Staff', status: 'Active', lastLogin: '2026-05-14' },
-  { id: 6, user: 'J. Carter', email: 'j.carter@org.uk', role: 'Staff', status: 'Suspended', lastLogin: '2026-04-28' },
-]
 
 type SSOProvider = 'None' | 'Azure AD' | 'Google Workspace' | 'Okta' | 'SAML 2.0'
 
@@ -41,6 +24,29 @@ export default function Security() {
   const [ssoEntityId, setSsoEntityId] = useState('')
   const [ssoUrl, setSsoUrl] = useState('')
   const [ssoEnabled, setSsoEnabled] = useState(false)
+  const [roles, setRoles] = useState<RBACRole[]>([])
+  const [assignments, setAssignments] = useState<UserRoleAssignment[]>([])
+  const [showAddRole, setShowAddRole] = useState(false)
+  const [roleForm, setRoleForm] = useState({ name: '', description: '', permissions: '' })
+  const [showAssignRole, setShowAssignRole] = useState(false)
+  const [assignForm, setAssignForm] = useState({ user: '', email: '', role: '' })
+
+  const submitRole = () => {
+    if (!roleForm.name.trim()) { toast.error('Role name is required'); return }
+    const perms = roleForm.permissions.split(',').map(p => p.trim()).filter(Boolean)
+    setRoles(prev => [...prev, { id: Date.now(), name: roleForm.name.trim(), description: roleForm.description.trim(), permissions: perms.length ? perms : ['Custom access'], userCount: 0 }])
+    setRoleForm({ name: '', description: '', permissions: '' })
+    setShowAddRole(false)
+    toast.success('Role created')
+  }
+
+  const submitAssignment = () => {
+    if (!assignForm.user.trim() || !assignForm.role) { toast.error('User and role are required'); return }
+    setAssignments(prev => [...prev, { id: Date.now(), user: assignForm.user.trim(), email: assignForm.email.trim(), role: assignForm.role, status: 'Active', lastLogin: '—' }])
+    setAssignForm({ user: '', email: '', role: '' })
+    setShowAssignRole(false)
+    toast.success('Role assigned')
+  }
 
   const exportAudit = () => {
     downloadCsvFile('security-audit-log.csv', auditLog)
@@ -214,15 +220,15 @@ export default function Security() {
       {tab === 'rbac' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 18 }}>
-            <StatCard label="Total Roles" value={String(RBAC_ROLES.length)} change="defined" accentColor="#C9A84C" />
-            <StatCard label="Total Users" value={String(USER_ROLE_ASSIGNMENTS.length)} change="assigned" accentColor="#2DCE89" />
-            <StatCard label="Suspended" value={String(USER_ROLE_ASSIGNMENTS.filter(u => u.status === 'Suspended').length)} change="users" accentColor="#F5365C" />
-            <StatCard label="Admin Users" value={String(USER_ROLE_ASSIGNMENTS.filter(u => u.role === 'Super Admin').length)} change="super admins" accentColor="#FB8C00" />
+            <StatCard label="Total Roles" value={String(roles.length)} change="defined" accentColor="#C9A84C" />
+            <StatCard label="Total Users" value={String(assignments.length)} change="assigned" accentColor="#2DCE89" />
+            <StatCard label="Suspended" value={String(assignments.filter(u => u.status === 'Suspended').length)} change="users" accentColor="#F5365C" />
+            <StatCard label="Admin Users" value={String(assignments.filter(u => u.role === 'Super Admin').length)} change="super admins" accentColor="#FB8C00" />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14, marginBottom: 14 }}>
             <Panel title="Role Definitions" titleIcon="RD" iconColor="#C9A84C" noPadding
-              action={<div style={{ padding: '12px 16px 0' }}><Button small onClick={() => toast.success('Add role coming soon')}>+ Add Role</Button></div>}
+              action={<div style={{ padding: '12px 16px 0' }}><Button small onClick={() => setShowAddRole(true)}>+ Add Role</Button></div>}
             >
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
@@ -234,7 +240,10 @@ export default function Security() {
                     </tr>
                   </thead>
                   <tbody>
-                    {RBAC_ROLES.map(role => (
+                    {roles.length === 0 && (
+                      <tr><td colSpan={4} style={{ padding: '24px 14px', textAlign: 'center', color: 'var(--mute)', fontSize: 12.5 }}>No roles defined yet. Add your first role above.</td></tr>
+                    )}
+                    {roles.map(role => (
                       <tr key={role.id} style={{ borderBottom: '1px solid var(--line)' }}>
                         <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--heading)', whiteSpace: 'nowrap' }}>{role.name}</td>
                         <td style={{ padding: '12px 14px', color: 'var(--mute)', fontSize: 11.5, minWidth: 160 }}>{role.description}</td>
@@ -253,7 +262,7 @@ export default function Security() {
             </Panel>
 
             <Panel title="User Role Assignments" titleIcon="UA" iconColor="#5E9EFF" noPadding
-              action={<div style={{ padding: '12px 16px 0' }}><Button small onClick={() => toast.success('Assign role coming soon')}>+ Assign Role</Button></div>}
+              action={<div style={{ padding: '12px 16px 0' }}><Button small onClick={() => setShowAssignRole(true)}>+ Assign Role</Button></div>}
             >
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
@@ -265,7 +274,10 @@ export default function Security() {
                     </tr>
                   </thead>
                   <tbody>
-                    {USER_ROLE_ASSIGNMENTS.map(u => (
+                    {assignments.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: '24px 14px', textAlign: 'center', color: 'var(--mute)', fontSize: 12.5 }}>No role assignments yet.</td></tr>
+                    )}
+                    {assignments.map(u => (
                       <tr key={u.id} style={{ borderBottom: '1px solid var(--line)' }}>
                         <td style={{ padding: '12px 14px' }}>
                           <div style={{ fontWeight: 600, color: 'var(--heading)' }}>{u.user}</div>
@@ -362,6 +374,38 @@ export default function Security() {
             </Panel>
           </div>
         </>
+      )}
+      {showAddRole && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 500 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Add Role</div>
+            <FormInput label="Role Name *" value={roleForm.name} onChange={(v) => setRoleForm({ ...roleForm, name: v })} placeholder="e.g. Programme Coordinator" />
+            <FormInput label="Description" value={roleForm.description} onChange={(v) => setRoleForm({ ...roleForm, description: v })} placeholder="What access does this role have?" as="textarea" />
+            <FormInput label="Permissions (comma-separated)" value={roleForm.permissions} onChange={(v) => setRoleForm({ ...roleForm, permissions: v })} placeholder="e.g. Programmes, Reports (read), Grants" />
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowAddRole(false); setRoleForm({ name: '', description: '', permissions: '' }) }}>Cancel</Button>
+              <Button fullWidth onClick={submitRole}>Create Role</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignRole && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Assign Role</div>
+            <FormInput label="User Name *" value={assignForm.user} onChange={(v) => setAssignForm({ ...assignForm, user: v })} placeholder="Full name" />
+            <FormInput label="Email" value={assignForm.email} onChange={(v) => setAssignForm({ ...assignForm, email: v })} placeholder="user@organisation.org" />
+            <FormInput label="Role *" as="select" value={assignForm.role} onChange={(v) => setAssignForm({ ...assignForm, role: v })}>
+              <option value="">— Select role —</option>
+              {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+            </FormInput>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowAssignRole(false); setAssignForm({ user: '', email: '', role: '' }) }}>Cancel</Button>
+              <Button fullWidth onClick={submitAssignment}>Assign Role</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

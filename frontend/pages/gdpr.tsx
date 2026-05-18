@@ -23,13 +23,6 @@ interface ROPAEntry {
   status: ROPAStatus
 }
 
-const INITIAL_ROPA: ROPAEntry[] = [
-  { id: 1, activity: 'Payroll Processing', purpose: 'Calculate and pay employee salaries, PAYE, NI', dataSubjects: 'Employees', personalDataCategories: 'Name, NI number, bank details, salary, tax code', specialCategories: false, recipients: 'HMRC, pension provider', retention: '6 years after leaving', lawfulBasis: 'Legal Obligation', status: 'Documented' },
-  { id: 2, activity: 'Beneficiary Support Records', purpose: 'Deliver programme services and track outcomes', dataSubjects: 'Service users / beneficiaries', personalDataCategories: 'Name, DOB, contact, programme notes', specialCategories: true, recipients: 'Programme staff only', retention: '7 years', lawfulBasis: 'Public Task', status: 'Under Review' },
-  { id: 3, activity: 'Donor Gift Aid Claims', purpose: 'HMRC Gift Aid submissions', dataSubjects: 'Donors', personalDataCategories: 'Name, address, donation amount, Gift Aid declaration', specialCategories: false, recipients: 'HMRC', retention: '7 years', lawfulBasis: 'Legal Obligation', status: 'Documented' },
-  { id: 4, activity: 'Volunteer Management', purpose: 'Recruit, onboard and manage volunteers', dataSubjects: 'Volunteers', personalDataCategories: 'Name, contact, DBS status, availability', specialCategories: false, recipients: 'HR team, DBS service', retention: '3 years after leaving', lawfulBasis: 'Legitimate Interests', status: 'Needs Update' },
-  { id: 5, activity: 'CCTV Surveillance', purpose: 'Premises security and safety', dataSubjects: 'Staff, visitors, public', personalDataCategories: 'Images / footage', specialCategories: false, recipients: 'Security team, police if required', retention: '30 days', lawfulBasis: 'Legitimate Interests', status: 'Documented' },
-]
 
 const ROPA_STATUS_COLORS: Record<ROPAStatus, string> = {
   'Documented': 'green',
@@ -42,8 +35,8 @@ const LAWFUL_BASIS_COLORS: Record<LawfulBasis, string> = {
   'Legitimate Interests': 'blue',
   'Legal Obligation': 'amber',
   'Vital Interests': 'red',
-  'Public Task': 'purple',
-  'Contract': 'grey',
+  'Public Task': 'violet',
+  'Contract': 'slate',
 }
 
 // ── Breach Notification types ─────────────────────────────────────────────
@@ -64,10 +57,6 @@ interface BreachIncident {
   icoReference: string | null
 }
 
-const INITIAL_BREACHES: BreachIncident[] = [
-  { id: 1, title: 'Misdirected email containing staff payslips', discoveredAt: '2026-05-10T09:30:00', reportedAt: '2026-05-11T14:00:00', status: 'ICO Notified', severity: 'High', dataCategories: 'Financial data, NI numbers', individualsAffected: 3, consequences: 'Personal financial data exposed to wrong recipient', actionsTaken: 'Email recalled, recipient confirmed deletion, staff notified, encryption controls reviewed', icoReference: 'ZA-2026-12345' },
-  { id: 2, title: 'Lost encrypted laptop — Finance Manager', discoveredAt: '2026-04-28T16:00:00', reportedAt: null, status: 'No Notification Required', severity: 'Low', dataCategories: 'Encrypted financial spreadsheets', individualsAffected: 0, consequences: 'Device encrypted; no data at risk. ICO threshold not met.', actionsTaken: 'Remote wipe initiated, incident documented, device insurance claim filed', icoReference: null },
-]
 
 const BREACH_STATUS_COLORS: Record<BreachStatus, string> = {
   'Assessing': 'amber',
@@ -92,10 +81,12 @@ export default function GDPR() {
   const [dsars, setDsars] = useState(INITIAL_DSARS)
   const [subjectName, setSubjectName] = useState('')
   const [subjectType, setSubjectType] = useState('Access Request')
-  const [ropaEntries, setRopaEntries] = useState<ROPAEntry[]>(INITIAL_ROPA)
+  const [ropaEntries, setRopaEntries] = useState<ROPAEntry[]>([])
   const [ropaSearch, setRopaSearch] = useState('')
-  const [breaches, setBreaches] = useState<BreachIncident[]>(INITIAL_BREACHES)
+  const [breaches, setBreaches] = useState<BreachIncident[]>([])
   const [showBreachForm, setShowBreachForm] = useState(false)
+  const [showAddRopa, setShowAddRopa] = useState(false)
+  const [ropaForm, setRopaForm] = useState({ activity: '', purpose: '', dataSubjects: '', personalDataCategories: '', recipients: '', retention: '', lawfulBasis: 'Legitimate Interests' as LawfulBasis, specialCategories: false })
   const [breachTitle, setBreachTitle] = useState('')
   const [breachCategories, setBreachCategories] = useState('')
   const [breachAffected, setBreachAffected] = useState('')
@@ -141,6 +132,20 @@ export default function GDPR() {
     setBreachTitle(''); setBreachCategories(''); setBreachAffected(''); setBreachConsequences('')
     setShowBreachForm(false)
     toast.success('Breach incident logged — 72-hour ICO clock is running')
+  }
+
+  const submitRopa = () => {
+    if (!ropaForm.activity.trim() || !ropaForm.purpose.trim()) { toast.error('Activity and purpose are required'); return }
+    const newEntry: ROPAEntry = {
+      id: Date.now(), activity: ropaForm.activity.trim(), purpose: ropaForm.purpose.trim(),
+      dataSubjects: ropaForm.dataSubjects.trim(), personalDataCategories: ropaForm.personalDataCategories.trim(),
+      specialCategories: ropaForm.specialCategories, recipients: ropaForm.recipients.trim(),
+      retention: ropaForm.retention.trim(), lawfulBasis: ropaForm.lawfulBasis, status: 'Under Review',
+    }
+    setRopaEntries(prev => [...prev, newEntry])
+    setRopaForm({ activity: '', purpose: '', dataSubjects: '', personalDataCategories: '', recipients: '', retention: '', lawfulBasis: 'Legitimate Interests', specialCategories: false })
+    setShowAddRopa(false)
+    toast.success('Processing activity added to ROPA')
   }
 
   const filteredRopa = useMemo(() =>
@@ -292,7 +297,7 @@ export default function GDPR() {
               <input placeholder="Search activities..." value={ropaSearch} onChange={(e) => setRopaSearch(e.target.value)}
                 style={{ padding: '6px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--text)', fontSize: 12, fontFamily: "'Instrument Sans', sans-serif", width: 180 }} />
               <Button small onClick={() => downloadCsvFile('ropa.csv', filteredRopa.map(e => ({ Activity: e.activity, Purpose: e.purpose, 'Data Subjects': e.dataSubjects, 'Lawful Basis': e.lawfulBasis, Retention: e.retention, Status: e.status })))}>Export ROPA</Button>
-              <Button small onClick={() => toast.success('Add processing activity form coming soon')}>+ Add Activity</Button>
+              <Button small onClick={() => setShowAddRopa(true)}>+ Add Activity</Button>
             </div>
           </div>
 
@@ -484,6 +489,34 @@ export default function GDPR() {
             </div>
           </Panel>
         </>
+      )}
+
+      {showAddRopa && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 600 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Add Processing Activity</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Processing Activity *" value={ropaForm.activity} onChange={(v) => setRopaForm({ ...ropaForm, activity: v })} placeholder="e.g. Fundraising Communications" />
+              <FormInput label="Lawful Basis" as="select" value={ropaForm.lawfulBasis} onChange={(v) => setRopaForm({ ...ropaForm, lawfulBasis: v as LawfulBasis })}>
+                <option>Consent</option><option>Legitimate Interests</option><option>Legal Obligation</option>
+                <option>Vital Interests</option><option>Public Task</option><option>Contract</option>
+              </FormInput>
+              <FormInput label="Data Subjects" value={ropaForm.dataSubjects} onChange={(v) => setRopaForm({ ...ropaForm, dataSubjects: v })} placeholder="e.g. Donors, Volunteers" />
+              <FormInput label="Recipients" value={ropaForm.recipients} onChange={(v) => setRopaForm({ ...ropaForm, recipients: v })} placeholder="e.g. HMRC, internal staff only" />
+              <FormInput label="Retention Period" value={ropaForm.retention} onChange={(v) => setRopaForm({ ...ropaForm, retention: v })} placeholder="e.g. 7 years" />
+            </div>
+            <FormInput label="Purpose of Processing" value={ropaForm.purpose} onChange={(v) => setRopaForm({ ...ropaForm, purpose: v })} placeholder="Why is this data processed?" as="textarea" />
+            <FormInput label="Personal Data Categories" value={ropaForm.personalDataCategories} onChange={(v) => setRopaForm({ ...ropaForm, personalDataCategories: v })} placeholder="e.g. Name, address, email, donation amount" as="textarea" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0' }}>
+              <input type="checkbox" id="special-cat" checked={ropaForm.specialCategories} onChange={(e) => setRopaForm({ ...ropaForm, specialCategories: e.target.checked })} />
+              <label htmlFor="special-cat" style={{ fontSize: 12.5, color: 'var(--text)', cursor: 'pointer' }}>Involves special category data (health, ethnicity, biometric, etc.)</label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => setShowAddRopa(false)}>Cancel</Button>
+              <Button fullWidth onClick={submitRopa}>Add to ROPA</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

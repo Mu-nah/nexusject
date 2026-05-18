@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 import toast from 'react-hot-toast'
 
 import AppLayout from '@/components/layout/AppLayout'
-import { Alert, Badge, Button, Panel, ProgressBar, StatCard } from '@/components/ui'
+import { Alert, Badge, Button, FormInput, Panel, ProgressBar, StatCard } from '@/components/ui'
 import api from '@/lib/api'
 
 type Tab = 'overview' | 'funders' | 'pipeline'
@@ -35,13 +35,6 @@ interface Funder {
   notes: string
 }
 
-const MOCK_FUNDERS: Funder[] = [
-  { id: 1, name: 'National Lottery Community Fund', type: 'Lottery', contact: 'grants@tnlcommunityfund.org.uk', relationship: 'Active', totalAwarded: 180000, nextDeadline: '2026-07-31', notes: 'Key strategic funder. 3-year relationship.' },
-  { id: 2, name: 'Tudor Trust', type: 'Trust / Foundation', contact: 'info@tudortrust.org.uk', relationship: 'Active', totalAwarded: 45000, nextDeadline: '2026-09-15', notes: 'Prefers unrestricted core cost funding.' },
-  { id: 3, name: 'Local Authority — VCSE Grant', type: 'Government', contact: 'vcse@localauthority.gov.uk', relationship: 'Active', totalAwarded: 72000, nextDeadline: '2027-03-31', notes: 'Annual contract renewal due March.' },
-  { id: 4, name: 'Garfield Weston Foundation', type: 'Trust / Foundation', contact: 'applications@garfieldweston.org', relationship: 'Prospect', totalAwarded: 0, nextDeadline: '2026-10-01', notes: 'Identified from research. First approach stage.' },
-  { id: 5, name: 'City Bridge Foundation', type: 'Trust / Foundation', contact: 'grants@citybridgefoundation.org.uk', relationship: 'Lapsed', totalAwarded: 30000, nextDeadline: null, notes: 'Previous award 2023. Re-engagement planned for 2026.' },
-]
 
 type PipelineStage = 'Research' | 'Draft' | 'Submitted' | 'In Review' | 'Decision'
 
@@ -56,15 +49,6 @@ interface Application {
   outcome?: 'Awarded' | 'Rejected'
 }
 
-const MOCK_APPLICATIONS: Application[] = [
-  { id: 1, name: 'Community Wellbeing Programme Phase 2', funder: 'National Lottery Community Fund', amountSought: 120000, stage: 'In Review', daysInStage: 18, deadline: '2026-06-01' },
-  { id: 2, name: 'Digital Inclusion Project', funder: 'Tudor Trust', amountSought: 25000, stage: 'Submitted', daysInStage: 7, deadline: '2026-08-15' },
-  { id: 3, name: 'Core Costs 2026-27', funder: 'Local Authority — VCSE Grant', amountSought: 72000, stage: 'Draft', daysInStage: 3, deadline: '2027-01-31' },
-  { id: 4, name: 'Young Persons Mentoring Fund', funder: 'Garfield Weston Foundation', amountSought: 50000, stage: 'Research', daysInStage: 12, deadline: '2026-10-01' },
-  { id: 5, name: 'Volunteer Infrastructure Grant', funder: 'City Bridge Foundation', amountSought: 18000, stage: 'Research', daysInStage: 5, deadline: null },
-  { id: 6, name: 'Employment Support Project', funder: 'Tudor Trust', amountSought: 35000, stage: 'Decision', daysInStage: 45, deadline: null, outcome: 'Awarded' },
-  { id: 7, name: 'Equipment Replacement Fund', funder: 'Local Authority — VCSE Grant', amountSought: 8500, stage: 'Decision', daysInStage: 30, deadline: null, outcome: 'Rejected' },
-]
 
 const PIPELINE_STAGES: { key: PipelineStage; color: string; description: string }[] = [
   { key: 'Research',   color: '#5E9EFF', description: 'Identifying funders and eligibility' },
@@ -78,21 +62,46 @@ const FUNDER_TYPE_COLORS: Record<FunderType, string> = {
   'Trust / Foundation': 'blue',
   'Government': 'green',
   'Lottery': 'amber',
-  'Corporate': 'purple',
-  'Statutory': 'grey',
+  'Corporate': 'violet',
+  'Statutory': 'slate',
 }
 
 const REL_COLORS: Record<RelStatus, string> = {
   'Active': 'green',
   'Lapsed': 'red',
   'Prospect': 'amber',
-  'Restricted': 'grey',
+  'Restricted': 'slate',
 }
+
+const EMPTY_FUNDER: Omit<Funder, 'id'> = { name: '', type: 'Trust / Foundation', contact: '', relationship: 'Prospect', totalAwarded: 0, nextDeadline: null, notes: '' }
+const EMPTY_APP: Omit<Application, 'id'> = { name: '', funder: '', amountSought: 0, stage: 'Research', daysInStage: 0, deadline: null }
 
 export default function Grants() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
   const [funderSearch, setFunderSearch] = useState('')
+  const [funders, setFunders] = useState<Funder[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
+  const [showAddFunder, setShowAddFunder] = useState(false)
+  const [funderForm, setFunderForm] = useState<typeof EMPTY_FUNDER>({ ...EMPTY_FUNDER })
+  const [showNewApp, setShowNewApp] = useState(false)
+  const [appForm, setAppForm] = useState<typeof EMPTY_APP>({ ...EMPTY_APP })
+
+  const submitFunder = () => {
+    if (!funderForm.name.trim()) { toast.error('Funder name is required'); return }
+    setFunders(prev => [...prev, { ...funderForm, id: Date.now(), totalAwarded: Number(funderForm.totalAwarded) || 0 }])
+    setFunderForm({ ...EMPTY_FUNDER })
+    setShowAddFunder(false)
+    toast.success('Funder added to CRM')
+  }
+
+  const submitApp = () => {
+    if (!appForm.name.trim() || !appForm.funder.trim()) { toast.error('Application name and funder are required'); return }
+    setApplications(prev => [...prev, { ...appForm, id: Date.now(), amountSought: Number(appForm.amountSought) || 0, daysInStage: 0 }])
+    setAppForm({ ...EMPTY_APP })
+    setShowNewApp(false)
+    toast.success('Application added to pipeline')
+  }
 
   const { data: grants = [], isLoading } = useQuery({ queryKey: ['grants'], queryFn: () => api.getGrants('active') })
   const { data: summary } = useQuery({ queryKey: ['grants-summary'], queryFn: api.getGrantsSummary })
@@ -127,25 +136,25 @@ export default function Grants() {
   const getBarColor = (value: number) => (value > 90 ? '#ef4444' : value > 75 ? '#f59e0b' : '#10b981')
 
   const filteredFunders = useMemo(() =>
-    MOCK_FUNDERS.filter(f =>
+    funders.filter(f =>
       f.name.toLowerCase().includes(funderSearch.toLowerCase()) ||
       f.type.toLowerCase().includes(funderSearch.toLowerCase())
-    ), [funderSearch])
+    ), [funderSearch, funders])
 
   const pipelineByStage = useMemo(() => {
     const map: Record<PipelineStage, Application[]> = {
       Research: [], Draft: [], Submitted: [], 'In Review': [], Decision: [],
     }
-    MOCK_APPLICATIONS.forEach(a => map[a.stage].push(a))
+    applications.forEach(a => map[a.stage].push(a))
     return map
-  }, [])
+  }, [applications])
 
-  const totalSought = MOCK_APPLICATIONS.reduce((s, a) => s + a.amountSought, 0)
-  const awarded = MOCK_APPLICATIONS.filter(a => a.outcome === 'Awarded')
-  const successRate = MOCK_APPLICATIONS.filter(a => a.outcome).length > 0
-    ? (awarded.length / MOCK_APPLICATIONS.filter(a => a.outcome).length) * 100
+  const totalSought = applications.reduce((s, a) => s + a.amountSought, 0)
+  const awarded = applications.filter(a => a.outcome === 'Awarded')
+  const successRate = applications.filter(a => a.outcome).length > 0
+    ? (awarded.length / applications.filter(a => a.outcome).length) * 100
     : 0
-  const totalRelationshipValue = MOCK_FUNDERS.reduce((s, f) => s + f.totalAwarded, 0)
+  const totalRelationshipValue = funders.reduce((s, f) => s + f.totalAwarded, 0)
 
   return (
     <AppLayout
@@ -169,7 +178,7 @@ export default function Grants() {
         <StatCard label="Total Awarded" value={gbp(summary?.total_awarded ?? 0)} change={`${summary?.active_grants ?? 0} active grants`} accentColor="#3b82f6" />
         <StatCard label="Spent to Date" value={gbp(summary?.total_spent ?? 0)} change={`${pct(summary?.overall_utilisation_pct ?? 0)} utilised`} changeUp accentColor="#10b981" />
         <StatCard label="Remaining" value={gbp(summary?.total_remaining ?? 0)} change="across all grants" accentColor="#f59e0b" />
-        <StatCard label="Pipeline Value" value={gbp(totalSought)} change={`${MOCK_APPLICATIONS.filter(a => !a.outcome).length} active applications`} accentColor="#C9A84C" />
+        <StatCard label="Pipeline Value" value={gbp(totalSought)} change={`${applications.filter(a => !a.outcome).length} active applications`} accentColor="#C9A84C" />
       </div>
 
       {/* Tab bar */}
@@ -262,7 +271,7 @@ export default function Grants() {
             </Panel>
 
             <Panel title="Upcoming Deadlines">
-              {MOCK_APPLICATIONS.filter(a => a.deadline && !a.outcome).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()).slice(0, 4).map(a => {
+              {applications.filter(a => a.deadline && !a.outcome).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()).slice(0, 4).map(a => {
                 const days = Math.ceil((new Date(a.deadline!).getTime() - Date.now()) / 86400000)
                 return (
                   <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
@@ -283,9 +292,9 @@ export default function Grants() {
       {tab === 'funders' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18 }}>
-            <StatCard label="Total Funders" value={String(MOCK_FUNDERS.length)} change="in CRM" accentColor="#C9A84C" />
-            <StatCard label="Active Relationships" value={String(MOCK_FUNDERS.filter(f => f.relationship === 'Active').length)} change="current partners" accentColor="#2DCE89" />
-            <StatCard label="Prospects" value={String(MOCK_FUNDERS.filter(f => f.relationship === 'Prospect').length)} change="under cultivation" accentColor="#5E9EFF" />
+            <StatCard label="Total Funders" value={String(funders.length)} change="in CRM" accentColor="#C9A84C" />
+            <StatCard label="Active Relationships" value={String(funders.filter(f => f.relationship === 'Active').length)} change="current partners" accentColor="#2DCE89" />
+            <StatCard label="Prospects" value={String(funders.filter(f => f.relationship === 'Prospect').length)} change="under cultivation" accentColor="#5E9EFF" />
             <StatCard label="Relationship Value" value={gbp(totalRelationshipValue)} change="total awarded by these funders" accentColor="#FB8C00" />
           </div>
 
@@ -302,7 +311,7 @@ export default function Grants() {
                   onChange={(e) => setFunderSearch(e.target.value)}
                   style={{ padding: '6px 12px', background: 'var(--surface-muted)', border: '1px solid var(--line2)', borderRadius: 7, color: 'var(--text)', fontSize: 12, fontFamily: "'Instrument Sans', sans-serif", width: 180 }}
                 />
-                <Button small onClick={() => toast.success('Add funder form coming soon')}>+ Add Funder</Button>
+                <Button small onClick={() => setShowAddFunder(true)}>+ Add Funder</Button>
               </div>
             }
           >
@@ -348,15 +357,15 @@ export default function Grants() {
       {tab === 'pipeline' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18 }}>
-            <StatCard label="Total Applications" value={String(MOCK_APPLICATIONS.length)} change="this financial year" accentColor="#C9A84C" />
-            <StatCard label="In Progress" value={String(MOCK_APPLICATIONS.filter(a => !a.outcome).length)} change="active in pipeline" accentColor="#5E9EFF" />
+            <StatCard label="Total Applications" value={String(applications.length)} change="this financial year" accentColor="#C9A84C" />
+            <StatCard label="In Progress" value={String(applications.filter(a => !a.outcome).length)} change="active in pipeline" accentColor="#5E9EFF" />
             <StatCard label="Awarded" value={String(awarded.length)} change={`${pct(successRate)} success rate`} changeUp accentColor="#2DCE89" />
-            <StatCard label="Total Sought" value={gbp(MOCK_APPLICATIONS.filter(a => !a.outcome).reduce((s, a) => s + a.amountSought, 0))} change="live pipeline value" accentColor="#FB8C00" />
+            <StatCard label="Total Sought" value={gbp(applications.filter(a => !a.outcome).reduce((s, a) => s + a.amountSought, 0))} change="live pipeline value" accentColor="#FB8C00" />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--heading)' }}>Application Pipeline</div>
-            <Button small onClick={() => toast.success('New application form coming soon')}>+ New Application</Button>
+            <Button small onClick={() => setShowNewApp(true)}>+ New Application</Button>
           </div>
 
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
@@ -419,6 +428,54 @@ export default function Grants() {
             </div>
           </Panel>
         </>
+      )}
+      {showAddFunder && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 560 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Add Funder</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Funder Name *" value={funderForm.name} onChange={(v) => setFunderForm({ ...funderForm, name: v })} placeholder="e.g. Tudor Trust" />
+              <FormInput label="Type" as="select" value={funderForm.type} onChange={(v) => setFunderForm({ ...funderForm, type: v as FunderType })}>
+                <option>Trust / Foundation</option><option>Government</option><option>Lottery</option><option>Corporate</option><option>Statutory</option>
+              </FormInput>
+              <FormInput label="Contact Email" value={funderForm.contact} onChange={(v) => setFunderForm({ ...funderForm, contact: v })} placeholder="grants@funder.org.uk" />
+              <FormInput label="Relationship" as="select" value={funderForm.relationship} onChange={(v) => setFunderForm({ ...funderForm, relationship: v as RelStatus })}>
+                <option>Prospect</option><option>Active</option><option>Lapsed</option><option>Restricted</option>
+              </FormInput>
+              <FormInput label="Total Awarded (GBP)" value={String(funderForm.totalAwarded || '')} onChange={(v) => setFunderForm({ ...funderForm, totalAwarded: Number(v) || 0 })} placeholder="0" />
+              <FormInput label="Next Deadline" value={funderForm.nextDeadline ?? ''} onChange={(v) => setFunderForm({ ...funderForm, nextDeadline: v || null })} placeholder="YYYY-MM-DD" />
+            </div>
+            <FormInput label="Notes" value={funderForm.notes} onChange={(v) => setFunderForm({ ...funderForm, notes: v })} placeholder="Relationship context, preferences..." as="textarea" />
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowAddFunder(false); setFunderForm({ ...EMPTY_FUNDER }) }}>Cancel</Button>
+              <Button fullWidth onClick={submitFunder}>Add Funder</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNewApp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 540 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>New Application</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Application Name *" value={appForm.name} onChange={(v) => setAppForm({ ...appForm, name: v })} placeholder="e.g. Community Wellbeing Phase 3" />
+              <FormInput label="Funder *" as="select" value={appForm.funder} onChange={(v) => setAppForm({ ...appForm, funder: v })}>
+                <option value="">— Select funder —</option>
+                {funders.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+              </FormInput>
+              <FormInput label="Amount Sought (GBP)" value={String(appForm.amountSought || '')} onChange={(v) => setAppForm({ ...appForm, amountSought: Number(v) || 0 })} placeholder="0" />
+              <FormInput label="Stage" as="select" value={appForm.stage} onChange={(v) => setAppForm({ ...appForm, stage: v as PipelineStage })}>
+                <option>Research</option><option>Draft</option><option>Submitted</option><option>In Review</option><option>Decision</option>
+              </FormInput>
+              <FormInput label="Deadline" value={appForm.deadline ?? ''} onChange={(v) => setAppForm({ ...appForm, deadline: v || null })} placeholder="YYYY-MM-DD" />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowNewApp(false); setAppForm({ ...EMPTY_APP }) }}>Cancel</Button>
+              <Button fullWidth onClick={submitApp}>Add to Pipeline</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

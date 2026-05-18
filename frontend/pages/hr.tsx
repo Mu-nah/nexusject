@@ -45,6 +45,9 @@ export default function HR() {
   const [docName, setDocName] = useState('')
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(EMPTY_EMPLOYEE_FORM)
+  const [vacancies, setVacancies] = useState<Array<{ id: number; title: string; dept: string; type: string; salary: string; closingDate: string; boards: string[] }>>([])
+  const [showVacancyForm, setShowVacancyForm] = useState(false)
+  const [vacancyForm, setVacancyForm] = useState({ title: '', dept: '', type: 'Full-time', salary: '', closingDate: '' })
 
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['hr-workspace'],
@@ -425,10 +428,40 @@ export default function HR() {
               </div>
             ))}
           </div>
-          <Panel title="Active Vacancies" noPadding action={<Button small onClick={() => toast.success('Add Vacancy form opened (post to Indeed, LinkedIn, Charity Job)')}>+ Post Vacancy</Button>}>
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--mute)', fontSize: 13 }}>
-              No vacancies posted. Click "+ Post Vacancy" to create a role and share to job boards (Indeed, LinkedIn, Reed, Charity Job, Guardian Jobs).
-            </div>
+          <Panel title="Active Vacancies" noPadding action={<Button small onClick={() => setShowVacancyForm(true)}>+ Post Vacancy</Button>}>
+            {vacancies.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--mute)', fontSize: 13 }}>
+                No vacancies posted yet. Click "+ Post Vacancy" to create a role.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--line)' }}>
+                      {['Role', 'Department', 'Type', 'Salary', 'Closing', 'Boards'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: 'var(--mute)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vacancies.map(v => (
+                      <tr key={v.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--heading)' }}>{v.title}</td>
+                        <td style={{ padding: '12px 14px', color: 'var(--mute)' }}>{v.dept}</td>
+                        <td style={{ padding: '12px 14px' }}><Badge variant="slate">{v.type}</Badge></td>
+                        <td style={{ padding: '12px 14px', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{v.salary || '—'}</td>
+                        <td style={{ padding: '12px 14px', color: 'var(--mute)', fontSize: 12 }}>{v.closingDate || '—'}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {v.boards.map(b => <Badge key={b} variant="blue">{b}</Badge>)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Panel>
         </>
       )}
@@ -515,6 +548,35 @@ export default function HR() {
             />
           </Panel>
         </>
+      )}
+      {showVacancyForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 540 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Post a Vacancy</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Role Title *" value={vacancyForm.title} onChange={(v) => setVacancyForm({ ...vacancyForm, title: v })} placeholder="e.g. Youth Support Worker" />
+              <FormInput label="Department" value={vacancyForm.dept} onChange={(v) => setVacancyForm({ ...vacancyForm, dept: v })} placeholder="e.g. Programmes" />
+              <FormInput label="Contract Type" as="select" value={vacancyForm.type} onChange={(v) => setVacancyForm({ ...vacancyForm, type: v })}>
+                <option>Full-time</option><option>Part-time</option><option>Casual</option><option>Temporary</option><option>Volunteer</option>
+              </FormInput>
+              <FormInput label="Salary / Rate" value={vacancyForm.salary} onChange={(v) => setVacancyForm({ ...vacancyForm, salary: v })} placeholder="e.g. GBP 24,000–27,000" />
+              <FormInput label="Closing Date" value={vacancyForm.closingDate} onChange={(v) => setVacancyForm({ ...vacancyForm, closingDate: v })} placeholder="YYYY-MM-DD" />
+            </div>
+            <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--line)', fontSize: 12, color: 'var(--mute)', lineHeight: 1.7 }}>
+              This vacancy will be listed in your recruitment tracker. To share externally, copy the role details to Indeed, LinkedIn, Reed, Charity Job, or Guardian Jobs.
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <Button variant="ghost" fullWidth onClick={() => setShowVacancyForm(false)}>Cancel</Button>
+              <Button fullWidth onClick={() => {
+                if (!vacancyForm.title.trim()) { toast.error('Role title is required'); return }
+                setVacancies(prev => [...prev, { id: Date.now(), ...vacancyForm, boards: [] }])
+                setVacancyForm({ title: '', dept: '', type: 'Full-time', salary: '', closingDate: '' })
+                setShowVacancyForm(false)
+                toast.success('Vacancy posted to recruitment tracker')
+              }}>Post Vacancy</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import AppLayout from '@/components/layout/AppLayout'
-import { Badge, Button, EmptyState, Panel, ProgressBar, StatCard } from '@/components/ui'
+import { Badge, Button, EmptyState, FormInput, Panel, ProgressBar, StatCard } from '@/components/ui'
 import toast from 'react-hot-toast'
 
 type Tab = 'overview' | 'tasks' | 'milestones' | 'resources'
@@ -42,14 +42,64 @@ const TASK_COLUMNS: { key: TaskStatus; color: string; description: string }[] = 
 
 const gbp = (n: number) => `GBP ${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`
 
-const projects: Project[] = []
-const tasks: Task[] = []
-const milestones: Milestone[] = []
+const EMPTY_PROJECT_FORM = { name: '', description: '', owner: '', startDate: '', endDate: '', budget: '' }
+const EMPTY_TASK_FORM = { title: '', projectId: '', assignee: '', priority: 'Medium' as Priority, dueDate: '', description: '' }
+const EMPTY_MILESTONE_FORM = { title: '', projectId: '', dueDate: '' }
 
 export default function Projects() {
   const router = useRouter()
+  const [projects, setProjects] = useState<Project[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
   const [tab, setTab] = useState<Tab>('overview')
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [showNewProject, setShowNewProject] = useState(false)
+  const [projectForm, setProjectForm] = useState(EMPTY_PROJECT_FORM)
+  const [showAddTask, setShowAddTask] = useState(false)
+  const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM)
+  const [showAddMilestone, setShowAddMilestone] = useState(false)
+  const [milestoneForm, setMilestoneForm] = useState(EMPTY_MILESTONE_FORM)
+
+  const submitProject = () => {
+    if (!projectForm.name.trim() || !projectForm.owner.trim()) { toast.error('Project name and owner are required'); return }
+    const newProject: Project = {
+      id: Date.now(), name: projectForm.name.trim(), description: projectForm.description.trim(),
+      status: 'Planning', owner: projectForm.owner.trim(), team: [],
+      startDate: projectForm.startDate || new Date().toISOString().slice(0, 10),
+      endDate: projectForm.endDate || '',
+      budget: Number(projectForm.budget) || 0, spent: 0, progress: 0, linkedGrant: null,
+    }
+    setProjects(prev => [...prev, newProject])
+    setProjectForm(EMPTY_PROJECT_FORM)
+    setShowNewProject(false)
+    toast.success('Project created')
+  }
+
+  const submitTask = () => {
+    if (!taskForm.title.trim()) { toast.error('Task title is required'); return }
+    const newTask: Task = {
+      id: Date.now(), projectId: Number(taskForm.projectId) || (projects[0]?.id ?? 0),
+      title: taskForm.title.trim(), status: 'To Do', assignee: taskForm.assignee.trim() || 'Unassigned',
+      priority: taskForm.priority, dueDate: taskForm.dueDate || null, description: taskForm.description.trim(),
+    }
+    setTasks(prev => [...prev, newTask])
+    setTaskForm(EMPTY_TASK_FORM)
+    setShowAddTask(false)
+    toast.success('Task added')
+  }
+
+  const submitMilestone = () => {
+    if (!milestoneForm.title.trim() || !milestoneForm.dueDate) { toast.error('Title and due date are required'); return }
+    const newMilestone: Milestone = {
+      id: Date.now(), projectId: Number(milestoneForm.projectId) || (projects[0]?.id ?? 0),
+      title: milestoneForm.title.trim(), dueDate: milestoneForm.dueDate,
+      completed: false, completedDate: null,
+    }
+    setMilestones(prev => [...prev, newMilestone])
+    setMilestoneForm(EMPTY_MILESTONE_FORM)
+    setShowAddMilestone(false)
+    toast.success('Milestone added')
+  }
 
   const tasksByStatus = useMemo(() => {
     const filtered = selectedProjectId ? tasks.filter(t => t.projectId === selectedProjectId) : tasks
@@ -74,7 +124,7 @@ export default function Projects() {
       actions={
         <div style={{ display: 'flex', gap: 10 }}>
           <Button variant="ghost" onClick={() => router.push('/ai')}>Realtouch IQ</Button>
-          <Button onClick={() => toast.success('Project creation coming soon — connect your workspace projects')}>+ New Project</Button>
+          <Button onClick={() => setShowNewProject(true)}>+ New Project</Button>
         </div>
       }
     >
@@ -177,7 +227,7 @@ export default function Projects() {
                 </button>
               ))}
             </div>
-            <Button small onClick={() => toast.success('Add task — create a project first')}>+ Add Task</Button>
+            <Button small onClick={() => setShowAddTask(true)}>+ Add Task</Button>
           </div>
 
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
@@ -235,8 +285,9 @@ export default function Projects() {
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--mute)' }}>
-              {visibleMilestones.filter(m => m.completed).length} / {visibleMilestones.length} completed
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12.5, color: 'var(--mute)' }}>{visibleMilestones.filter(m => m.completed).length} / {visibleMilestones.length} completed</span>
+              <Button small onClick={() => setShowAddMilestone(true)}>+ Add Milestone</Button>
             </div>
           </div>
 
@@ -350,6 +401,74 @@ export default function Projects() {
             </div>
           </>
         )
+      )}
+      {showNewProject && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 540 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>New Project</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Project Name *" value={projectForm.name} onChange={(v) => setProjectForm({ ...projectForm, name: v })} placeholder="e.g. Youth Employment Phase 2" />
+              <FormInput label="Owner *" value={projectForm.owner} onChange={(v) => setProjectForm({ ...projectForm, owner: v })} placeholder="Lead person" />
+              <FormInput label="Start Date" value={projectForm.startDate} onChange={(v) => setProjectForm({ ...projectForm, startDate: v })} placeholder="YYYY-MM-DD" />
+              <FormInput label="End Date" value={projectForm.endDate} onChange={(v) => setProjectForm({ ...projectForm, endDate: v })} placeholder="YYYY-MM-DD" />
+              <FormInput label="Budget (GBP)" value={projectForm.budget} onChange={(v) => setProjectForm({ ...projectForm, budget: v })} placeholder="0" />
+            </div>
+            <FormInput label="Description" value={projectForm.description} onChange={(v) => setProjectForm({ ...projectForm, description: v })} placeholder="Brief project overview" as="textarea" />
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowNewProject(false); setProjectForm(EMPTY_PROJECT_FORM) }}>Cancel</Button>
+              <Button fullWidth onClick={submitProject}>Create Project</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddTask && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 540 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Add Task</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <FormInput label="Task Title *" value={taskForm.title} onChange={(v) => setTaskForm({ ...taskForm, title: v })} placeholder="What needs to be done?" />
+              <FormInput label="Assignee" value={taskForm.assignee} onChange={(v) => setTaskForm({ ...taskForm, assignee: v })} placeholder="Team member name" />
+              <FormInput label="Priority" as="select" value={taskForm.priority} onChange={(v) => setTaskForm({ ...taskForm, priority: v as Priority })}>
+                <option>High</option><option>Medium</option><option>Low</option>
+              </FormInput>
+              <FormInput label="Due Date" value={taskForm.dueDate} onChange={(v) => setTaskForm({ ...taskForm, dueDate: v })} placeholder="YYYY-MM-DD" />
+              {projects.length > 0 && (
+                <FormInput label="Project" as="select" value={taskForm.projectId} onChange={(v) => setTaskForm({ ...taskForm, projectId: v })}>
+                  <option value="">— Select project —</option>
+                  {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                </FormInput>
+              )}
+            </div>
+            <FormInput label="Notes" value={taskForm.description} onChange={(v) => setTaskForm({ ...taskForm, description: v })} placeholder="Additional context" as="textarea" />
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowAddTask(false); setTaskForm(EMPTY_TASK_FORM) }}>Cancel</Button>
+              <Button fullWidth onClick={submitTask}>Add Task</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddMilestone && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line2)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--heading)', marginBottom: 20, fontFamily: "'Instrument Serif', serif" }}>Add Milestone</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormInput label="Milestone Title *" value={milestoneForm.title} onChange={(v) => setMilestoneForm({ ...milestoneForm, title: v })} placeholder="Key delivery checkpoint" />
+              <FormInput label="Due Date *" value={milestoneForm.dueDate} onChange={(v) => setMilestoneForm({ ...milestoneForm, dueDate: v })} placeholder="YYYY-MM-DD" />
+              {projects.length > 0 && (
+                <FormInput label="Project" as="select" value={milestoneForm.projectId} onChange={(v) => setMilestoneForm({ ...milestoneForm, projectId: v })}>
+                  <option value="">— Select project —</option>
+                  {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                </FormInput>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <Button variant="ghost" fullWidth onClick={() => { setShowAddMilestone(false); setMilestoneForm(EMPTY_MILESTONE_FORM) }}>Cancel</Button>
+              <Button fullWidth onClick={submitMilestone}>Add Milestone</Button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )

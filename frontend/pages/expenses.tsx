@@ -37,11 +37,6 @@ interface MileageEntry {
   amount: number; status: 'Pending' | 'Approved' | 'Rejected'
 }
 
-const MOCK_MILEAGE: MileageEntry[] = [
-  { id: 1, date: '2026-05-15', claimant: 'M. Okonkwo', journey: 'Office → Birmingham Conference Centre', miles: 84, vehicleType: 'car', passengers: 0, amount: 37.80, status: 'Approved' },
-  { id: 2, date: '2026-05-12', claimant: 'T. Singh', journey: 'Office → Partner site visit', miles: 32, vehicleType: 'car', passengers: 1, amount: 16.00, status: 'Pending' },
-  { id: 3, date: '2026-05-08', claimant: 'S. O\'Brien', journey: 'Home → Outreach event', miles: 18, vehicleType: 'motorcycle', passengers: 0, amount: 4.32, status: 'Approved' },
-]
 
 export default function Expenses() {
   const qc = useQueryClient()
@@ -52,7 +47,7 @@ export default function Expenses() {
   const [calcVehicle, setCalcVehicle] = useState<VehicleType>('car')
   const [calcYtdMiles, setCalcYtdMiles] = useState(0)
   const [calcPassengers, setCalcPassengers] = useState(0)
-  const [mileageLog, setMileageLog] = useState<MileageEntry[]>(MOCK_MILEAGE)
+  const [mileageLog, setMileageLog] = useState<MileageEntry[]>([])
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10))
   const [logJourney, setLogJourney] = useState('')
   const [logClaimant, setLogClaimant] = useState('')
