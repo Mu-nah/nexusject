@@ -256,18 +256,18 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Total Funds" value={money(summary?.total_cash ?? 0)} change={`Mode: ${periodLabel}`} changeUp icon="GBP" accentColor="#C9A84C" iconBg="rgba(201,168,76,0.12)" />
         <StatCard label={summary?.burn_label ?? 'Monthly Burn'} value={money(summary?.avg_monthly_burn ?? 0)} change={`Filtered to ${periodLabel.toLowerCase()}`} changeUp={dashboardPeriodMode === 'normal' && (summary?.avg_monthly_burn ?? 0) > 0} icon="B" accentColor="#F5365C" iconBg="rgba(245,54,92,0.12)" />
         <StatCard label="Cash Runway" value={summary?.cash_runway_months != null ? `${summary.cash_runway_months} mo` : '-'} change="At current burn rate" icon="R" accentColor="#5E9EFF" iconBg="rgba(94,158,255,0.12)" />
         <StatCard label={grantsLabel} value={money(summary?.total_grants_awarded ?? 0)} change={`${summary?.active_grants_count ?? 0} grants - ${money(summary?.total_grants_remaining ?? 0)} left`} changeUp icon="G" accentColor="#2DCE89" iconBg="rgba(45,206,137,0.12)" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14, marginBottom: 14 }}>
         <Panel title="Cash Flow" titleIcon="CF" iconColor="#C9A84C">
           {cashflowData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={210}>
-              <BarChart data={cashflowData} barGap={2}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={cashflowData} barGap={2} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,58,82,0.5)" vertical={false} />
                 <XAxis dataKey="month_short" tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#5C6B84', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `GBP ${Number(v) / 1000}k`} />
@@ -322,7 +322,7 @@ export default function Dashboard() {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 14 }}>
         <Panel
           title="Grant Status"
           titleIcon="GR"

@@ -142,3 +142,58 @@ a { color: inherit; text-decoration: none; }
 /* Progress bar */
 .progress-bar { height: 5px; background: var(--bg4); border-radius: 10px; overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 10px; transition: width 0.6s ease; }
+
+/* ── Responsive base ──────────────────────────────────────────────────── */
+
+/* Prevent horizontal overflow at the root */
+html, body { overflow-x: hidden; }
+
+/* Tables always scroll horizontally on small screens */
+table { width: 100%; }
+.table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Inputs and selects fill their container */
+input, select, textarea { max-width: 100%; }
+
+/* ── Responsive breakpoints ───────────────────────────────────────────── */
+
+/* Tablet — 1024px and below */
+@media (max-width: 1024px) {
+  /* Force any fixed 2- or 3-column grids to be flexible */
+  [style*="gridTemplateColumns: '1fr 1fr 1fr'"],
+  [style*='gridTemplateColumns: "1fr 1fr 1fr"'] {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  }
+  [style*="gridTemplateColumns: '1fr 1fr'"],
+  [style*='gridTemplateColumns: "1fr 1fr"'] {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  }
+}
+
+/* Mobile — 768px and below */
+@media (max-width: 768px) {
+  /* Stack any remaining fixed-column grids */
+  [style*='gridTemplateColumns'],
+  [style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Allow auto-fit grids to still do their thing */
+  [style*='repeat(auto-fit'],
+  [style*="repeat(auto-fit"] {
+    grid-template-columns: revert !important;
+  }
+
+  /* Recharts ResponsiveContainer: prevent overflow */
+  .recharts-responsive-container { overflow: hidden; }
+
+  /* Modals: full-width on mobile */
+  [style*='maxWidth: 560'],
+  [style*='maxWidth: 640'],
+  [style*='maxWidth: 720'] {
+    max-width: calc(100vw - 32px) !important;
+  }
+
+  /* Tighten panel padding on mobile */
+  .panel-body { padding: 14px !important; }
+}
